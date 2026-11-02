@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { addTeam, addUserToTeam, deleteTeam, setUserTeam, updateTeam, type ID } from '../store';
+import { addTeam, addUserToTeam, deleteTeam, moveUserInTeam, setUserPosition, setUserTeam, updateTeam, type ID } from '../store';
+import { byRank, teamRank } from '../logic';
 import { run, useMe } from '../ui';
 import { Icon } from '../icons';
 import { TeamSelect } from './Auth';
 import { TeamTreeNode, teamPath } from './OrgTree';
 
 type Panel = 'none' | 'create' | 'edit' | 'users' | 'delete';
-const blankUser = { loginId: '', password: '', name: '', phone: '' };
+const blankUser = { loginId: '', password: '', name: '', phone: '', position: '' };
 
 export default function SysAdminLayout() {
   const { db, me } = useMe();
@@ -23,11 +24,17 @@ export default function SysAdminLayout() {
   const [parentId, setParentId] = useState<ID | null>(null);
   const [assignUserId, setAssignUserId] = useState('');
   const [newUser, setNewUser] = useState(blankUser);
+  const [editingId, setEditingId] = useState<ID | null>(null);
+  const [positionDraft, setPositionDraft] = useState('');
 
   if (!me?.isSysAdmin) return <Navigate to="/" replace />;
   const selectedTeam = db.teams.find(t => t.id === selectedTeamId) ?? null;
   const allUsers = db.users.filter(u => !u.isSysAdmin);
-  const teamUsers = selectedTeam ? allUsers.filter(u => u.teamId === selectedTeam.id) : allUsers;
+  // 팀을 고르면 그 팀의 조직도 순서(위 = 높은 사람), 전체 보기면 팀 구조도 순서 → 팀 안 순서
+  const rankOfTeam = teamRank(db);
+  const teamOrder = (id: ID | null) => (id && rankOfTeam.has(id) ? rankOfTeam.get(id)! : Number.MAX_SAFE_INTEGER);
+  const teamUsers = (selectedTeam ? allUsers.filter(u => u.teamId === selectedTeam.id) : allUsers)
+    .sort((a, b) => teamOrder(a.teamId) - teamOrder(b.teamId) || byRank(a, b));
   const shownUsers = teamUsers.filter(u => u[searchField].toLowerCase().includes(userSearch.trim().toLowerCase()));
   const otherUsers = selectedTeam ? allUsers.filter(u => u.teamId !== selectedTeam.id) : [];
   const deleteBlocker = selectedTeam && (
@@ -53,7 +60,6 @@ export default function SysAdminLayout() {
     <div className="stack lg sys-admin-page">
       <div className="page-head">
         <h1>회사 팀 구조도</h1>
-        <p className="muted">왼쪽에서 팀을 선택하면 해당 팀의 사용자 정보를 확인하고 관리할 수 있어요.</p>
       </div>
       <div className="org-layout">
         <aside className="org-sidebar" aria-label="회사 팀 목록">
@@ -81,7 +87,7 @@ export default function SysAdminLayout() {
         <section className="org-main" aria-label="사용자 정보">
           <div className="org-toolbar">
             <select aria-label="사용자 검색 기준" value={searchField} onChange={e => setSearchField(e.target.value as typeof searchField)}>
-              <option value="name">이름</option><option value="loginId">아이디</option><option value="phone">전화번호</option>
+              <option value="name">이름</option><option value="loginId">이메일</option><option value="phone">전화번호</option>
             </select>
             <div className="org-search grow">
               <Icon name="search" size={16} />
@@ -102,7 +108,7 @@ export default function SysAdminLayout() {
           {panel === 'create' && (
             <form className="org-editor" onSubmit={e => {
               e.preventDefault();
-              if (run(() => addTeam(me.id, teamName, parentId), '팀을 추가했습니다.')) { setPanel('none'); setTeamName(''); }
+              run(() => addTeam(me.id, teamName, parentId), '팀을 추가했습니다.').then(ok => { if (ok) { setPanel('none'); setTeamName(''); } });
             }}>
               <div className="org-editor-head">
                 <div><strong>{parentId ? '하위 팀 추가' : '최상위 팀 추가'}</strong><p>{parentId ? `${teamPath(db.teams, parentId)} 아래에 팀을 만듭니다.` : '회사 팀 구조도의 최상위에 팀을 만듭니다.'}</p></div>
@@ -118,7 +124,7 @@ export default function SysAdminLayout() {
           {panel === 'edit' && selectedTeam && (
             <form className="org-editor" onSubmit={e => {
               e.preventDefault();
-              if (run(() => updateTeam(me.id, selectedTeam.id, teamName, parentId), '팀을 수정했습니다.')) setPanel('none');
+              run(() => updateTeam(me.id, selectedTeam.id, teamName, parentId), '팀을 수정했습니다.').then(ok => ok && setPanel('none'));
             }}>
               <div className="org-editor-head">
                 <div><strong>팀 수정</strong><p>팀 이름이나 상위 팀을 변경합니다.</p></div>
@@ -147,18 +153,19 @@ export default function SysAdminLayout() {
                     </select>
                   </label>
                   <button className="btn primary solid" type="button" disabled={!assignUserId} onClick={() => {
-                    if (run(() => setUserTeam(me.id, assignUserId, selectedTeam.id), '사용자를 팀에 배정했습니다.')) setAssignUserId('');
+                    run(() => setUserTeam(me.id, assignUserId, selectedTeam.id), '사용자를 팀에 배정했습니다.').then(ok => ok && setAssignUserId(''));
                   }}>팀에 배정</button>
                 </div>
               </div>
               <form className="org-new-user" onSubmit={e => {
                 e.preventDefault();
-                if (run(() => addUserToTeam(me.id, selectedTeam.id, newUser), '사용자를 등록했습니다.')) setNewUser(blankUser);
+                run(() => addUserToTeam(me.id, selectedTeam.id, newUser), '사용자를 등록했습니다.').then(ok => ok && setNewUser(blankUser));
               }}>
                 <strong>새 사용자 등록</strong>
                 <div className="org-form-grid">
                   <label className="org-field"><span>이름</span><input placeholder="실명" value={newUser.name} onChange={e => setNewUser({ ...newUser, name: e.target.value })} required /></label>
-                  <label className="org-field"><span>아이디</span><input placeholder="로그인 아이디" value={newUser.loginId} onChange={e => setNewUser({ ...newUser, loginId: e.target.value })} required /></label>
+                  <label className="org-field"><span>직위</span><input placeholder="예: 팀장, 선임" value={newUser.position} onChange={e => setNewUser({ ...newUser, position: e.target.value })} /></label>
+                  <label className="org-field"><span>이메일</span><input type="email" placeholder="name@company.com" value={newUser.loginId} onChange={e => setNewUser({ ...newUser, loginId: e.target.value })} required /></label>
                   <label className="org-field"><span>초기 비밀번호</span><input type="password" placeholder="초기 비밀번호" value={newUser.password} onChange={e => setNewUser({ ...newUser, password: e.target.value })} required /></label>
                   <label className="org-field"><span>전화번호</span><input type="tel" placeholder="전화번호" value={newUser.phone} onChange={e => setNewUser({ ...newUser, phone: e.target.value })} required /></label>
                 </div>
@@ -174,25 +181,54 @@ export default function SysAdminLayout() {
               </div>
               <div className="org-delete-summary"><Icon name="trash" size={18} /><span><b>{selectedTeam.name}</b>{deleteBlocker ? ` · ${deleteBlocker}` : ' · 삭제 후 복구할 수 없습니다.'}</span></div>
               <div className="org-editor-actions"><button className="btn" onClick={() => setPanel('none')}>취소</button><button className="btn danger solid" disabled={!!deleteBlocker} onClick={() => {
-                if (run(() => deleteTeam(me.id, selectedTeam.id), '팀을 삭제했습니다.')) selectTeam(null);
+                run(() => deleteTeam(me.id, selectedTeam.id), '팀을 삭제했습니다.').then(ok => ok && selectTeam(null));
               }}>팀 삭제</button></div>
             </div>
           )}
           <div className="org-table-wrap">
             <table className="org-table">
-              <thead><tr><th>이름</th><th>아이디</th><th>소속 팀</th><th>전화번호</th></tr></thead>
+              <thead><tr>{selectedTeam && <th className="org-order">순서</th>}<th>이름</th><th>직위</th><th>이메일</th><th>소속 팀</th><th>전화번호</th></tr></thead>
               <tbody>
-                {shownUsers.map(u => (
-                  <tr key={u.id}>
-                    <td><strong>{u.name}</strong></td><td className="mono">{u.loginId}</td>
-                    <td>{teamPath(db.teams, u.teamId)}</td><td>{u.phone}</td>
-                  </tr>
-                ))}
-                {shownUsers.length === 0 && <tr><td colSpan={4} className="org-empty">표시할 사용자가 없습니다.</td></tr>}
+                {shownUsers.map(u => {
+                  const i = teamUsers.indexOf(u);
+                  return (
+                    <tr key={u.id}>
+                      {selectedTeam && (
+                        <td className="org-order">
+                          <span className="mini-arrows">
+                            <button disabled={i === 0} onClick={() => run(() => moveUserInTeam(u.id, -1))} aria-label={`${u.name} 위로`} title="위로"><Icon name="up" size={12} /></button>
+                            <button disabled={i === teamUsers.length - 1} onClick={() => run(() => moveUserInTeam(u.id, 1))} aria-label={`${u.name} 아래로`} title="아래로"><Icon name="down" size={12} /></button>
+                          </span>
+                          {i === 0 && <small className="org-top">대표</small>}
+                        </td>
+                      )}
+                      <td><strong>{u.name}</strong></td>
+                      <td>
+                        {editingId === u.id ? (
+                          <form className="org-inline" onSubmit={e => {
+                            e.preventDefault();
+                            run(() => setUserPosition(u.id, positionDraft), '직위를 바꿨습니다.').then(ok => ok && setEditingId(null));
+                          }}>
+                            <input value={positionDraft} onChange={e => setPositionDraft(e.target.value)} aria-label={`${u.name} 직위`} autoFocus />
+                            <button className="btn sm primary solid" type="submit">저장</button>
+                            <button className="btn sm ghost" type="button" onClick={() => setEditingId(null)}>취소</button>
+                          </form>
+                        ) : (
+                          <button className="link-btn org-position" onClick={() => { setEditingId(u.id); setPositionDraft(u.position); }} title="직위 수정">
+                            {u.position || <span className="muted">직위 없음</span>} <Icon name="pencil" size={12} />
+                          </button>
+                        )}
+                      </td>
+                      <td className="mono">{u.loginId}</td>
+                      <td>{teamPath(db.teams, u.teamId)}</td><td>{u.phone}</td>
+                    </tr>
+                  );
+                })}
+                {shownUsers.length === 0 && <tr><td colSpan={selectedTeam ? 6 : 5} className="org-empty">표시할 사용자가 없습니다.</td></tr>}
               </tbody>
             </table>
           </div>
-          <div className="org-footer">사용자 정보는 조회 전용입니다. 팀 배정과 신규 등록은 위의 사용자 관리에서 할 수 있습니다.</div>
+          <div className="org-footer">팀을 고르면 ▲▼로 팀 안 순서를 바꿀 수 있어요. 맨 위 사람이 그 팀에서 가장 높은 사람으로, 팀 발표에서 우리 팀을 불러올 때 대표로 먼저 지정돼요.</div>
         </section>
       </div>
     </div>

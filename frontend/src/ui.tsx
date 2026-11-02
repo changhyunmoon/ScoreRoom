@@ -18,15 +18,15 @@ export function Toaster() {
   return <div className="toaster">{list.map(t => <div key={t.id} className={`toast ${t.tone}`}>{t.text}</div>)}</div>;
 }
 
-/** 액션 실행 후 성공 메시지, 실패 시 에러 토스트 */
-export function run(fn: () => void, okText?: string) {
-  try { fn(); if (okText) toast(okText); return true; }
+/** 목업 데이터 변경을 실행하고 성공 메시지 또는 에러 토스트를 띄운다. 성공 여부를 돌려준다. */
+export async function run(fn: () => unknown, okText?: string): Promise<boolean> {
+  try { await fn(); if (okText) toast(okText); return true; }
   catch (e) { toast(e instanceof AppError ? e.message : '오류가 발생했습니다.', 'err'); if (!(e instanceof AppError)) console.error(e); return false; }
 }
 
 export function useMe() {
-  const { db, session } = useStore();
-  return { db, me: db.users.find(u => u.id === session) ?? null };
+  const { db, session, status } = useStore();
+  return { db, status, me: db.users.find(u => u.id === session) ?? null };
 }
 
 /** 두 번 눌러야 실행되는 위험 버튼 (브라우저 confirm 대신) */
@@ -77,6 +77,27 @@ export function SectionTitle({ icon, title, desc, right, tone = 'blue' }: { icon
 export const IconText = ({ icon, children }: { icon: IconName; children: ReactNode }) => <><Icon name={icon} size={16} />{children}</>;
 
 /** 1초마다 리렌더 (초대 코드 남은 시간 표시용) */
+/** 작은 팝업 틀 (모든 팝업 같은 크기). 머리 / 본문(넘치면 스크롤) / 바닥 버튼 줄. ESC나 바깥을 누르면 닫힌다 */
+export function Popup({ label, head, onClose, children, foot, className = '' }: { label: string; head: ReactNode; onClose: () => void; children: ReactNode; foot?: ReactNode; className?: string }) {
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [onClose]);
+  return (
+    <div className="org-modal-backdrop" onClick={onClose}>
+      <div className={`org-modal pres-popup ${className}`} role="dialog" aria-modal="true" aria-label={label} onClick={e => e.stopPropagation()}>
+        <div className="pres-popup-head">
+          <div>{head}</div>
+          <button type="button" className="org-modal-close" onClick={onClose} aria-label="닫기">×</button>
+        </div>
+        <div className="pres-popup-body">{children}</div>
+        <div className="pres-popup-foot">{foot ?? <button type="button" className="btn" onClick={onClose}>닫기</button>}</div>
+      </div>
+    </div>
+  );
+}
+
 export function useNow(intervalMs = 1000) {
   const [now, setNow] = useState(Date.now());
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), intervalMs); return () => clearInterval(t); }, [intervalMs]);

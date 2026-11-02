@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { involvedIds, type Project } from '../store';
 import { Chip, useMe } from '../ui';
 import { Icon } from '../icons';
-import { membership, myStatus, presentationsOf } from '../logic';
+import { membership, presentationsOf, roomAccess } from '../logic';
 
 type Item = { key: string; label: string; to: string; count?: number; red?: boolean };
 
@@ -14,28 +14,32 @@ export function ProjectShell({ project, current, children }: { project: Project;
   const [collapsed, setCollapsed] = useState(false);
   const [folded, setFolded] = useState<Record<string, boolean>>({});
   const m = membership(db, project.id, me!.id);
+  // 전체 열람 권한으로 들어온 경우: 발표와 결과만 볼 수 있다
+  const viewer = roomAccess(db, project.id, me!) === 'viewer';
   const base = `/p/${project.id}`;
   const all = presentationsOf(db, project.id);
-  const st = all.map(p => myStatus(db, project, p, me!.id));
-  const count = (s: string) => st.filter(x => x === s).length;
   const open = project.status === 'OPEN';
 
-  const groups: { key: string; label: string; items: Item[] }[] = [
+  const groups: { key: string; label: string; items: Item[] }[] = viewer ? [
+    {
+      key: 'view', label: '열람', items: [
+        { key: 'all', label: '전체 발표', to: base, count: all.length },
+        { key: 'results', label: '결과 현황', to: `${base}/results` },
+      ],
+    },
+  ] : [
     {
       key: 'rate', label: '평가', items: [
         { key: 'all', label: '전체 발표', to: base, count: all.length },
-        { key: 'todo', label: '평가 필요', to: `${base}?f=todo`, count: count('TODO'), red: true },
-        { key: 'done', label: '평가 완료', to: `${base}?f=done`, count: count('DONE') },
-        { key: 'blocked', label: '평가 불가', to: `${base}?f=blocked`, count: count('BLOCKED') },
-        { key: 'scheduled', label: '발표 전', to: `${base}?f=scheduled`, count: count('SCHEDULED') },
       ],
     },
     { key: 'mine', label: '내 발표', items: [{ key: 'mine', label: '내가 참여한 발표', to: `${base}?f=mine`, count: all.filter(p => involvedIds(p).includes(me!.id)).length }] },
   ];
   if (m?.isAdmin) groups.push({
     key: 'admin', label: '관리', items: [
-      { key: 'admin-run', label: '진행 관리', to: `${base}/admin?tab=run` },
-      { key: 'admin-result', label: '결과 보기', to: `${base}/admin?tab=result` },
+      { key: 'admin-run', label: '발표 관리', to: `${base}/admin?tab=run` },
+      { key: 'admin-invite', label: '초대·입장 코드', to: `${base}/admin?tab=invite` },
+      { key: 'results', label: '결과 현황', to: `${base}/results` },
       { key: 'admin-members', label: '참여자', to: `${base}/admin?tab=members` },
       { key: 'admin-settings', label: '설정', to: `${base}/admin?tab=settings` },
     ],
@@ -52,10 +56,24 @@ export function ProjectShell({ project, current, children }: { project: Project;
         </div>
         <div className="lnb-status">
           {open ? <Chip tone="green" icon="play">진행 중</Chip> : <Chip icon="flag">마감됨</Chip>}
-          <Chip tone="violet" icon={m?.isAdmin ? 'shield' : 'user'}>{m?.isAdmin ? '룸 운영자' : '참여자'}</Chip>
+          {viewer
+            ? <Chip tone="violet" icon="eye">열람 전용</Chip>
+            : <Chip tone="violet" icon={m?.isAdmin ? 'shield' : 'user'}>{m?.isAdmin ? '룸 운영자' : '참여자'}</Chip>}
         </div>
-        {open && <div className="lnb-write"><Link to={`${base}/pres/new`} className={`btn outline block ${current === 'write' ? 'on' : ''}`}><Icon name="plus" size={16} />발표 등록</Link></div>}
+        {open && !viewer && <div className="lnb-write"><Link to={`${base}/pres/new`} className={`btn outline block ${current === 'write' ? 'on' : ''}`}><Icon name="plus" size={16} />발표 등록</Link></div>}
         {groups.map(g => {
+          // 하위 항목이 하나뿐이면 묶음 대신 바로 이동하는 메뉴로 보여준다 (예: 평가, 내 발표)
+          if (g.items.length === 1) {
+            const i = g.items[0];
+            return (
+              <div key={g.key} className="lnb-group">
+                <Link to={i.to} className={`lnb-direct ${current === i.key ? 'on' : ''}`}>
+                  <span>{g.label}</span>
+                  {i.count !== undefined && <em className={i.red && i.count > 0 ? 'red' : ''}>{i.count}</em>}
+                </Link>
+              </div>
+            );
+          }
           const isFolded = folded[g.key];
           return (
             <div key={g.key} className="lnb-group">
@@ -77,7 +95,6 @@ export function ProjectShell({ project, current, children }: { project: Project;
             </div>
           );
         })}
-        <Link to="/" className="lnb-back"><Icon name="back" size={14} />내 평가룸 목록</Link>
       </aside>
       <button className="lnb-collapse" onClick={() => setCollapsed(c => !c)} aria-label={collapsed ? '왼쪽 메뉴 펼치기' : '왼쪽 메뉴 접기'} aria-expanded={!collapsed}><Icon name={collapsed ? 'right' : 'collapse'} size={14} /></button>
       <div className="board-main">
