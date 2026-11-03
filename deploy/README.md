@@ -47,7 +47,7 @@ Java 21, Nginx, PostgreSQL만 설치돼 있으면 됩니다. 나머지(서비스
 |---|---|---|
 | `DB_URL` | `jdbc:postgresql://localhost:5432/scoreroom` | localhost이면 배포가 DB·계정을 자동으로 만든다 |
 | `SCOREROOM_SESSION_SECURECOOKIE` | `false` | HTTPS를 붙이면 `true` |
-| `SCOREROOM_SIGNUP_ENABLED` | `false` | 공개 회원가입 허용 |
+| `SCOREROOM_SIGNUP_ENABLED` | `true` | 회원가입 허용 (`false`면 로그인 화면에서 가입 버튼이 사라진다) |
 | `JAVA_OPTS` | `-Xms256m -Xmx1g` | JVM 메모리 |
 
 - 값에는 줄바꿈, 큰따옴표(`"`), 역슬래시(`\`)를 쓸 수 없습니다 (배포가 알려 주고 멈춤).

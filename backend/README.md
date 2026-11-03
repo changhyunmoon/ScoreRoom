@@ -20,7 +20,7 @@ SPRING_PROFILES_ACTIVE=local DB_URL=jdbc:postgresql://localhost:5432/scoreroom D
 
 | 프로필 | 용도 |
 |---|---|
-| (기본) | 운영 기준값: 가입 꺼짐, Secure 쿠키 |
+| (기본) | 안전한 기준값: 가입 꺼짐, Secure 쿠키 |
 | `local` | 로컬 개발: http 쿠키 허용, 가입 켜짐, 가상 데이터·로컬 관리자 계정 |
 | `embedded-db` | 내장 PostgreSQL 실행 (개발 전용, 운영 jar에는 없음) |
 | `prod` | Nginx 뒤 http 운영: 전달 헤더 사용, Secure 쿠키 끔 (`SCOREROOM_SESSION_SECURECOOKIE`로 변경) |
@@ -30,7 +30,7 @@ SPRING_PROFILES_ACTIVE=local DB_URL=jdbc:postgresql://localhost:5432/scoreroom D
 | `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` | PostgreSQL 연결 |
 | `UPLOAD_DIR` | 발표 자료 저장 폴더 (빌드 폴더 밖, 백업 대상) |
 | `SCOREROOM_ADMIN_LOGIN_ID`, `SCOREROOM_ADMIN_PASSWORD` | 시스템 관리자가 없을 때 한 번 만드는 최초 관리자 |
-| `SCOREROOM_SIGNUP_ENABLED` | `prod`에서 공개 가입 허용 여부 (기본 false) |
+| `SCOREROOM_SIGNUP_ENABLED` | 회원가입 허용 여부 (`prod` 기본 true, 기본 프로필 false) |
 | `SCOREROOM_SESSION_SECURECOOKIE` | 세션 쿠키를 HTTPS 전용으로 (`prod` 기본 false) |
 
 운영(EC2)에서는 이 값들을 GitHub Secrets·Variables로 관리하고 배포 때 서버에 적용합니다. [deploy/README.md](../deploy/README.md) 참고.

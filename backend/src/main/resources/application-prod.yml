@@ -5,7 +5,7 @@ server:
 
 scoreroom:
   auth:
-    signup-enabled: ${SCOREROOM_SIGNUP_ENABLED:false}
+    signup-enabled: ${SCOREROOM_SIGNUP_ENABLED:true}
   session:
     # HTTPS 없이 http로 운영하므로 Secure 쿠키를 끈다 (HttpOnly·SameSite=Lax는 유지).
     # 나중에 HTTPS를 붙이면 SCOREROOM_SESSION_SECURECOOKIE=true로 켠다

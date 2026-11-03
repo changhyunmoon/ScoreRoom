@@ -79,7 +79,7 @@ jobs:
           ADMIN_LOGIN_ID: ${{ secrets.SCOREROOM_ADMIN_LOGIN_ID }}
           ADMIN_PASSWORD: ${{ secrets.SCOREROOM_ADMIN_PASSWORD }}
           SECURE_COOKIE: ${{ vars.SCOREROOM_SESSION_SECURECOOKIE || 'false' }}
-          SIGNUP_ENABLED: ${{ vars.SCOREROOM_SIGNUP_ENABLED || 'false' }}
+          SIGNUP_ENABLED: ${{ vars.SCOREROOM_SIGNUP_ENABLED || 'true' }}
           JAVA_OPTS: ${{ vars.JAVA_OPTS || '-Xms256m -Xmx1g' }}
         run: |
           umask 077
