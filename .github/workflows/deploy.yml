@@ -70,6 +70,58 @@ jobs:
           printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 644 ~/.ssh/known_hosts
 
+      # 서버 설정(/etc/scoreroom/scoreroom.env)을 GitHub Secrets·Variables로 만든다. 서버에서 직접 고치지 않는다
+      - name: Build server config
+        env:
+          DB_URL: ${{ vars.DB_URL || 'jdbc:postgresql://localhost:5432/scoreroom' }}
+          DB_USERNAME: ${{ secrets.DB_USERNAME || 'scoreroom' }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          ADMIN_LOGIN_ID: ${{ secrets.SCOREROOM_ADMIN_LOGIN_ID }}
+          ADMIN_PASSWORD: ${{ secrets.SCOREROOM_ADMIN_PASSWORD }}
+          SECURE_COOKIE: ${{ vars.SCOREROOM_SESSION_SECURECOOKIE || 'false' }}
+          SIGNUP_ENABLED: ${{ vars.SCOREROOM_SIGNUP_ENABLED || 'false' }}
+          JAVA_OPTS: ${{ vars.JAVA_OPTS || '-Xms256m -Xmx1g' }}
+        run: |
+          umask 077
+          for name in DB_PASSWORD ADMIN_LOGIN_ID ADMIN_PASSWORD; do
+            if [ -z "${!name}" ]; then
+              echo "::error::production 환경 Secret이 비어 있습니다: ${name/ADMIN_/SCOREROOM_ADMIN_}"
+              exit 1
+            fi
+          done
+          # systemd 설정 파일 형식: KEY="값". 값에 줄바꿈, 큰따옴표, 역슬래시는 쓸 수 없다
+          entry() {
+            if [[ "$2" == *$'\n'* || "$2" == *'"'* || "$2" == *'\'* ]]; then
+              echo "::error::$1 값에는 줄바꿈, 큰따옴표(\"), 역슬래시(\\)를 쓸 수 없습니다."
+              exit 1
+            fi
+            printf '%s="%s"\n' "$1" "$2"
+          }
+          {
+            entry SPRING_PROFILES_ACTIVE prod
+            entry SERVER_ADDRESS 127.0.0.1
+            entry SERVER_PORT 8080
+            entry DB_URL "$DB_URL"
+            entry DB_USERNAME "$DB_USERNAME"
+            entry DB_PASSWORD "$DB_PASSWORD"
+            entry UPLOAD_DIR /var/lib/scoreroom/uploads
+            entry SCOREROOM_ADMIN_LOGIN_ID "$ADMIN_LOGIN_ID"
+            entry SCOREROOM_ADMIN_PASSWORD "$ADMIN_PASSWORD"
+            entry SCOREROOM_SESSION_SECURECOOKIE "$SECURE_COOKIE"
+            entry SCOREROOM_SIGNUP_ENABLED "$SIGNUP_ENABLED"
+            entry JAVA_OPTS "$JAVA_OPTS"
+          } > "$RUNNER_TEMP/scoreroom.env"
+
+      - name: Upload server config
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_PORT: ${{ secrets.EC2_PORT || '22' }}
+        run: |
+          ssh -i ~/.ssh/deploy_key -p "$EC2_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "$EC2_USER@$EC2_HOST" \
+            "sudo install -d -o root -g root -m 755 /etc/scoreroom && sudo sh -c 'umask 077; cat > /etc/scoreroom/scoreroom.env.next'" \
+            < "$RUNNER_TEMP/scoreroom.env"
+
       - name: Upload release
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
@@ -96,6 +148,6 @@ jobs:
           sudo bash "$work/deploy/scripts/remote-deploy.sh" "$release_id" "$archive"
           REMOTE
 
-      - name: Clean up SSH key
+      - name: Clean up secrets
         if: always()
-        run: rm -f ~/.ssh/deploy_key
+        run: rm -f ~/.ssh/deploy_key "$RUNNER_TEMP/scoreroom.env"
