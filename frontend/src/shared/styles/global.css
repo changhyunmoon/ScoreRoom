@@ -144,8 +144,9 @@ input:disabled, select:disabled { background: var(--gray-soft); color: #a9abb1; 
 .segmented button.on { background: var(--navy); color: #fff; font-weight: 500; }
 .segmented button:disabled { cursor: not-allowed; opacity: .6; }
 
-.switch { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; font-size: 14px; user-select: none; }
-.switch input { display: none; }
+.switch { position: relative; display: inline-flex; align-items: center; gap: 10px; cursor: pointer; font-size: 14px; user-select: none; }
+.switch input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.switch input:focus-visible + span { outline: 2px solid var(--navy); outline-offset: 2px; }
 .switch span { width: 42px; height: 24px; border-radius: 999px; background: #cfd2d8; position: relative; transition: .15s; flex-shrink: 0; }
 .switch span::after { content: ''; position: absolute; left: 3px; top: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; transition: .15s; box-shadow: 0 1px 2px rgba(0,0,0,.25); }
 .switch input:checked + span { background: var(--navy); }

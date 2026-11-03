@@ -65,7 +65,7 @@ export function SettingsTab({ project }: { project: Project }) {
 
       <section className="card stack">
         <SectionTitle icon="sliders" title="집계 기준 범위"
-          right={<span className="switch"><input type="checkbox" disabled={!open || reset} checked={aggOn} onChange={e => setF({ ...f, aggOn: e.target.checked })} aria-label="집계 기준 사용" /><span /></span>} />
+          right={<label className="switch"><input type="checkbox" disabled={!open || reset} checked={aggOn} onChange={e => setF({ ...f, aggOn: e.target.checked })} aria-label="집계 기준 사용" /><span /></label>} />
         {reset ? (
           <p className="muted small">저장하면 '사용 안 함'으로 초기화돼요.</p>
         ) : f.aggOn ? (
