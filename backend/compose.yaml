@@ -1,0 +1,16 @@
+# 로컬 개발용 PostgreSQL (Docker를 쓰는 경우). 내장 DB 대신 쓰려면 README의 실행 방법을 참고한다.
+# 비밀번호는 로컬 전용 값이다. 운영 DB에는 쓰지 않는다.
+services:
+  postgres:
+    image: postgres:17.6
+    environment:
+      POSTGRES_DB: scoreroom
+      POSTGRES_USER: scoreroom
+      POSTGRES_PASSWORD: scoreroom
+    ports:
+      - "5432:5432"
+    volumes:
+      - scoreroom-db:/var/lib/postgresql/data
+
+volumes:
+  scoreroom-db:

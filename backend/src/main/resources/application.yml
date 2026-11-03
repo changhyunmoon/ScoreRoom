@@ -1,0 +1,61 @@
+# 공통 설정. 비밀값은 환경변수로만 넣는다.
+spring:
+  application:
+    name: scoreroom
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/scoreroom}
+    username: ${DB_USERNAME:scoreroom}
+    password: ${DB_PASSWORD:}
+    hikari:
+      maximum-pool-size: 10
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+  session:
+    # 30분 동안 요청이 없으면 로그인이 만료된다
+    timeout: 30m
+    jdbc:
+      initialize-schema: never
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 51MB
+  jackson:
+    deserialization:
+      # 점수 72.5를 72로 잘라 받지 않는다 (정수가 아니면 400)
+      accept-float-as-int: false
+
+server:
+  shutdown: graceful
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+
+scoreroom:
+  auth:
+    signup-enabled: false
+  session:
+    # 세션 쿠키 설정은 SessionCookieConfig (HttpOnly, SameSite=Lax)
+    secure-cookie: true
+  storage:
+    upload-dir: ${UPLOAD_DIR:./data/uploads}
+  bootstrap-admin:
+    login-id: ${SCOREROOM_ADMIN_LOGIN_ID:}
+    password: ${SCOREROOM_ADMIN_PASSWORD:}
+
+logging:
+  pattern:
+    level: "%5p [%X{requestId:-}]"

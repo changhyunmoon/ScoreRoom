@@ -1,0 +1,192 @@
+package com.scoreroom.presentation.service;
+
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.scoreroom.common.error.ApiException;
+import com.scoreroom.presentation.domain.Crew;
+import com.scoreroom.presentation.domain.Presentation;
+import com.scoreroom.presentation.domain.PresentationMember;
+import com.scoreroom.presentation.dto.SavePresentationRequest;
+import com.scoreroom.presentation.repository.PresentationMemberRepository;
+import com.scoreroom.presentation.repository.PresentationRepository;
+import com.scoreroom.project.domain.Membership;
+import com.scoreroom.project.repository.MembershipRepository;
+import com.scoreroom.project.service.RoomGuard;
+import com.scoreroom.project.service.RoomGuard.RoomWrite;
+import com.scoreroom.rating.repository.RatingRepository;
+
+/** 발표 등록·수정·삭제와 순서 */
+@Service
+public class PresentationService {
+
+    private final PresentationRepository presentations;
+    private final PresentationMemberRepository presentationMembers;
+    private final MembershipRepository memberships;
+    private final RatingRepository ratings;
+    private final RoomGuard roomGuard;
+    private final PresentationRemover remover;
+
+    public PresentationService(PresentationRepository presentations, PresentationMemberRepository presentationMembers,
+            MembershipRepository memberships, RatingRepository ratings, RoomGuard roomGuard, PresentationRemover remover) {
+        this.presentations = presentations;
+        this.presentationMembers = presentationMembers;
+        this.memberships = memberships;
+        this.ratings = ratings;
+        this.roomGuard = roomGuard;
+        this.remover = remover;
+    }
+
+    /** 참여자 누구나 등록한다. 만든 사람이 발표를 수정할 수 있다 */
+    @Transactional
+    public UUID create(UUID actorId, UUID projectId, SavePresentationRequest request) {
+        RoomWrite room = roomGuard.lockAsMember(projectId, actorId);
+        Crew crew = validateCrew(room, request);
+        Presentation presentation = new Presentation(projectId, actorId, presentations.findMaxSortOrder(projectId) + 1);
+        describe(presentation, request, crew);
+        presentations.save(presentation);
+        syncMembers(presentation, crew, List.of());
+        return presentation.getId();
+    }
+
+    /** 점수를 받은 발표는 평가 대상이 바뀌지 않도록 구성원 추가·제외를 막고 역할 변경만 허용한다 */
+    @Transactional
+    public void update(UUID actorId, UUID projectId, UUID presentationId, SavePresentationRequest request) {
+        RoomWrite room = roomGuard.lockAsMember(projectId, actorId);
+        Presentation presentation = require(projectId, presentationId);
+        if (!presentation.canBeEditedBy(actorId, room.membership().isAdmin())) {
+            throw ApiException.forbidden("대표, 발표를 만든 사람, 룸 운영자만 수정할 수 있습니다.");
+        }
+        Crew crew = validateCrew(room, request);
+        List<PresentationMember> current = presentationMembers.findByPresentationId(presentationId);
+        Set<UUID> before = current.stream().map(PresentationMember::getUserId).collect(Collectors.toSet());
+        if (!before.equals(new HashSet<>(crew.everyone())) && ratings.existsByPresentationId(presentationId)) {
+            throw ApiException.badRequest("점수를 받은 발표는 구성원을 추가하거나 뺄 수 없습니다.");
+        }
+        describe(presentation, request, crew);
+        syncMembers(presentation, crew, current);
+    }
+
+    @Transactional
+    public void delete(UUID actorId, UUID projectId, UUID presentationId) {
+        roomGuard.lockAsAdmin(projectId, actorId);
+        remover.remove(require(projectId, presentationId));
+    }
+
+    /** 한 칸 위(-1)·아래(+1)로 옮긴다 */
+    @Transactional
+    public void move(UUID actorId, UUID projectId, UUID presentationId, int dir) {
+        roomGuard.lockAsAdmin(projectId, actorId);
+        List<Presentation> list = presentations.findByProjectIdOrderBySortOrderAscIdAsc(projectId);
+        int from = indexOf(list, presentationId);
+        int to = from + Integer.signum(dir);
+        if (to < 0 || to >= list.size()) {
+            return;
+        }
+        int a = list.get(from).getSortOrder();
+        int b = list.get(to).getSortOrder();
+        list.get(from).changeSortOrder(a == b ? to + 1 : b);
+        list.get(to).changeSortOrder(a == b ? from + 1 : a);
+    }
+
+    /** 전체 순서를 저장한다. 그 사이 발표가 추가·삭제됐으면 409 */
+    @Transactional
+    public void reorder(UUID actorId, UUID projectId, List<UUID> orderedIds) {
+        roomGuard.lockAsAdmin(projectId, actorId);
+        Map<UUID, Presentation> byId = presentations.findByProjectIdOrderBySortOrderAscIdAsc(projectId).stream()
+                .collect(Collectors.toMap(Presentation::getId, Function.identity()));
+        if (orderedIds.size() != byId.size() || !byId.keySet().equals(new HashSet<>(orderedIds))) {
+            throw ApiException.conflict("발표 목록이 바뀌었습니다. 다시 시도해 주세요.");
+        }
+        for (int i = 0; i < orderedIds.size(); i++) {
+            byId.get(orderedIds.get(i)).changeSortOrder(i + 1);
+        }
+    }
+
+    private Presentation require(UUID projectId, UUID presentationId) {
+        return presentations.findByIdAndProjectId(presentationId, projectId)
+                .orElseThrow(() -> ApiException.notFound("발표를 찾을 수 없습니다."));
+    }
+
+    private Crew validateCrew(RoomWrite room, SavePresentationRequest request) {
+        Crew crew = Crew.normalize(request.type(), request.leaderId(), request.presenterIds(), request.memberIds());
+        Set<UUID> roomMembers = memberships.findByProjectId(room.projectId()).stream()
+                .map(Membership::getUserId).collect(Collectors.toSet());
+        List<UUID> everyone = crew.everyone();
+        if (!roomMembers.containsAll(everyone)) {
+            throw ApiException.badRequest("평가룸 참여자만 구성원으로 등록할 수 있습니다.");
+        }
+        UUID actorId = room.membership().getUserId();
+        if (!room.membership().isAdmin() && !everyone.contains(actorId)) {
+            throw ApiException.badRequest("본인을 구성원에서 뺄 수 없습니다. 대표·발표자·팀원 중 하나를 선택해 주세요.");
+        }
+        return crew;
+    }
+
+    private static void describe(Presentation presentation, SavePresentationRequest request, Crew crew) {
+        String intro = request.intro() == null ? "" : request.intro().trim();
+        presentation.describe(request.title().trim(), intro, request.type(), normalizeUrl(request.deployUrl()));
+        presentation.changeLeader(crew.leaderId());
+    }
+
+    /** 구성원 행을 원하는 구성으로 맞춘다. 순서는 대표 → 발표자 → 팀원 */
+    private void syncMembers(Presentation presentation, Crew crew, List<PresentationMember> current) {
+        Map<UUID, PresentationMember> existing = current.stream()
+                .collect(Collectors.toMap(PresentationMember::getUserId, Function.identity()));
+        List<UUID> everyone = crew.everyone();
+        List<PresentationMember> toSave = new ArrayList<>();
+        for (int i = 0; i < everyone.size(); i++) {
+            UUID userId = everyone.get(i);
+            PresentationMember row = existing.remove(userId);
+            if (row == null) {
+                toSave.add(new PresentationMember(presentation.getProjectId(), presentation.getId(), userId,
+                        crew.isPresenter(userId), i));
+            } else {
+                row.assignRole(crew.isPresenter(userId), i);
+            }
+        }
+        presentationMembers.deleteAll(existing.values());
+        presentationMembers.saveAll(toSave);
+    }
+
+    private static int indexOf(List<Presentation> list, UUID presentationId) {
+        for (int i = 0; i < list.size(); i++) {
+            if (list.get(i).getId().equals(presentationId)) {
+                return i;
+            }
+        }
+        throw ApiException.notFound("발표를 찾을 수 없습니다.");
+    }
+
+    /** 배포 URL은 http/https만 받는다. 서버가 이 주소를 직접 불러오지는 않는다 */
+    static String normalizeUrl(String raw) {
+        String value = raw == null ? "" : raw.trim();
+        if (value.isEmpty()) {
+            return null;
+        }
+        if (value.length() > 500) {
+            throw ApiException.badRequest("배포 URL은 500자 이하로 입력해 주세요.");
+        }
+        try {
+            URI uri = new URI(value);
+            String scheme = uri.getScheme() == null ? "" : uri.getScheme().toLowerCase();
+            if ((scheme.equals("http") || scheme.equals("https")) && uri.getHost() != null) {
+                return value;
+            }
+        } catch (URISyntaxException e) {
+            // 아래에서 같은 안내를 한다
+        }
+        throw ApiException.badRequest("배포 URL은 http:// 또는 https://로 시작하는 주소로 입력해 주세요.");
+    }
+}

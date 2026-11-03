@@ -1,0 +1,64 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '4.1.2'
+    id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.scoreroom'
+version = '0.1.0'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+ext {
+    // 개발·테스트용 내장 PostgreSQL (운영 빌드에는 포함되지 않는다)
+    embeddedPostgresVersion = '2.2.2'
+    postgresBinariesVersion = '17.11.0'
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-flyway'
+    implementation 'org.springframework.boot:spring-boot-starter-session-jdbc'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'org.flywaydb:flyway-database-postgresql'
+    runtimeOnly 'org.postgresql:postgresql'
+
+    compileOnly "io.zonky.test:embedded-postgres:${embeddedPostgresVersion}"
+    developmentOnly "io.zonky.test:embedded-postgres:${embeddedPostgresVersion}"
+    developmentOnly enforcedPlatform("io.zonky.test.postgres:embedded-postgres-binaries-bom:${postgresBinariesVersion}")
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-security-test'
+    testImplementation "io.zonky.test:embedded-postgres:${embeddedPostgresVersion}"
+    testImplementation enforcedPlatform("io.zonky.test.postgres:embedded-postgres-binaries-bom:${postgresBinariesVersion}")
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
+
+// 로컬 실행 기본 프로필: local + 내장 PostgreSQL. SPRING_PROFILES_ACTIVE 환경변수로 바꿀 수 있다
+tasks.named('bootRun') {
+    if (!System.getenv('SPRING_PROFILES_ACTIVE')) {
+        systemProperty 'spring.profiles.active', 'local,embedded-db'
+    }
+}
+
+
+// 배포 산출물은 실행 jar 하나만 만든다 (plain jar 생략)
+tasks.named('jar') {
+    enabled = false
+}

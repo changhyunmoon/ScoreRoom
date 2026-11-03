@@ -1,0 +1,5 @@
+# 셸 스크립트와 Gradle 래퍼는 리눅스(EC2, GitHub Actions)에서 실행되므로 LF로 고정한다
+*.sh text eol=lf
+backend/gradlew text eol=lf
+*.service text eol=lf
+deploy/** text eol=lf

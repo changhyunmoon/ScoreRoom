@@ -1,0 +1,23 @@
+package com.scoreroom.result.dto;
+
+import java.util.UUID;
+
+/**
+ * 발표 구성원 한 명의 집계.
+ * total: 평가룸 참여자 수, blocked: 평가할 수 없는 인원(점수를 주지 않은 사람 중), eligible: total - blocked,
+ * scored: 점수를 준 인원, notRated: 평가할 수 있는데 아직 안 준 인원.
+ * avg: 전체 평균 (제출이 없으면 null), inCount/inAvg: 집계 기준 범위 안의 제출 수/평균 (범위를 안 쓰면 0/null).
+ * 미제출과 평가 불가는 0점으로 넣지 않는다. 반올림은 화면에서 한다.
+ */
+public record SummaryResponse(
+        UUID presentationId,
+        UUID targetId,
+        int total,
+        int blocked,
+        int eligible,
+        int scored,
+        int notRated,
+        Double avg,
+        int inCount,
+        Double inAvg) {
+}

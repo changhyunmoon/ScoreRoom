@@ -1,0 +1,12 @@
+# 운영용. DB_URL, DB_USERNAME, DB_PASSWORD, UPLOAD_DIR와 최초 관리자 값은 환경변수로 넣는다.
+server:
+  # Nginx 뒤에서 실제 접속 주소(HTTPS, 클라이언트 IP)를 쓴다
+  forward-headers-strategy: native
+
+scoreroom:
+  auth:
+    signup-enabled: ${SCOREROOM_SIGNUP_ENABLED:false}
+  session:
+    # HTTPS 없이 http로 운영하므로 Secure 쿠키를 끈다 (HttpOnly·SameSite=Lax는 유지).
+    # 나중에 HTTPS를 붙이면 SCOREROOM_SESSION_SECURECOOKIE=true로 켠다
+    secure-cookie: ${SCOREROOM_SESSION_SECURECOOKIE:false}

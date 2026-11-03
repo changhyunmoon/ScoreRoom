@@ -1,0 +1,15 @@
+# 로컬 개발용. 운영에서는 이 프로필을 켜지 않는다.
+server:
+  port: 8080
+
+scoreroom:
+  auth:
+    signup-enabled: true
+  session:
+    # 로컬은 http로 접속하므로 Secure를 끈다
+    secure-cookie: false
+  storage:
+    upload-dir: ${UPLOAD_DIR:./.local/uploads}
+  bootstrap-admin:
+    login-id: ${SCOREROOM_ADMIN_LOGIN_ID:admin@example.com}
+    password: ${SCOREROOM_ADMIN_PASSWORD:admin1234!}

@@ -1,0 +1,101 @@
+# main에 merge(push)되면 CI를 다시 돌리고, 통과하면 EC2에 SSH로 배포한다.
+# 필요한 설정은 deploy/README.md 참고 (GitHub Environment "production"의 Secrets).
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# 배포는 한 번에 하나씩, 진행 중인 배포를 끊지 않고 순서대로
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    name: Deploy to EC2
+    needs: ci
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 15
+    env:
+      RELEASE_ID: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: deploy
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: backend-jar
+          path: artifacts/backend
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: artifacts/web
+
+      # 릴리스 묶음: app.jar + web/(화면) + deploy/(서버 스크립트)
+      - name: Package release
+        run: |
+          mkdir -p release
+          jars=(artifacts/backend/*.jar)
+          if [ "${#jars[@]}" -ne 1 ]; then echo "실행 jar가 정확히 하나여야 합니다: ${jars[*]}"; exit 1; fi
+          cp "${jars[0]}" release/app.jar
+          cp -r artifacts/web release/web
+          cp -r deploy release/deploy
+          echo "$RELEASE_ID" > release/REVISION
+          tar -czf "scoreroom-$RELEASE_ID.tar.gz" -C release .
+          ls -lh "scoreroom-$RELEASE_ID.tar.gz"
+
+      # 서버 호스트 키는 Secret으로 고정한다 (ssh-keyscan 결과를 그대로 믿지 않는다)
+      - name: Configure SSH
+        env:
+          SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.EC2_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Upload release
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_PORT: ${{ secrets.EC2_PORT || '22' }}
+        run: |
+          scp -i ~/.ssh/deploy_key -P "$EC2_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "scoreroom-$RELEASE_ID.tar.gz" "$EC2_USER@$EC2_HOST:/tmp/scoreroom-$RELEASE_ID.tar.gz"
+
+      - name: Activate release
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_PORT: ${{ secrets.EC2_PORT || '22' }}
+        run: |
+          ssh -i ~/.ssh/deploy_key -p "$EC2_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "$EC2_USER@$EC2_HOST" bash -s -- "$RELEASE_ID" <<'REMOTE'
+          set -euo pipefail
+          release_id="$1"
+          archive="/tmp/scoreroom-$release_id.tar.gz"
+          work="$(mktemp -d)"
+          trap 'rm -rf "$work"' EXIT
+          tar -xzf "$archive" -C "$work" ./deploy/scripts/remote-deploy.sh
+          sudo bash "$work/deploy/scripts/remote-deploy.sh" "$release_id" "$archive"
+          REMOTE
+
+      - name: Clean up SSH key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key
