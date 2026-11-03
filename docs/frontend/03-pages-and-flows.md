@@ -2,7 +2,7 @@
 
 ## 현재 라우트와 접근
 
-현재 HashRouter를 사용한다. 표의 `/p/...`는 실제 브라우저 주소에서 `/#/p/...`로 표시된다. 초기 API 연동에서도 HashRouter를 유지한다. BrowserRouter 전환은 향후 Nginx의 정적 경로 fallback과 `/api` 예외를 설정한 뒤 별도 검증한다.
+BrowserRouter를 사용한다(2026-11-03 전환). 표의 `/p/...`가 실제 브라우저 주소다. Nginx는 `/api` 밖의 모든 경로에 `index.html`을 돌려주고(`deploy/nginx/scoreroom.conf`), 예전 `/#/...` 주소는 앱 시작 시 새 주소로 바꾼다.
 
 | 경로 | 화면 | 접근 |
 |---|---|---|

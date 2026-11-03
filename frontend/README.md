@@ -1,6 +1,6 @@
 # ScoreRoom 프런트엔드
 
-React 18 + TypeScript + Vite + React Router(HashRouter). 설계는 [docs/frontend](../docs/frontend/README.md)를 따릅니다.
+React 18 + TypeScript + Vite + React Router(BrowserRouter: 주소에 `#` 없음). 설계는 [docs/frontend](../docs/frontend/README.md)를 따릅니다.
 
 ```bash
 npm ci

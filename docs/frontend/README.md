@@ -20,7 +20,7 @@ React + TypeScript + Vite SPA를 유지한다. React Router로 페이지를 구�
 
 ## 확인한 현재 코드
 
-- `frontend/src/App.tsx`: HashRouter, 공통 헤더, 계정 메뉴, 초대 알림, 라우트.
+- `frontend/src/App.tsx`(현재 `app/`): 라우터, 공통 헤더, 계정 메뉴, 초대 알림, 라우트.
 - `frontend/src/store.ts`: 데이터 타입, useSyncExternalStore 상태, 목업 호출, 인증 상태.
 - `frontend/src/mock/`: localStorage/IndexedDB 기반 서버 대역과 첨부 저장.
 - `frontend/src/logic.ts`: 평가 제한, 집계, 정렬, 표시용 함수.

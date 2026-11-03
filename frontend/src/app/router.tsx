@@ -1,4 +1,5 @@
-// 화면 경로. HashRouter라 실제 주소는 /#/p/... 로 보인다 (BrowserRouter 전환은 배포 설정과 함께 검토)
+// 화면 경로 (BrowserRouter: 주소가 /p/... 그대로 보인다).
+// 새로 고침·직접 접속을 위해 서버는 /api 밖의 모든 경로에 index.html을 돌려준다 (deploy/nginx/scoreroom.conf, Vite 개발 서버)
 import { Navigate, Route, Routes } from 'react-router-dom';
 import LoginPage from '../features/auth/pages/LoginPage';
 import SignupPage from '../features/auth/pages/SignupPage';
