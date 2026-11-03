@@ -80,12 +80,12 @@ export default function PresentationListPage() {
   const viewer = access === 'viewer';
   // 열람 전용은 평가 관련 필터가 없으므로 전체 발표만 본다
   const f = !viewer && FILTERS[sp.get('f') ?? ''] ? sp.get('f')! : 'all';
-  // 정렬은 주소에 남겨서 새로 고침해도 유지한다 (기본: 관리자 설정 순)
+  // 정렬은 주소에 남겨서 새로 고침해도 유지한다 (기본: 팀 구조도 순)
   const sortParam = sp.get('sort');
-  const sort: PresSort = sortParam === 'created' || sortParam === 'team' ? sortParam : 'order';
+  const sort: PresSort = sortParam === 'created' || sortParam === 'order' ? sortParam : 'team';
   const setSort = (v: PresSort) => {
     const next = new URLSearchParams(sp);
-    if (v === 'order') next.delete('sort'); else next.set('sort', v);
+    if (v === 'team') next.delete('sort'); else next.set('sort', v);
     setSp(next, { replace: true });
   };
   const [q, setQ] = useState('');
