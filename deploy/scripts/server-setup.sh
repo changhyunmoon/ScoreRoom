@@ -35,14 +35,34 @@ if ! cmp -s "$HERE/systemd/scoreroom.service" /etc/systemd/system/scoreroom.serv
 fi
 systemctl enable scoreroom >/dev/null 2>&1
 
-if [ ! -f /etc/nginx/sites-available/scoreroom ]; then
-  install -o root -g root -m 644 "$HERE/nginx/scoreroom.conf" /etc/nginx/sites-available/scoreroom
-  ln -sfn /etc/nginx/sites-available/scoreroom /etc/nginx/sites-enabled/scoreroom
-  if [ -L /etc/nginx/sites-enabled/default ]; then
-    rm /etc/nginx/sites-enabled/default
-    log "Nginx 기본 사이트(default)를 비활성화했습니다."
+# Nginx 사이트는 저장소 설정(deploy/nginx/scoreroom.conf)으로 맞춘다. 서버에 다른 내용이 있으면 백업 후 교체한다
+site=/etc/nginx/sites-available/scoreroom
+nginx_changed=false
+if ! cmp -s "$HERE/nginx/scoreroom.conf" "$site"; then
+  if [ -f "$site" ]; then
+    cp -p "$site" "$site.bak.$(date +%Y%m%d%H%M%S)"
+    log "기존 Nginx 설정을 백업했습니다: $site.bak.*"
   fi
+  install -o root -g root -m 644 "$HERE/nginx/scoreroom.conf" "$site"
+  nginx_changed=true
+fi
+if [ "$(readlink -f /etc/nginx/sites-enabled/scoreroom 2>/dev/null)" != "$site" ]; then
+  ln -sfn "$site" /etc/nginx/sites-enabled/scoreroom
+  nginx_changed=true
+fi
+if [ -e /etc/nginx/sites-enabled/default ]; then
+  rm /etc/nginx/sites-enabled/default
+  log "Nginx 기본 사이트(default)를 비활성화했습니다."
+  nginx_changed=true
+fi
+if $nginx_changed; then
   nginx -t
   systemctl reload nginx
-  log "Nginx 사이트 등록"
+  log "Nginx 사이트 적용"
+fi
+# 80번 포트를 다른 사이트가 가로채지 않는지 알려준다
+others="$(grep -lE 'listen[^;]*\b80\b' /etc/nginx/sites-enabled/* /etc/nginx/conf.d/*.conf 2>/dev/null | grep -v '/scoreroom$' || true)"
+if [ -n "$others" ]; then
+  log "주의: 80번 포트를 쓰는 다른 Nginx 설정이 켜져 있습니다. ScoreRoom 대신 그 화면이 보일 수 있습니다:"
+  echo "$others"
 fi

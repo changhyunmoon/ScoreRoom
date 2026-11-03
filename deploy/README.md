@@ -21,7 +21,7 @@ Java 21, Nginx, PostgreSQL만 설치돼 있으면 됩니다. 나머지(서비스
 
 - 배포 계정(예: `ubuntu`)은 비밀번호 없이 `sudo`를 쓸 수 있어야 합니다 (EC2 Ubuntu 기본값).
 - 보안그룹: 22번(배포용 SSH), 80번(서비스) 포트를 엽니다.
-- 첫 배포는 Nginx 기본 사이트(`default`)를 끄고 ScoreRoom을 80번 포트 기본 사이트로 등록합니다.
+- 배포는 Nginx 기본 사이트(`default`)를 끄고, `/etc/nginx/sites-available/scoreroom`을 저장소의 `deploy/nginx/scoreroom.conf`로 맞춥니다 (다르면 백업 후 교체). Nginx 설정은 저장소에서 고칩니다.
 
 ### 2. GitHub Environment `production`
 
