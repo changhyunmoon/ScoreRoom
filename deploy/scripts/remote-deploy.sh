@@ -72,13 +72,22 @@ provision_database() {
 SELECT format('CREATE ROLE %I LOGIN', :'u') WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = :'u') \gexec
 SELECT format('ALTER ROLE %I WITH LOGIN PASSWORD %L', :'u', :'pw') \gexec
 SELECT format('CREATE DATABASE %I OWNER %I', :'db', :'u') WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = :'db') \gexec
+-- DB를 미리 만들어 둔 경우에도 앱 계정이 소유하게 한다 (PostgreSQL 15+는 public 스키마에 소유자만 테이블을 만든다)
+SELECT format('ALTER DATABASE %I OWNER TO %I', :'db', :'u') \gexec
+\connect :db
+SELECT format('ALTER SCHEMA public OWNER TO %I', :'u') \gexec
 SQL
   )
   log "DB '$db', 계정 '$user' 준비 완료"
 }
 
 target="$RELEASES/$RELEASE_ID"
-previous="$(readlink -f "$CURRENT" 2>/dev/null || true)"
+# 이전 릴리스: current가 실제 릴리스 폴더를 가리킬 때만 (첫 배포나 깨진 링크면 없음)
+previous=""
+if [ -L "$CURRENT" ]; then
+  previous="$(readlink -e "$CURRENT" 2>/dev/null || true)"
+  [[ "$previous" == "$RELEASES"/* ]] || previous=""
+fi
 
 log "릴리스 $RELEASE_ID 준비"
 install -d -o root -g root -m 755 "$RELEASES"
@@ -113,6 +122,10 @@ else
     switch_to "$previous"
     systemctl restart "$SERVICE"
     wait_healthy && log "이전 릴리스로 복구됨" || log "이전 릴리스도 헬스체크에 실패했습니다. 서버를 확인하세요."
+  else
+    log "되돌아갈 이전 릴리스가 없어 서비스를 멈춥니다."
+    systemctl stop "$SERVICE" || true
+    rm -f "$CURRENT"
   fi
   rm -rf "$target"
   rm -f "$ARCHIVE"
