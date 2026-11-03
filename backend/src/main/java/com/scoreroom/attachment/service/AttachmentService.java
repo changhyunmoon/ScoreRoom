@@ -26,6 +26,7 @@ import com.scoreroom.common.error.ApiException;
 import com.scoreroom.common.error.ErrorCode;
 import com.scoreroom.infrastructure.storage.FileStorage;
 import com.scoreroom.presentation.domain.Presentation;
+import com.scoreroom.presentation.repository.PresentationMemberRepository;
 import com.scoreroom.presentation.repository.PresentationRepository;
 import com.scoreroom.project.domain.Project;
 import com.scoreroom.project.repository.ProjectRepository;
@@ -46,6 +47,7 @@ public class AttachmentService {
 
     private final AttachmentRepository attachments;
     private final PresentationRepository presentations;
+    private final PresentationMemberRepository presentationMembers;
     private final ProjectRepository projects;
     private final RoomGuard roomGuard;
     private final UserAccessService userAccess;
@@ -54,10 +56,12 @@ public class AttachmentService {
     private final TransactionTemplate transaction;
 
     public AttachmentService(AttachmentRepository attachments, PresentationRepository presentations,
+            PresentationMemberRepository presentationMembers,
             ProjectRepository projects, RoomGuard roomGuard, UserAccessService userAccess, FileStorage storage,
             FileCleanupService cleanup, PlatformTransactionManager transactionManager) {
         this.attachments = attachments;
         this.presentations = presentations;
+        this.presentationMembers = presentationMembers;
         this.projects = projects;
         this.roomGuard = roomGuard;
         this.userAccess = userAccess;
@@ -163,8 +167,10 @@ public class AttachmentService {
     private void requireEditable(RoomWrite room, UUID presentationId) {
         Presentation presentation = presentations.findByIdAndProjectId(presentationId, room.projectId())
                 .orElseThrow(() -> ApiException.notFound("발표를 찾을 수 없습니다."));
-        if (!presentation.canBeEditedBy(room.membership().getUserId(), room.membership().isAdmin())) {
-            throw ApiException.forbidden("대표, 발표를 만든 사람, 룸 운영자만 발표 자료를 바꿀 수 있습니다.");
+        UUID actorId = room.membership().getUserId();
+        boolean crew = presentationMembers.existsByPresentationIdAndUserId(presentationId, actorId);
+        if (!presentation.canBeEditedBy(actorId, room.membership().isAdmin(), crew)) {
+            throw ApiException.forbidden("발표 구성원, 발표를 만든 사람, 룸 운영자만 발표 자료를 바꿀 수 있습니다.");
         }
     }
 

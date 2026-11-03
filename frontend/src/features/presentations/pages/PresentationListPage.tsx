@@ -158,7 +158,7 @@ export default function PresentationListPage() {
 
       <div className={`btable ${sort === 'team' ? 'team-sorted' : ''}`}>
         <div className="bhead">
-          <span className="c-no" title={sort === 'team' ? '관리자 설정 순서' : undefined}>{sort === 'team' ? '관리자순' : 'No'}</span><span className="c-title">발표 제목</span><span className="c-type">유형</span>
+          <span className="c-no">No</span><span className="c-title">발표 제목</span><span className="c-type">유형</span>
           <span className="c-who">구성원</span><span className="c-status">상태</span><span className="c-score">내 평가</span><span className="c-chev" />
         </div>
         {shown.length === 0 && <div className="bempty">{kw ? '검색 결과가 없습니다.' : '해당하는 발표가 없습니다.'}</div>}

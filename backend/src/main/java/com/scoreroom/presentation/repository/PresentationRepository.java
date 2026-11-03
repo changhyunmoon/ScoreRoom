@@ -19,6 +19,8 @@ public interface PresentationRepository extends JpaRepository<Presentation, UUID
 
     List<Presentation> findByProjectIdIn(Collection<UUID> projectIds);
 
+    boolean existsByProjectIdAndTitleIgnoreCase(UUID projectId, String title);
+
     List<Presentation> findByIdIn(Collection<UUID> ids);
 
     @Query("select coalesce(max(p.sortOrder), 0) from Presentation p where p.projectId = :projectId")

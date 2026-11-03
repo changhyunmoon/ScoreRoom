@@ -2,6 +2,7 @@ package com.scoreroom.project;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -128,5 +129,51 @@ class RoomAdminApiTest extends IntegrationTest {
                 .andExpect(status().isOk());
         assertThat(jdbc.queryForObject("select is_presenter from presentation_members where presentation_id = ? and user_id = ?",
                 Boolean.class, shared, member.getId())).isTrue();
+    }
+
+    @Test
+    void 같은_평가룸에서는_발표_제목이_겹칠_수_없다() throws Exception {
+        UUID first = fixtures.personal(room, leader);
+        UUID second = fixtures.personal(room, presenter);
+        String body = "{\"title\":\"%s\",\"type\":\"PERSONAL\",\"leaderId\":\"%s\",\"presenterIds\":[],\"memberIds\":[]}";
+        // 새로 등록: 앞뒤 공백·대소문자만 다른 제목도 막는다
+        mvc.perform(json(post("/api/v1/projects/{p}/presentations", room),
+                body.formatted("  개인 발표 " + leader.getName().toUpperCase() + " ", member.getId()))
+                .with(as(member))).andExpect(status().isConflict());
+        // 수정: 다른 발표의 제목으로 바꿀 수 없다
+        mvc.perform(json(put("/api/v1/projects/{p}/presentations/{pr}", room, second),
+                body.formatted("개인 발표 " + leader.getName(), presenter.getId())).with(as(presenter)))
+                .andExpect(status().isConflict());
+        // 자기 제목 그대로 저장하는 것은 된다
+        mvc.perform(json(put("/api/v1/projects/{p}/presentations/{pr}", room, first),
+                body.formatted("개인 발표 " + leader.getName(), leader.getId())).with(as(leader)))
+                .andExpect(status().isOk());
+        // 다른 평가룸에서는 같은 제목을 쓸 수 있다
+        UUID otherRoom = fixtures.room(owner, leader);
+        fixtures.personal(otherRoom, leader);
+    }
+
+    @Test
+    void 구성원은_누구나_발표를_수정_삭제하고_점수를_받은_발표는_운영자만_삭제한다() throws Exception {
+        UUID shared = fixtures.teamPresentation(room, leader, List.of(presenter), List.of(member));
+        String rename = "{\"title\":\"새 제목\",\"type\":\"TEAM\",\"leaderId\":\"%s\",\"presenterIds\":[\"%s\"],\"memberIds\":[\"%s\"]}"
+                .formatted(leader.getId(), presenter.getId(), member.getId());
+        // 팀원도 수정할 수 있다
+        mvc.perform(json(put("/api/v1/projects/{p}/presentations/{pr}", room, shared), rename).with(as(member)))
+                .andExpect(status().isOk());
+        // 점수를 받으면 구성원은 지울 수 없고 운영자만 지운다
+        rate(owner, shared, member, 75);
+        mvc.perform(delete("/api/v1/projects/{p}/presentations/{pr}", room, shared).with(as(member)))
+                .andExpect(status().isForbidden());
+        mvc.perform(delete("/api/v1/projects/{p}/presentations/{pr}", room, shared).with(as(owner)))
+                .andExpect(status().is2xxSuccessful());
+
+        // 점수가 없으면 발표자도 지울 수 있다. 구성원이 아닌 사람은 못 지운다
+        UUID solo = fixtures.personal(room, presenter);
+        mvc.perform(delete("/api/v1/projects/{p}/presentations/{pr}", room, solo).with(as(member)))
+                .andExpect(status().isForbidden());
+        mvc.perform(delete("/api/v1/projects/{p}/presentations/{pr}", room, solo).with(as(presenter)))
+                .andExpect(status().is2xxSuccessful());
+        assertThat(count("select count(*) from presentations where project_id = ?", room)).isZero();
     }
 }

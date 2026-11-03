@@ -2,6 +2,7 @@ package com.scoreroom.support;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -33,6 +34,7 @@ public class TestFixtures {
     private final ProjectRepository projects;
     private final MembershipService membershipService;
     private final PresentationService presentationService;
+    private final AtomicInteger teamSeq = new AtomicInteger();
     private final TransactionTemplate tx;
 
     public TestFixtures(TeamRepository teams, UserRepository users, UserRegistrar registrar,
@@ -84,7 +86,7 @@ public class TestFixtures {
 
     public UUID teamPresentation(UUID projectId, User leader, List<User> presenters, List<User> members) {
         return presentationService.create(leader.getId(), projectId, new SavePresentationRequest(
-                "팀 발표", "", PresentationType.TEAM, leader.getId(),
+                "팀 발표 " + teamSeq.incrementAndGet(), "", PresentationType.TEAM, leader.getId(),
                 presenters.stream().map(User::getId).toList(), members.stream().map(User::getId).toList(), null));
     }
 

@@ -53,6 +53,7 @@ public class PresentationService {
     public UUID create(UUID actorId, UUID projectId, SavePresentationRequest request) {
         RoomWrite room = roomGuard.lockAsMember(projectId, actorId);
         Crew crew = validateCrew(room, request);
+        ensureTitleUnique(projectId, request.title().trim());
         Presentation presentation = new Presentation(projectId, actorId, presentations.findMaxSortOrder(projectId) + 1);
         describe(presentation, request, crew);
         presentations.save(presentation);
@@ -64,24 +65,30 @@ public class PresentationService {
     @Transactional
     public void update(UUID actorId, UUID projectId, UUID presentationId, SavePresentationRequest request) {
         RoomWrite room = roomGuard.lockAsMember(projectId, actorId);
-        Presentation presentation = require(projectId, presentationId);
-        if (!presentation.canBeEditedBy(actorId, room.membership().isAdmin())) {
-            throw ApiException.forbidden("대표, 발표를 만든 사람, 룸 운영자만 수정할 수 있습니다.");
-        }
+        Presentation presentation = requireEditable(room, presentationId);
         Crew crew = validateCrew(room, request);
         List<PresentationMember> current = presentationMembers.findByPresentationId(presentationId);
         Set<UUID> before = current.stream().map(PresentationMember::getUserId).collect(Collectors.toSet());
         if (!before.equals(new HashSet<>(crew.everyone())) && ratings.existsByPresentationId(presentationId)) {
             throw ApiException.badRequest("점수를 받은 발표는 구성원을 추가하거나 뺄 수 없습니다.");
         }
+        String title = request.title().trim();
+        if (!title.equalsIgnoreCase(presentation.getTitle())) {
+            ensureTitleUnique(projectId, title);
+        }
         describe(presentation, request, crew);
         syncMembers(presentation, crew, current);
     }
 
+    /** 수정할 수 있는 사람이 삭제한다. 점수를 받은 발표는 남의 평가가 함께 지워지므로 룸 운영자만 지운다 */
     @Transactional
     public void delete(UUID actorId, UUID projectId, UUID presentationId) {
-        roomGuard.lockAsAdmin(projectId, actorId);
-        remover.remove(require(projectId, presentationId));
+        RoomWrite room = roomGuard.lockAsMember(projectId, actorId);
+        Presentation presentation = requireEditable(room, presentationId);
+        if (!room.membership().isAdmin() && ratings.existsByPresentationId(presentationId)) {
+            throw ApiException.forbidden("점수를 받은 발표는 룸 운영자만 삭제할 수 있습니다.");
+        }
+        remover.remove(presentation);
     }
 
     /** 한 칸 위(-1)·아래(+1)로 옮긴다 */
@@ -117,6 +124,23 @@ public class PresentationService {
     private Presentation require(UUID projectId, UUID presentationId) {
         return presentations.findByIdAndProjectId(presentationId, projectId)
                 .orElseThrow(() -> ApiException.notFound("발표를 찾을 수 없습니다."));
+    }
+
+    private Presentation requireEditable(RoomWrite room, UUID presentationId) {
+        Presentation presentation = require(room.projectId(), presentationId);
+        UUID actorId = room.membership().getUserId();
+        boolean crew = presentationMembers.existsByPresentationIdAndUserId(presentationId, actorId);
+        if (!presentation.canBeEditedBy(actorId, room.membership().isAdmin(), crew)) {
+            throw ApiException.forbidden("발표 구성원, 발표를 만든 사람, 룸 운영자만 수정·삭제할 수 있습니다.");
+        }
+        return presentation;
+    }
+
+    /** 같은 평가룸 안에서 발표 제목은 겹칠 수 없다 (대소문자 무시). 룸 잠금 안에서 부른다 */
+    private void ensureTitleUnique(UUID projectId, String title) {
+        if (presentations.existsByProjectIdAndTitleIgnoreCase(projectId, title)) {
+            throw ApiException.conflict("이 평가룸에 같은 제목의 발표가 이미 있습니다. 다른 제목을 입력해 주세요.");
+        }
     }
 
     private Crew validateCrew(RoomWrite room, SavePresentationRequest request) {

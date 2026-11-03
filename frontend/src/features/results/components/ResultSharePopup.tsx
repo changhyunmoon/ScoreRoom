@@ -65,9 +65,8 @@ export function ResultSharePopup({ db, project, rows, avgOf, inAvgOf, decimals, 
 
   const foot = (
     <>
-      {step === 0
-        ? <button type="button" className="btn" onClick={onClose}>닫기</button>
-        : <button type="button" className="btn" onClick={() => setStep(step - 1)}><Icon name="back" size={15} />이전</button>}
+      <button type="button" className="btn foot-start" onClick={onClose}>닫기</button>
+      {step > 0 && <button type="button" className="btn" onClick={() => setStep(step - 1)}><Icon name="back" size={15} />이전</button>}
       {step < 2
         ? <button type="button" className="btn primary solid" disabled={!entries.length} onClick={() => setStep(step + 1)}>다음<Icon name="right" size={15} /></button>
         : <button type="button" className="btn primary solid" disabled={!image} onClick={download}><Icon name="download" size={16} />이미지 다운로드</button>}

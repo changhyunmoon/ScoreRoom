@@ -22,9 +22,13 @@ export default function SysViewersPage() {
 
   const row = (u: (typeof users)[number]) => (
     <tr key={u.id}>
-      <td><strong>{u.name}</strong></td>
-      <td>{u.loginId}</td>
-      <td>{teamPath(db.teams, u.teamId)}</td>
+      <td>
+        <strong>{u.name}</strong>
+        {/* 좁은 화면에서는 이메일·소속 팀 칸을 숨기고 이름 아래에 보여 준다 */}
+        <small className="viewer-sub">{u.loginId} · {teamPath(db.teams, u.teamId).split(' > ').pop()}</small>
+      </td>
+      <td className="viewer-wide">{u.loginId}</td>
+      <td className="viewer-wide">{teamPath(db.teams, u.teamId)}</td>
       <td className="right">
         {u.canViewAll
           ? <button className="btn sm danger" onClick={() => run(() => mutate(setViewAll(u.id, false)), `${u.name}님의 전체 열람 권한을 회수했습니다.`)}>권한 회수</button>
@@ -52,7 +56,7 @@ export default function SysViewersPage() {
         <div className="org-table-wrap viewer-results">
           {found.length > 0 ? (
             <table className="org-table">
-              <thead><tr><th>이름</th><th>이메일</th><th>소속 팀</th><th /></tr></thead>
+              <thead><tr><th>이름</th><th className="viewer-wide">이메일</th><th className="viewer-wide">소속 팀</th><th /></tr></thead>
               <tbody>{found.map(row)}</tbody>
             </table>
           ) : (
@@ -65,7 +69,7 @@ export default function SysViewersPage() {
         <h2 className="viewer-title">권한이 있는 사람 <span className="muted">{granted.length}명</span></h2>
         <div className="org-table-wrap">
           <table className="org-table">
-            <thead><tr><th>이름</th><th>이메일</th><th>소속 팀</th><th /></tr></thead>
+            <thead><tr><th>이름</th><th className="viewer-wide">이메일</th><th className="viewer-wide">소속 팀</th><th /></tr></thead>
             <tbody>
               {granted.map(row)}
               {granted.length === 0 && <tr><td colSpan={4} className="org-empty">아직 권한을 받은 사람이 없습니다. 위에서 검색해 추가하세요.</td></tr>}

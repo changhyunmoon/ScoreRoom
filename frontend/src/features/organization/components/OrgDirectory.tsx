@@ -108,7 +108,7 @@ export function OrgDirectory({ onClose, picker }: { onClose: () => void; picker?
                 <thead>
                   <tr>
                     {picker && <th className="org-check"><input type="checkbox" aria-label="보이는 사람 모두 선택" checked={allShownPicked} disabled={pickable.length === 0} onChange={togglePickAll} /></th>}
-                    <th>이름</th><th>직위</th><th>소속 팀</th>
+                    <th>이름</th><th>직위</th><th className="org-path">소속 팀</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -123,7 +123,7 @@ export function OrgDirectory({ onClose, picker }: { onClose: () => void; picker?
                               : <input type="checkbox" aria-label={`${u.name} 선택`} checked={picked.includes(u.id)} onChange={() => togglePick(u.id)} onClick={e => e.stopPropagation()} />}
                           </td>
                         )}
-                        <td><strong>{u.name}</strong></td><td>{u.position || <span className="muted">-</span>}</td><td>{teamPath(db.teams, u.teamId)}</td>
+                        <td><strong>{u.name}</strong></td><td>{u.position || <span className="muted">-</span>}</td><td className="org-path"><TeamPathCell path={teamPath(db.teams, u.teamId)} /></td>
                       </tr>
                     );
                   })}
@@ -155,4 +155,11 @@ export function OrgDirectory({ onClose, picker }: { onClose: () => void; picker?
       </div>
     </div>
   );
+}
+
+/** 소속 팀 경로. 좁은 화면에서는 상위 경로를 숨기고 마지막 팀 이름만 보인다 */
+function TeamPathCell({ path }: { path: string }) {
+  const cut = path.lastIndexOf(' > ');
+  if (cut < 0) return <>{path}</>;
+  return <><span className="org-path-parent">{path.slice(0, cut + 3)}</span>{path.slice(cut + 3)}</>;
 }

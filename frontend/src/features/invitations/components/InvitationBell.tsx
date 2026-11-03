@@ -1,6 +1,7 @@
 // 우측 상단 알림: 받은 평가룸 초대. 참여하면 그 평가룸으로 바로 간다
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useDismiss } from '../../../shared/hooks/useDismiss';
 import { Icon } from '../../../shared/icons/Icon';
 import { timeText } from '../../../shared/lib/format';
 import { run } from '../../../shared/ui';
@@ -11,9 +12,10 @@ export function InvitationBell() {
   const { db, me } = useSession();
   const nav = useNavigate();
   const [open, setOpen] = useState(false);
+  const wrapRef = useDismiss<HTMLDivElement>(open, () => setOpen(false));
   const mine = db.invitations.filter(i => i.inviteeId === me!.id).sort((a, b) => b.createdAt - a.createdAt);
   return (
-    <div className="menu-wrap">
+    <div className="menu-wrap" ref={wrapRef}>
       <button className="bell-btn" onClick={() => setOpen(o => !o)} aria-label={`알림 ${mine.length}개`} aria-expanded={open}>
         <Icon name="bell" size={18} />
         {mine.length > 0 && <span className="bell-badge">{mine.length}</span>}

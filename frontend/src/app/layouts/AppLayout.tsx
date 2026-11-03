@@ -1,6 +1,7 @@
 // 로그인 후 공통 틀: 상단 메뉴(알림, 계정 메뉴), 본문, 바닥글
 import { useState } from 'react';
 import { Link, matchPath, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { useDismiss } from '../../shared/hooks/useDismiss';
 import { Icon } from '../../shared/icons/Icon';
 import { run } from '../../shared/ui';
 import { logout } from '../../features/auth';
@@ -16,6 +17,7 @@ export function AppLayout() {
   const [open, setOpen] = useState(false);
   const [directoryOpen, setDirectoryOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const menuRef = useDismiss<HTMLDivElement>(open, () => setOpen(false));
   if (!me) return null;
 
   const inProject = !!matchPath('/p/:pid/*', pathname);
@@ -29,7 +31,7 @@ export function AppLayout() {
           <Link to={home} className="brand"><span className="brand-mark" aria-hidden="true" />Score<b>Room</b></Link>
           <div className="gnb-right">
             {!me.isSysAdmin && <InvitationBell />}
-            <div className="menu-wrap">
+            <div className="menu-wrap" ref={menuRef}>
               <button className="avatar-btn" onClick={() => setOpen(o => !o)} aria-label="계정 메뉴" aria-expanded={open}>
                 <span className="avatar">{me.name.slice(0, 1)}</span>
                 <span className="user-label"><b>{me.name}</b><span className="hide-sm">({team})</span></span>

@@ -17,6 +17,8 @@ public interface PresentationMemberRepository extends JpaRepository<Presentation
 
     List<PresentationMember> findByProjectId(UUID projectId);
 
+    boolean existsByPresentationIdAndUserId(UUID presentationId, UUID userId);
+
     List<PresentationMember> findByProjectIdIn(Collection<UUID> projectIds);
 
     /** 이 사람이 구성원인 발표들 */

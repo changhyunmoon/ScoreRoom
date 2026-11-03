@@ -162,15 +162,16 @@ input:disabled, select:disabled { background: var(--gray-soft); color: #a9abb1; 
 .av-copy { margin: auto 0; }
 .av-copy h2 { font-size: 40px; line-height: 1.3; font-weight: 700; letter-spacing: -0.03em; }
 .av-copy p { margin-top: 14px; font-size: 17px; opacity: .85; }
-.auth-panel { display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 40px 24px 24px; position: relative; }
-.auth-inner { width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 22px; }
+.auth-panel { display: flex; flex-direction: column; align-items: center; padding: 40px 24px 20px; position: relative; }
+.auth-inner { width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 22px; margin: auto 0; }
 .auth-title { text-align: center; font-size: 18px; color: var(--text-2); }
 .auth-form { gap: 14px; }
 .auth-input { height: 60px; border: 1px solid transparent; border-radius: var(--radius); background: #f1f3f6; padding: 0 20px; font-size: 16px; }
 .auth-input:focus { border-color: var(--navy); background: #eef4fb; box-shadow: none; }
 .auth-btn { height: 60px; border-radius: var(--radius); font-size: 19px; font-weight: 500; }
 .auth-btn.sub { height: 48px; font-size: 15px; color: var(--text-2); }
-.auth-foot { position: absolute; bottom: 20px; color: var(--muted); font-size: 13.5px; }
+/* 바닥글은 내용 뒤에 흐르게 둔다 (내용이 길어도 겹치지 않게). 내용이 짧으면 auth-inner의 auto 여백으로 맨 아래에 붙는다 */
+.auth-foot { margin-top: 24px; color: var(--muted); font-size: 13.5px; text-align: center; }
 .auth-links { display: flex; gap: 8px; justify-content: center; font-size: 14px; color: var(--muted); flex-wrap: wrap; align-items: center; }
 .auth-links.left { justify-content: flex-start; }
 .auth-links a { color: var(--muted); }
@@ -395,6 +396,18 @@ body.dragging, body.dragging * { cursor: grabbing !important; user-select: none;
 .invite-code { font-size: 30px; font-weight: 700; letter-spacing: .16em; color: var(--navy); }
 .invite .small { flex: 1; min-width: 140px; }
 .invite-issue { display: flex; flex-direction: column; gap: 6px; }
+/* 발표 등록·편집: 작업 중인 평가룸 표시 */
+.room-context { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: var(--radius-sm); background: var(--blue-soft); border: 1px solid var(--blue-line); font-size: 14px; color: var(--text-2); }
+.room-context > svg { flex-shrink: 0; color: var(--blue); }
+.room-context b { color: var(--text); }
+/* 초대·입장 코드: 두 가지 참여 방법 안내와 나란히 놓은 카드 */
+.invite-guide { display: flex; gap: 10px; align-items: flex-start; padding: 14px 18px; border-radius: var(--radius-sm); background: var(--blue-soft); border: 1px solid var(--blue-line); font-size: 14px; color: var(--text-2); line-height: 1.6; }
+.invite-guide > svg { flex-shrink: 0; color: var(--blue); margin-top: 3px; }
+.invite-guide ul { margin: 6px 0 0; padding-left: 18px; font-size: 13px; }
+.invite-guide li b { margin-right: 6px; color: var(--text); }
+.invite-methods { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; align-items: start; }
+.method-no { display: inline-block; margin-right: 8px; padding: 2px 8px; border-radius: 3px; background: var(--blue-soft); color: var(--blue); font-size: 12px; font-weight: 600; vertical-align: 2px; }
+@media (max-width: 900px) { .invite-methods { grid-template-columns: minmax(0, 1fr); } }
 .help-list { margin: 0; padding: 10px 14px 10px 30px; background: var(--gray-soft); border-radius: var(--radius-sm); font-size: 13px; color: var(--muted); display: flex; flex-direction: column; gap: 2px; }
 .help-list b { color: var(--text-2); margin-right: 4px; }
 
@@ -883,6 +896,7 @@ textarea.invalid { border-color: var(--red); }
 .pres-popup .info-table { max-width: none; }
 .pres-popup-foot { gap: 8px; }
 .pres-popup-foot .btn { display: inline-flex; align-items: center; gap: 6px; }
+.pres-popup-foot .foot-start { margin-right: auto; }
 
 /* 결과 공유 */
 .share-popup { width: min(960px, 100%); height: min(800px, calc(100dvh - 48px)); max-height: calc(100dvh - 48px); }
@@ -995,3 +1009,95 @@ textarea.invalid { border-color: var(--red); }
 .file-pick.new { background: var(--navy-soft); border-color: var(--navy-line); }
 .file-note { display: flex; gap: 8px; align-items: center; padding: 0 2px; }
 @media (max-width: 760px) { .portal-form > .field > .file-box { margin: 12px; width: calc(100% - 24px); } }
+
+/* ───────── 모바일 보정: 잘림·가로 넘침·좁은 칸 정리 ───────── */
+.crew-search { width: 100%; }
+@media (max-width: 760px) {
+  /* 알림 메뉴는 벨 위치와 상관없이 화면 폭에 맞춰 띄운다 (왼쪽으로 잘리지 않게) */
+  .notice-menu { position: fixed; top: 36px; left: 12px; right: 12px; width: auto; max-height: calc(100dvh - 56px); }
+}
+@media (max-width: 560px) {
+  /* 이름표 | 내용 2칸 표는 위아래로 쌓아 내용 칸을 넓힌다 (발표 정보, 공유 설정 등) */
+  .info-row { grid-template-columns: minmax(0, 1fr); }
+  .info-row dt { padding: 8px 12px; border-right: 0; border-bottom: 1px solid var(--line-2); font-size: 12px; }
+  .info-row dd { padding: 10px 12px; }
+
+  /* 입력 폼도 이름표를 입력란 위로 올린다 (발표 등록, 개인정보 수정) */
+  .portal-form > .field { display: flex; flex-direction: column; }
+  .portal-form > .field > .field-label { padding: 12px 12px 0; background: none; color: var(--text-2); font-size: 13px; font-weight: 600; }
+  .portal-form > .field > input, .portal-form > .field > select, .portal-form > .field > textarea, .portal-form > .field > .type-cards,
+  .portal-form > .field > .file-pick, .portal-form > .field > .file-box { margin: 8px 12px 12px; width: calc(100% - 24px); }
+  .portal-form > .field > .hint { margin: -4px 12px 12px; }
+
+  /* 여러 버튼 묶음: 좁은 화면에서 버튼을 줄이고, 그래도 넘치면 옆으로 민다 */
+  .segmented { max-width: 100%; overflow-x: auto; }
+  .segmented button { padding: 7px 10px; font-size: 13px; }
+
+  /* 제목 + 오른쪽 버튼: 자리가 모자라면 버튼을 다음 줄로 (제목이 글자 단위로 끊기지 않게) */
+  .section-title { flex-wrap: wrap; }
+  .section-title > .grow { min-width: 180px; }
+  /* 발표 관리: 안내 문구는 제목·버튼 아래 줄로 */
+  .board-tools > .muted.small.grow { order: 3; flex-basis: 100%; }
+
+  /* 팀 묶음 머리글: "이전 페이지에서 계속"이 다음 줄로 내려가도록 */
+  .bgroup { flex-wrap: wrap; }
+  .bgroup-label { flex: 1 1 0; }
+
+  /* 발표 목록 위 평가 규칙: 2칸으로 놓고 이름·값을 위아래로 */
+  .rules { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; padding: 10px; }
+  .rule { flex-direction: column; align-items: flex-start; gap: 2px; padding: 8px 10px; }
+  .rule-label { font-size: 12px; white-space: normal; }
+  .rule-value { text-align: left; font-size: 13.5px; }
+
+  /* 평가룸 목록: 긴 이름은 두 줄까지 */
+  .prow .c-title .t { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+
+  /* 발표 구성원 고르기: 이름 / 팀 / 역할 버튼을 줄마다 나누고 이름은 끊지 않는다 */
+  .crew-line { grid-template-columns: minmax(0, 1fr); grid-template-areas: "name" "team" "role"; row-gap: 4px; }
+  .cl-name { flex-wrap: wrap; white-space: nowrap; }
+  .cl-team { text-align: left; font-size: 12px; }
+
+  /* 결과 표: 발표자 칸을 왼쪽에 고정하고 좁혀서 점수를 옆으로 넘겨 보게 한다 */
+  .result-badge { white-space: nowrap; }
+  .results th { white-space: nowrap; }
+  .results > thead > tr > th, .results > tbody > tr > td { padding: 8px 6px; }
+  .results > tbody > tr > td.left { min-width: 0; max-width: 150px; }
+  .results > tbody > tr > td:first-child, .results > thead > tr:first-child > th:first-child { position: sticky; left: 0; z-index: 1; background: #fff; box-shadow: 1px 0 0 var(--line-2); }
+  .results > thead > tr:first-child > th:first-child { background: #f0f1f2; }
+  .results > tbody > tr.open > td:first-child { background: var(--navy-soft); }
+  .results > tbody > tr.detail-row > td:first-child { position: static; box-shadow: none; background: var(--navy-soft); }
+  .results .result-pres { max-width: 136px; }
+  /* 평가자별 점수표: 평가자 칸을 좁히고 팀 이름은 아래 줄로 */
+  .score-sheet .sticky { width: 112px; min-width: 112px; max-width: 112px; white-space: normal; word-break: keep-all; }
+  .score-sheet td.sticky .small { display: block; }
+  .score-sheet th { min-width: 72px; }
+
+  /* 결과 공유: 단계 표시는 한 줄로, 테마는 두 개씩 */
+  .share-steps li { justify-content: center; gap: 6px; padding: 8px 6px; font-size: 12.5px; white-space: nowrap; }
+  .theme-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+  /* 회사 팀 구조도 팝업: 소속 팀 경로를 줄바꿈해 가로 스크롤을 없앤다 */
+  .org-directory .org-table { min-width: 0; }
+  /* 팝업 제목이 길어도 오른쪽 닫기(×)와 겹치지 않게 */
+  .org-modal-head { padding: 14px 44px; }
+  /* 초대할 사람 고르기: 팀 목록·초대 목록을 줄여 사람 표가 충분히 보이게 */
+  .org-directory.with-picks .org-sidebar { max-height: 210px; }
+  .org-directory.with-picks .org-main { min-height: 300px; }
+  .org-directory.with-picks .org-picks-list { max-height: 120px; }
+  .org-table th.org-path, .org-table td.org-path { white-space: normal; min-width: 120px; font-size: 12px; color: var(--muted); }
+  .org-path-parent { display: none; }
+}
+/* 시스템 관리자 화면 (모바일) */
+.viewer-sub { display: none; }
+@media (max-width: 560px) {
+  /* 머리 영역의 음수 여백을 모바일 화면 여백(16px)에 맞춘다 (페이지가 옆으로 2px 밀리던 문제) */
+  .sys-admin-page > .page-head { margin: -16px -16px 0; padding: 16px; }
+  /* 전체 열람 권한: 이메일·소속 팀은 이름 아래 줄로 옮겨 버튼까지 한 화면에 */
+  .viewer-wide { display: none; }
+  .viewer-sub { display: block; margin-top: 2px; color: var(--muted); font-size: 12px; white-space: normal; word-break: keep-all; overflow-wrap: anywhere; }
+  .sys-admin-page .org-table { min-width: 0; }
+  /* 회사 팀 구조도 관리: 칸이 많아 옆으로 밀어 보되, 이름 칸은 왼쪽에 고정 */
+  .sys-admin-page .org-table:has(.org-name) { min-width: 560px; }
+  .org-table .org-name { position: sticky; left: 0; z-index: 1; background: #fff; box-shadow: 1px 0 0 var(--line-2); }
+  .org-table th.org-name { background: #f0f1f2; }
+}

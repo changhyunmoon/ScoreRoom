@@ -192,7 +192,7 @@ export default function SysOrgPage() {
           )}
           <div className="org-table-wrap">
             <table className="org-table">
-              <thead><tr>{selectedTeam && <th className="org-order">순서</th>}<th>이름</th><th>직위</th><th>이메일</th><th>소속 팀</th><th>전화번호</th><th>비밀번호</th></tr></thead>
+              <thead><tr>{selectedTeam && <th className="org-order">순서</th>}<th className="org-name">이름</th><th>직위</th><th>이메일</th><th>소속 팀</th><th>전화번호</th><th>비밀번호</th></tr></thead>
               <tbody>
                 {shownUsers.map(u => {
                   const i = teamUsers.indexOf(u);
@@ -207,7 +207,7 @@ export default function SysOrgPage() {
                           {i === 0 && <small className="org-top">대표</small>}
                         </td>
                       )}
-                      <td><strong>{u.name}</strong></td>
+                      <td className="org-name"><strong>{u.name}</strong></td>
                       <td>
                         {editingId === u.id ? (
                           <form className="org-inline" onSubmit={e => {

@@ -9,9 +9,9 @@ type RoomData = { teams: Team[]; users: User[]; memberships: Membership[]; prese
 /** 발표 구성원 전체 (대표·발표자·팀원, 한 사람은 한 번) */
 export const involvedIds = (p: Presentation): ID[] => Array.from(new Set([p.leaderId, ...p.presenterIds, ...p.memberIds]));
 
-/** 발표를 수정할 수 있는 사람: 룸 운영자, 대표, 발표를 만든 사람 */
+/** 발표를 수정·삭제할 수 있는 사람: 룸 운영자, 구성원(대표·발표자·팀원), 발표를 만든 사람 */
 export const canEditPresentation = (p: Presentation, userId: ID, isAdmin: boolean) =>
-  isAdmin || p.leaderId === userId || p.createdBy === userId;
+  isAdmin || p.createdBy === userId || involvedIds(p).includes(userId);
 
 /**
  * 발표 구성원과 역할 (대표 → 발표자 → 팀원 순서). 모두 한 명씩 평가받는다.

@@ -65,11 +65,12 @@ export default function PresentationFormPage() {
   const [saving, setSaving] = useState(false);
   // 새 팀 발표는 우리 회사 팀에서 시작하고, 기존 발표는 전체 참여자에서 고른다
   const [pick, setPick] = useState<Pick>(existing ? 'ANY' : 'MY_TEAM');
+  const [crewQuery, setCrewQuery] = useState('');
   if (!project || !me) return <RoomNotFound />;
   const m = membership(db, project.id, me.id);
   if (!m) return <RoomNotFound />;
   if (prid && !existing) return <Empty>발표를 찾을 수 없습니다. 삭제됐을 수 있어요. <Link to={`/p/${project.id}`}>목록으로</Link></Empty>;
-  if (existing && !canEditPresentation(existing, me.id, m.isAdmin)) return <Empty>대표, 발표를 만든 사람, 룸 운영자만 편집할 수 있습니다.</Empty>;
+  if (existing && !canEditPresentation(existing, me.id, m.isAdmin)) return <Empty>발표 구성원, 발표를 만든 사람, 룸 운영자만 편집할 수 있습니다.</Empty>;
   if (project.status === 'CLOSED') return <Empty>마감된 평가룸은 편집할 수 없습니다.</Empty>;
 
   // 점수를 받은 발표는 평가 가능 여부가 바뀌지 않도록 구성원 추가·제외를 막는다 (역할 변경은 가능)
@@ -98,6 +99,11 @@ export default function PresentationFormPage() {
   const rolesOf = (id: ID): Role[] => (id === f.leaderId
     ? (f.leaderPresents && f.type !== 'PERSONAL' ? ['LEADER', 'PRESENTER'] : ['LEADER'])
     : f.type === 'PERSONAL' || !f.roles[id] ? [] : [f.roles[id]]);
+  // 직접 고르기에서 이름·팀으로 찾는다. 이미 고른 사람은 검색과 상관없이 계속 보인다
+  const crewKey = crewQuery.trim().toLowerCase();
+  const shownPeople = fromMyTeam || !crewKey ? people : people.filter(p => rolesOf(p.userId).length > 0
+    || userName(db, p.userId).toLowerCase().includes(crewKey)
+    || (p.teamNameAtJoin ?? teamName(db, p.teamIdAtJoin)).toLowerCase().includes(crewKey));
   const visible = new Set(people.map(p => p.userId));
   const leaderId = visible.has(f.leaderId) ? f.leaderId : '';
   const presenterIds = f.type === 'PERSONAL' ? [] : [
@@ -105,7 +111,7 @@ export default function PresentationFormPage() {
     ...people.map(p => p.userId).filter(id => id !== leaderId && f.roles[id] === 'PRESENTER'),
   ];
   const memberIds = f.type === 'PERSONAL' ? [] : people.map(p => p.userId).filter(id => id !== leaderId && f.roles[id] === 'MEMBER');
-  const preview = {
+  const crewDraft = {
     ...(existing ?? { id: 'preview', projectId: project.id, order: 0, createdBy: me.id, createdAt: 0, deployUrl: null, attachments: [], hasRatings: false }),
     title: f.title, intro: f.intro, type: f.type, leaderId, presenterIds, memberIds,
   } as Presentation;
@@ -218,8 +224,12 @@ export default function PresentationFormPage() {
     if (v === null && id === me.id && !m.isAdmin) return true;
     return false;
   };
+  const titleKey = f.title.trim().toLowerCase();
+  const titleTaken = !!titleKey && db.presentations.some(p =>
+    p.projectId === project.id && p.id !== existing?.id && p.title.trim().toLowerCase() === titleKey);
   const problems = [
     !f.title.trim() && '발표 제목을 입력해 주세요.',
+    titleTaken && '이 평가룸에 같은 제목의 발표가 이미 있습니다.',
     !leaderId && '대표를 1명 선택해 주세요.',
     !m.isAdmin && !meIncluded && '본인의 역할(대표·발표자·팀원)을 선택해 주세요.',
     urlInvalid && '배포 URL은 http:// 또는 https://로 시작하는 주소로 입력해 주세요.',
@@ -229,6 +239,11 @@ export default function PresentationFormPage() {
     <ProjectShell project={project} current="write">
       <BoardHead title={existing ? '발표 편집' : '새 발표 등록'}
         right={<Link to={back} className="btn sm"><IconText icon="back">목록으로</IconText></Link>} />
+      {/* 왼쪽 목록을 접어도 어느 평가룸에서 작업 중인지 보이도록 */}
+      <div className="room-context">
+        <Icon name="folder" size={16} />
+        <span><b>{project.name}</b> 평가룸{existing ? '의 발표를 수정하고 있어요.' : '에 새 발표를 등록하고 있어요.'}</span>
+      </div>
       <div className="card stack portal-form presentation-fields">
         <Field label="발표 제목"><input value={f.title} maxLength={300} placeholder="예: 쿠버네티스 비용 최적화 사례" onChange={e => setF({ ...f, title: e.target.value })} /></Field>
         <Field label="간단한 소개"><textarea rows={3} value={f.intro} maxLength={5000} placeholder="어떤 내용을 발표하나요?" onChange={e => setF({ ...f, intro: e.target.value })} /></Field>
@@ -310,9 +325,16 @@ export default function PresentationFormPage() {
         </ul>
         {locked && <div className="notice"><Icon name="lock" size={15} />점수를 받은 발표라 역할만 바꿀 수 있어요.</div>}
 
+        {!fromMyTeam && people.length > 6 && (
+          <label className="board-search crew-search">
+            <input placeholder="이름·팀 검색" value={crewQuery} onChange={e => setCrewQuery(e.target.value)} aria-label="구성원 검색" />
+            <Icon name="search" size={16} />
+          </label>
+        )}
         <div className="crew-table">
           <div className="crew-head"><span>이름</span><span>팀</span><span>역할</span></div>
-          {people.map(p => {
+          {crewKey && shownPeople.length === 0 && <div className="bempty">'{crewQuery.trim()}'에 맞는 참여자가 없어요.</div>}
+          {shownPeople.map(p => {
             const roles = rolesOf(p.userId);
             const role = roles[0] ?? null;
             return (
@@ -336,20 +358,27 @@ export default function PresentationFormPage() {
       </div>}
 
       <div className="card stack">
-        <h2>미리보기</h2>
-        {leaderId ? <Presenters db={db} project={project} pres={preview} /> : <p className="muted">대표를 선택하면 미리보기가 보여요.</p>}
+        <h2>구성원 확인</h2>
+        <span className="hint">아래 사람들이 이 발표로 각각 평가를 받아요. 저장하기 전에 빠진 사람이 없는지 확인하세요.</span>
+        {leaderId ? <Presenters db={db} project={project} pres={crewDraft} /> : <p className="muted">대표를 선택하면 구성원이 여기에 보여요.</p>}
         {problems.map(t => <div key={t} className="error"><Icon name="ban" size={15} />{t}</div>)}
         <button className="btn primary solid" disabled={problems.length > 0 || saving} onClick={save}>
           <IconText icon="check">{saving ? '저장 중…' : existing ? '변경 사항 저장' : '발표 등록'}</IconText>
         </button>
       </div>
 
-      {existing && m.isAdmin && (
+      {existing && (
         <div className="card danger-zone stack">
           <h3>발표 삭제</h3>
-          <ConfirmButton label="이 발표 삭제" confirmLabel="삭제"
-            detail={ratingCount ? `제출된 평가 ${ratingCount}건이 함께 삭제되고 결과가 다시 계산됩니다.` : '제출된 평가가 없습니다.'}
-            onConfirm={() => run(() => mutate(deletePresentation(project.id, existing.id)), '발표를 삭제했습니다.').then(ok => ok && nav(back))} />
+          {m.isAdmin || !existing.hasRatings ? (
+            <ConfirmButton label="이 발표 삭제" confirmLabel="삭제"
+              detail={m.isAdmin
+                ? (ratingCount ? `제출된 평가 ${ratingCount}건이 함께 삭제되고 결과가 다시 계산됩니다.` : '제출된 평가가 없습니다.')
+                : '발표와 올린 자료가 모두 삭제되고 되돌릴 수 없습니다.'}
+              onConfirm={() => run(() => mutate(deletePresentation(project.id, existing.id)), '발표를 삭제했습니다.').then(ok => ok && nav(back))} />
+          ) : (
+            <p className="muted">점수를 받은 발표는 룸 운영자만 삭제할 수 있습니다.</p>
+          )}
         </div>
       )}
     </ProjectShell>
