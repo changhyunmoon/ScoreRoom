@@ -845,8 +845,6 @@ button.ss-feedback:hover { border-color: var(--primary-line); background: var(--
 input.invalid { border-color: var(--red); }
 
 /* 브라우저 목업 데이터 안내 */
-.demo-box { padding-top: 18px; border-top: 1px dashed var(--line); display: flex; flex-direction: column; gap: 10px; }
-.demo-title { font-size: 13.5px; font-weight: 500; }
 
 /* 구성원별 평가 (발표 구성원 한 명씩 점수 + 피드백) */
 .rate-box.people { flex-direction: column; align-items: stretch; gap: 0; max-width: 760px; padding: 0; border: 1px solid var(--line); background: #fff; overflow: hidden; }

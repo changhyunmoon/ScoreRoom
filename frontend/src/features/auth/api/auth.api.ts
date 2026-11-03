@@ -20,6 +20,14 @@ export async function signup(form: SignupForm) {
   await refresh();
 }
 
+/** 이름·전화번호가 맞는 계정의 이메일 (서버가 일부를 가려서 보낸다) */
+export const findLoginIds = async (name: string, phone: string) =>
+  (await http.post<{ loginIds: string[] }>('/auth/find-ids', { name, phone })).loginIds;
+
+/** 이메일·이름·전화번호가 모두 맞으면 새 비밀번호로 바꾼다. 그 계정의 기존 로그인은 모두 끊긴다 */
+export const resetPassword = (loginId: string, name: string, phone: string, newPassword: string) =>
+  http.post('/auth/reset-password', { loginId, name, phone, newPassword });
+
 /** 서버 세션이 끝난 것을 확인한 뒤에만 화면 데이터를 지운다 (실패하면 오류를 알린다) */
 export async function logout() {
   await http.post('/auth/logout');

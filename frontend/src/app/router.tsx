@@ -1,6 +1,8 @@
 // 화면 경로 (BrowserRouter: 주소가 /p/... 그대로 보인다).
-// 새로 고침·직접 접속을 위해 서버는 /api 밖의 모든 경로에 index.html을 돌려준다 (deploy/nginx/scoreroom.conf, Vite 개발 서버)
+// 새로 고침·직접 접속을 위해 Nginx는 /api 밖의 모든 경로에 index.html을 돌려준다 (deploy/nginx/scoreroom.conf)
 import { Navigate, Route, Routes } from 'react-router-dom';
+import FindIdPage from '../features/auth/pages/FindIdPage';
+import FindPasswordPage from '../features/auth/pages/FindPasswordPage';
 import LoginPage from '../features/auth/pages/LoginPage';
 import SignupPage from '../features/auth/pages/SignupPage';
 import SysOrgPage from '../features/organization/pages/SysOrgPage';
@@ -18,6 +20,8 @@ export function AppRoutes() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
+      <Route path="/find-id" element={<FindIdPage />} />
+      <Route path="/find-pw" element={<FindPasswordPage />} />
       <Route element={<RequireAuth />}>
         <Route element={<AppLayout />}>
           <Route path="/" element={<ProjectListPage />} />

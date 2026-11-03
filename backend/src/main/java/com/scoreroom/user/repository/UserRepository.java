@@ -13,6 +13,9 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     Optional<User> findByLoginId(String loginId);
 
+    /** 이메일 찾기: 같은 이름의 사용 중인 일반 사용자 */
+    List<User> findByNameAndSysAdminFalseAndEnabledTrue(String name);
+
     boolean existsByLoginId(String loginId);
 
     boolean existsByLoginIdAndIdNot(String loginId, UUID id);

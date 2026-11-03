@@ -1,1 +1,1 @@
-export { login, logout, signup, fetchAuthOptions } from './api/auth.api';
+export { logout } from './api/auth.api';

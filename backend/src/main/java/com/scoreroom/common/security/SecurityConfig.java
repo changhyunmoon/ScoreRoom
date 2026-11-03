@@ -42,7 +42,8 @@ public class SecurityConfig {
                 .securityContext(context -> context.securityContextRepository(securityContextRepository))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.GET, "/api/v1/auth/csrf", "/api/v1/auth/options", "/api/v1/teams").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/v1/auth/login", "/api/v1/auth/signup").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/auth/login", "/api/v1/auth/signup", "/api/v1/auth/find-ids",
+                                "/api/v1/auth/reset-password").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().denyAll())

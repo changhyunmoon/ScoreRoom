@@ -2,18 +2,13 @@
 
 Java 21 + Spring Boot 4.1 (MVC, Security, Data JPA, Session JDBC) + PostgreSQL + Flyway. 설계는 [docs/backend](../docs/backend/README.md)를 따릅니다.
 
-## 실행
+## 빌드와 테스트
+
+배포는 GitHub Actions가 합니다 ([deploy/README.md](../deploy/README.md)). 직접 돌릴 때는 아래 두 명령만 씁니다.
 
 ```bash
-./gradlew bootRun     # local + embedded-db 프로필: 내장 PostgreSQL(포트 54329)과 가상 데이터
-./gradlew test        # 통합 테스트 (내장 PostgreSQL, H2 미사용)
-./gradlew bootJar     # build/libs/scoreroom-backend-0.1.0.jar (내장 PostgreSQL은 포함하지 않음)
-```
-
-이미 띄운 PostgreSQL을 쓰려면 `docker compose up -d`(이 폴더의 `compose.yaml`)로 DB를 띄운 뒤 프로필을 `local`만 켭니다.
-
-```bash
-SPRING_PROFILES_ACTIVE=local DB_URL=jdbc:postgresql://localhost:5432/scoreroom DB_USERNAME=scoreroom DB_PASSWORD=scoreroom ./gradlew bootRun
+./gradlew test        # 통합 테스트 (테스트 전용 내장 PostgreSQL, H2 미사용)
+./gradlew bootJar     # build/libs/scoreroom-backend-0.1.0.jar
 ```
 
 ### 프로필과 환경변수
@@ -21,8 +16,6 @@ SPRING_PROFILES_ACTIVE=local DB_URL=jdbc:postgresql://localhost:5432/scoreroom D
 | 프로필 | 용도 |
 |---|---|
 | (기본) | 안전한 기준값: 가입 꺼짐, Secure 쿠키 |
-| `local` | 로컬 개발: http 쿠키 허용, 가입 켜짐, 가상 데이터·로컬 관리자 계정 |
-| `embedded-db` | 내장 PostgreSQL 실행 (개발 전용, 운영 jar에는 없음) |
 | `prod` | Nginx 뒤 http 운영: 전달 헤더 사용, Secure 쿠키 끔 (`SCOREROOM_SESSION_SECURECOOKIE`로 변경) |
 
 | 환경변수 | 설명 |
@@ -53,8 +46,7 @@ com.scoreroom
 ├── attachment/        # 발표 자료 업로드·다운로드, 파일 삭제 작업
 ├── audit/             # 관리 작업 기록
 ├── bootstrap/         # 화면 전환용 GET /state 조립 (읽기 전용)
-├── infrastructure/    # FileStorage(로컬 디스크)
-└── devseed/           # local 프로필 가상 데이터
+└── infrastructure/    # FileStorage(로컬 디스크)
 ```
 
 규칙
@@ -72,6 +64,7 @@ com.scoreroom
 | 기능 | 경로 |
 |---|---|
 | 인증 | `GET /auth/csrf`, `GET /auth/options`, `POST /auth/login`, `POST /auth/logout`, `POST /auth/signup` |
+| 계정 찾기 | `POST /auth/find-ids`(이름·전화번호 → 일부 가린 이메일), `POST /auth/reset-password`(이메일·이름·전화번호 확인 후 새 비밀번호) |
 | 내 정보 | `GET /me`, `PUT /me` (비밀번호 변경은 `currentPassword` 필요) |
 | 화면 데이터 | `GET /state` (권한에 맞게 걸러서 보냄) |
 | 팀·사용자 관리 | `GET /teams`, `POST/PUT/DELETE /admin/teams/{id}`, `POST /admin/teams/{id}/users`, `PUT /admin/users/{id}/team·position·view-all·password`, `POST /admin/users/{id}/move` |
@@ -82,4 +75,4 @@ com.scoreroom
 | 발표 자료 | `POST/GET/DELETE /projects/{pid}/presentations/{id}/attachments[/{aid}]` |
 | 상태 확인 | `GET /actuator/health` (DB 장애 시 DOWN) |
 
-목업에 있던 `/auth/demo-*`, `/demo/reset`, 이름·전화번호만으로 하는 `/auth/find-ids`·`/auth/reset-password`는 만들지 않았습니다. 비밀번호를 잊은 사용자는 시스템 관리자가 재설정합니다.
+계정 찾기는 요청 횟수를 제한하고, 시스템 관리자 계정은 이 방법으로 재설정할 수 없습니다. 재설정하면 그 계정의 기존 로그인이 모두 끊깁니다. 시스템 관리자 화면의 비밀번호 재설정도 함께 쓸 수 있습니다.

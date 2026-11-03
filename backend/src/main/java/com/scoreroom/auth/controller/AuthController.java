@@ -18,8 +18,12 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.scoreroom.auth.dto.AuthOptionsResponse;
 import com.scoreroom.auth.dto.CsrfResponse;
+import com.scoreroom.auth.dto.FindLoginIdsRequest;
+import com.scoreroom.auth.dto.FindLoginIdsResponse;
 import com.scoreroom.auth.dto.LoginRequest;
+import com.scoreroom.auth.dto.RecoverPasswordRequest;
 import com.scoreroom.auth.dto.SignupRequest;
+import com.scoreroom.auth.service.AccountRecoveryService;
 import com.scoreroom.auth.service.AuthService;
 import com.scoreroom.common.security.AuthenticatedUser;
 import com.scoreroom.common.web.RateLimiter;
@@ -36,13 +40,15 @@ import com.scoreroom.user.service.ProfileService;
 public class AuthController {
 
     private final AuthService authService;
+    private final AccountRecoveryService recoveryService;
     private final ProfileService profileService;
     private final SessionLogin sessionLogin;
     private final RateLimiter rateLimiter;
 
-    public AuthController(AuthService authService, ProfileService profileService, SessionLogin sessionLogin,
-            RateLimiter rateLimiter) {
+    public AuthController(AuthService authService, AccountRecoveryService recoveryService, ProfileService profileService,
+            SessionLogin sessionLogin, RateLimiter rateLimiter) {
         this.authService = authService;
+        this.recoveryService = recoveryService;
         this.profileService = profileService;
         this.sessionLogin = sessionLogin;
         this.rateLimiter = rateLimiter;
@@ -76,6 +82,23 @@ public class AuthController {
         Authentication authentication = authService.signup(request);
         sessionLogin.establish(authentication, httpRequest, httpResponse);
         return profileService.me(((AuthenticatedUser) authentication.getPrincipal()).userId());
+    }
+
+    /** 이메일 찾기: 이름·전화번호가 맞는 계정의 이메일을 일부 가려서 돌려준다 */
+    @PostMapping("/find-ids")
+    public FindLoginIdsResponse findLoginIds(@Valid @RequestBody FindLoginIdsRequest request,
+            HttpServletRequest httpRequest) {
+        rateLimiter.check("find-ids:ip:" + httpRequest.getRemoteAddr(), 10, Duration.ofMinutes(10));
+        return new FindLoginIdsResponse(recoveryService.findLoginIds(request.name(), request.phone()));
+    }
+
+    /** 비밀번호 재설정: 이메일·이름·전화번호가 모두 맞으면 새 비밀번호로 바꾸고 기존 로그인을 끊는다 */
+    @PostMapping("/reset-password")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void resetPassword(@Valid @RequestBody RecoverPasswordRequest request, HttpServletRequest httpRequest) {
+        rateLimiter.check("reset-password:ip:" + httpRequest.getRemoteAddr(), 10, Duration.ofMinutes(10));
+        rateLimiter.check("reset-password:id:" + LoginIds.normalize(request.loginId()), 5, Duration.ofMinutes(10));
+        recoveryService.resetPassword(request.loginId(), request.name(), request.phone(), request.newPassword());
     }
 
     @PostMapping("/logout")

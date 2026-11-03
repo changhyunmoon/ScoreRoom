@@ -4,21 +4,18 @@ React 18 + TypeScript + Vite + React Router(BrowserRouter: 주소에 `#` 없음)
 
 ```bash
 npm ci
-npm run dev      # http://localhost:5173 (/api는 http://localhost:8080 백엔드로 넘어간다)
-npm run build    # 타입 검사 + 정적 빌드 (dist/)
+npm run build    # 타입 검사 + 정적 빌드 (dist/). 배포 서버에서는 Nginx가 이 파일을 제공하고 /api를 백엔드로 넘긴다
 ```
-
-백엔드를 먼저 띄워야 합니다 ([backend/README.md](../backend/README.md)).
 
 ## 구조
 
 ```text
 src/
-├── main.tsx              # 세션 시작 + 렌더
+├── main.tsx              # 예전 /#/ 주소 변환, 세션 시작, 렌더
 ├── app/                  # 조립: App, router, 접근 가드, 공통 레이아웃
 ├── features/             # 기능별: api/ components/ model/ pages/ + index.ts(공개 진입점)
 │   ├── session/          # 로그인 상태와 화면 데이터(/state), refresh·mutate
-│   ├── auth/             # 로그인·가입·로그아웃
+│   ├── auth/             # 로그인·가입·로그아웃, 이메일·비밀번호 찾기
 │   ├── profile/          # 내 정보 팝업
 │   ├── organization/     # 조직도, 팀 선택, 시스템 관리자 화면
 │   ├── projects/         # 평가룸 목록·공통 틀·운영 탭

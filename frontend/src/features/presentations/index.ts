@@ -1,7 +1,6 @@
-export type { Presentation, PresentationInput, PresType, PresRole } from './model/types';
+export type { Presentation } from './model/types';
 export {
-  involvedIds, canEditPresentation, crewOf, roleText, roleClass, presTypeText, presentationsOf, crewSummary, crewNames,
-  sortPresentations, presSortText, type CrewRole, type PresSort,
+  involvedIds, crewOf, roleText, roleClass, presTypeText, presentationsOf, crewSummary, type CrewRole,
 } from './model/crew';
-export { savePresentation, deletePresentation, movePresentation, reorderPresentations } from './api/presentations.api';
-export { Presenters, PresMaterials, PresInfo } from './components/PresInfo';
+export { deletePresentation, movePresentation, reorderPresentations } from './api/presentations.api';
+export { PresInfo } from './components/PresInfo';

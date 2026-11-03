@@ -71,6 +71,36 @@ class AuthApiTest extends IntegrationTest {
     }
 
     @Test
+    void 이름과_전화번호로_이메일을_가려서_찾는다() throws Exception {
+        fixtures.user("kimchulsoo", null);
+        String body = "{\"name\":\"사용자 kimchulsoo\",\"phone\":\"01000000000\"}";
+        mvc.perform(json(post("/api/v1/auth/find-ids"), body).with(csrf()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.loginIds[0]").value("ki********@example.com"));
+        mvc.perform(json(post("/api/v1/auth/find-ids"), "{\"name\":\"사용자 kimchulsoo\",\"phone\":\"010-1111-2222\"}").with(csrf()))
+                .andExpect(jsonPath("$.loginIds").isEmpty());
+    }
+
+    @Test
+    void 본인_확인이_맞으면_비밀번호를_재설정하고_새_비밀번호로_로그인한다() throws Exception {
+        fixtures.user("kim", null);
+        String wrong = "{\"loginId\":\"kim@example.com\",\"name\":\"다른 이름\",\"phone\":\"010-0000-0000\",\"newPassword\":\"new-password1\"}";
+        mvc.perform(json(post("/api/v1/auth/reset-password"), wrong).with(csrf())).andExpect(status().isBadRequest());
+
+        String ok = "{\"loginId\":\"kim@example.com\",\"name\":\"사용자 kim\",\"phone\":\"010-0000-0000\",\"newPassword\":\"new-password1\"}";
+        mvc.perform(json(post("/api/v1/auth/reset-password"), ok).with(csrf())).andExpect(status().isNoContent());
+        mvc.perform(json(post("/api/v1/auth/login"), "{\"loginId\":\"kim@example.com\",\"password\":\"new-password1\"}").with(csrf()))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void 시스템_관리자는_본인_확인으로_재설정할_수_없다() throws Exception {
+        fixtures.sysAdmin();
+        String body = "{\"loginId\":\"admin@example.com\",\"name\":\"관리자\",\"phone\":\"\",\"newPassword\":\"new-password1\"}";
+        mvc.perform(json(post("/api/v1/auth/reset-password"), body).with(csrf())).andExpect(status().isBadRequest());
+    }
+
+    @Test
     void 시스템_관리자_기능은_일반_사용자에게_403() throws Exception {
         User user = fixtures.user("kim", null);
         mvc.perform(json(post("/api/v1/admin/teams"), "{\"name\":\"새 팀\"}").with(as(user)))
