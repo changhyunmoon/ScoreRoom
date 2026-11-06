@@ -105,11 +105,11 @@ export function ProjectShell({ project, current, children }: { project: Project;
       </aside>
       <button className="lnb-collapse" onClick={() => setCollapsed(c => !c)} aria-label={collapsed ? '왼쪽 메뉴 펼치기' : '왼쪽 메뉴 접기'} aria-expanded={!collapsed}><Icon name={collapsed ? 'right' : 'collapse'} size={14} /></button>
       <div className="board-main">
-        {/* 모바일: 왼쪽 목차를 여는 버튼. 화면을 내려도 상단 메뉴 바로 아래에 붙어 있다 */}
+        {/* 모바일: 왼쪽 목차를 여는 줄. 화면을 내리면 상단 메뉴는 올라가고 이 줄이 맨 위에 붙는다 */}
         <button className="lnb-toggle" onClick={() => setDrawer(d => !d)} aria-expanded={drawer}>
           <Icon name={drawer ? 'collapse' : 'menu'} size={18} />
           <span className="lnb-toggle-label ellipsis"><b>{project.name}</b><span className="lnb-toggle-sep">›</span>{currentLabel}</span>
-          <span className="lnb-toggle-hint">{drawer ? '닫기' : '목차 열기'}</span>
+          <span className="lnb-toggle-hint">{drawer ? '닫기' : '목차'}</span>
         </button>
         {children}
       </div>
