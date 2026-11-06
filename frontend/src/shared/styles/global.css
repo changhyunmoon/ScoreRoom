@@ -1251,7 +1251,6 @@ textarea.invalid { border-color: var(--red); }
   .score-sheet > tbody > tr > td.sticky .muted { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
   /* 발표 화면: 발표 등록 전이라 모두 '-'인 평가 현황 줄은 숨긴다. 펼친 발표 정보 머리의 역할 안내도 줄바꿈이 어색해 숨긴다 */
   .brow .c-stats.no-stats { display: none; }
-  .detail-block-head .role-note { display: none; }
   .detail-block-head > span { white-space: nowrap; }
   /* 참여자: 참여일은 이름 아래 왼쪽에 */
   .mrow .c-date { text-align: left; }
@@ -1361,3 +1360,6 @@ textarea.invalid { border-color: var(--red); }
 /* 시스템 관리자: 평가룸 관리 */
 .rooms-table .room-desc { display: block; margin-top: 2px; font-size: 12px; }
 .rooms-table .chip { margin-left: 4px; vertical-align: middle; }
+
+/* 발표 정보: 소개 칸 위에 발표 제목 */
+.info-table .intro-title { margin: 0 0 4px; font-weight: 700; color: var(--text, #111827); }

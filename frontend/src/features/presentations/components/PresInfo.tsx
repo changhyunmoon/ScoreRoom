@@ -1,4 +1,4 @@
-// 발표 정보 표시: 구성원, 발표 자료, 소개. 발표 화면과 결과 현황 팝업이 함께 쓴다
+// 발표 정보 표시: 소개(제목·내용), 구성원(팀 발표만), 발표 자료. 발표 화면과 결과 현황 팝업이 함께 쓴다
 import { Icon } from '../../../shared/icons/Icon';
 import { fileSize } from '../../../shared/lib/format';
 import type { ID } from '../../../shared/lib/types';
@@ -49,7 +49,7 @@ export function PresMaterials({ project, pres }: { project: Project; pres: Prese
   );
 }
 
-/** 발표 정보 표: 소개 / 구성원 / 발표 자료를 줄마다 나눠 보여준다 */
+/** 발표 정보 표: 소개(발표 제목과 내용) / 구성원(팀 발표만) / 발표 자료를 줄마다 나눠 보여준다 */
 export function PresInfo({ project, pres, showMyRole }: { project: Project; pres: Presentation; showMyRole?: boolean }) {
   const { db, me } = useSession();
   const hasMaterials = pres.attachments.length > 0 || !!pres.deployUrl;
@@ -58,9 +58,13 @@ export function PresInfo({ project, pres, showMyRole }: { project: Project; pres
     <dl className="info-table">
       <div className="info-row">
         <dt>소개</dt>
-        <dd>{pres.intro ? <p className="intro">{pres.intro}</p> : <span className="muted">등록된 소개가 없어요.</span>}</dd>
+        <dd>
+          <p className="intro-title">{pres.title}</p>
+          {pres.intro ? <p className="intro">{pres.intro}</p> : <span className="muted small">등록된 소개가 없어요.</span>}
+        </dd>
       </div>
-      <div className="info-row">
+      {/* 개인 발표는 발표자 한 명뿐이라 구성원을 따로 보여 주지 않는다 */}
+      {pres.type !== 'PERSONAL' && <div className="info-row">
         <dt>구성원</dt>
         <dd>
           <Presenters db={db} project={project} pres={pres} />
@@ -72,7 +76,7 @@ export function PresInfo({ project, pres, showMyRole }: { project: Project; pres
             </div>
           )}
         </dd>
-      </div>
+      </div>}
       {hasMaterials && (
         <div className="info-row">
           <dt>발표 자료</dt>

@@ -13,7 +13,7 @@ import { mutate, useSession } from '../../session';
 import { deletePresentation } from '../api/presentations.api';
 import { PresInfo } from '../components/PresInfo';
 import { RosterSummary } from '../components/RosterSummary';
-import { canEditPresentation, crewOf, involvedIds, presentationOfUser, presenterRoster, presTypeText, roleText } from '../model/crew';
+import { canEditPresentation, involvedIds, presentationOfUser, presenterRoster, presTypeText } from '../model/crew';
 import type { Presentation } from '../model/types';
 
 /** 회색 정보 행: 왼쪽 라벨, 오른쪽 값 */
@@ -98,7 +98,6 @@ function PersonRow({ project, member, no, pres, open, onToggle, viewer, showStat
   const user = userOf(db, uid);
   const isMe = uid === me!.id;
   const s = pres && !viewer ? personStatus(db, project, pres, me!.id, uid) : null;
-  const role = pres ? crewOf(pres).find(c => c.id === uid)?.role : undefined;
   const canEdit = !!pres && !viewer && project.status === 'OPEN' && canEditPresentation(pres, me!.id, !!m?.isAdmin);
   const reg = pres ? <Chip tone="green" icon="checkCircle">발표 등록 완료</Chip> : <Chip icon="clock">발표 등록 전</Chip>;
   return (
@@ -127,7 +126,7 @@ function PersonRow({ project, member, no, pres, open, onToggle, viewer, showStat
           {pres ? <>
             <section className="detail-block">
               <div className="detail-block-head">
-                <span><Icon name="mic" size={15} /> 발표 정보{role && <span className="muted small role-note"> · {userName(db, uid)}님은 {roleText[role]}</span>}</span>
+                <span><Icon name="mic" size={15} /> 발표 정보</span>
                 {canEdit && <span className="row gap-sm">
                   <Link className="btn sm" to={`/p/${project.id}/pres/${pres.id}`}><IconText icon="pencil">편집</IconText></Link>
                   <DeletePresentation project={project} pres={pres} isAdmin={!!m?.isAdmin} />
