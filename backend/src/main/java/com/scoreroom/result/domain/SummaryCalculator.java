@@ -26,8 +26,9 @@ public final class SummaryCalculator {
             List<Presentation> presentations, Map<UUID, Crew> crews, List<Rating> ratings) {
         Map<String, List<Rating>> byTarget = ratings.stream()
                 .collect(Collectors.groupingBy(r -> key(r.getPresentationId(), r.getTargetId())));
-        // 관리자 평가를 끈 평가룸이면 관리자는 평가자 인원에서 아예 빠진다 (평가 불가로 세지 않음)
+        // 관리자 평가를 껐거나 룸 관리자가 준 점수를 미포함하면 관리자는 평가자 인원에서 아예 빠진다 (평가 불가로 세지 않음)
         List<Membership> members = roster.raters(settings);
+        Set<UUID> raterIds = members.stream().map(Membership::getUserId).collect(Collectors.toSet());
         List<SummaryResponse> rows = new ArrayList<>();
         for (Presentation p : presentations) {
             Crew crew = crews.get(p.getId());
@@ -35,7 +36,9 @@ public final class SummaryCalculator {
                 continue;
             }
             for (UUID targetId : crew.everyone()) {
-                List<Rating> received = byTarget.getOrDefault(key(p.getId(), targetId), List.of());
+                // 평가자로 세지 않는 사람(빠진 룸 관리자)이 준 점수는 평가함·평균에서도 뺀다
+                List<Rating> received = byTarget.getOrDefault(key(p.getId(), targetId), List.of()).stream()
+                        .filter(r -> raterIds.contains(r.getRaterId())).toList();
                 Set<UUID> raters = received.stream().map(Rating::getRaterId).collect(Collectors.toSet());
                 int blocked = 0;
                 int notRated = 0;

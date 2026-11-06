@@ -51,7 +51,7 @@ export function AppLayout() {
         <nav className="gnb-menu">
           <Link to={home} className="portal-home-link" aria-label="메인 화면"><span className="app-grid" aria-hidden="true"><i /><i /><i /><i /></span></Link>
           {me.isSysAdmin
-            ? <><NavLink to="/sys" end>회사 팀 구조도</NavLink><NavLink to="/sys/viewers">전체 열람 권한</NavLink><NavLink to="/sys/creators">평가룸 생성 권한</NavLink><NavLink to="/sys/rooms">평가룸 관리</NavLink></>
+            ? <><NavLink to="/sys" end><span className="hide-sm">회사 </span>팀 구조도</NavLink><NavLink to="/sys/viewers"><span className="hide-sm">전체 </span>열람 권한</NavLink><NavLink to="/sys/creators"><span className="hide-sm">평가룸 </span>생성 권한</NavLink><NavLink to="/sys/rooms">평가룸 관리</NavLink></>
             : <NavLink to="/" className={() => (pathname === '/' || inProject ? 'active' : '')}>발표 평가</NavLink>}
           <span className="gnb-caption">사내 발표 평가</span>
         </nav>

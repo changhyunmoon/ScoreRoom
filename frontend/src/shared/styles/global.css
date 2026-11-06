@@ -1373,3 +1373,20 @@ textarea.invalid { border-color: var(--red); }
 
 /* 발표 정보: 소개 칸 위에 발표 제목 */
 .info-table .intro-title { margin: 0 0 4px; font-weight: 700; color: var(--text, #111827); }
+
+/* 긴 평가룸 이름: 왼쪽 메뉴는 세 줄까지 (전체 이름은 마우스를 올리면 보인다) */
+.lnb-title { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+/* 명단 팝업: 평가룸 이름은 제목 아래 한 줄 */
+.roster-popup .roster-room { margin: 2px 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+/* 평가룸 관리: 긴 이름은 줄바꿈해서 삭제 버튼이 항상 보이게 */
+.rooms-table td:first-child { white-space: normal; word-break: keep-all; overflow-wrap: anywhere; min-width: 0; }
+.rooms-table td.right { width: 1%; }
+@media (max-width: 560px) {
+  /* 시스템 관리자 메뉴: 짧은 이름 + 좁은 간격으로 네 메뉴가 한 화면에 */
+  .gnb-menu:has(a[href="/sys/rooms"]) { gap: 16px; }
+  .gnb-menu:has(a[href="/sys/rooms"]) a { font-size: 14px; }
+}
+.roster-popup .roster-popup-title { display: flex; align-items: center; gap: 6px; }
+.roster-popup .roster-popup-title svg { color: var(--navy); }
+.roster-popup .roster-popup-title.ok svg { color: var(--green, #1a7f4b); }
+.roster-popup .roster-popup-title.warn svg { color: #b7791f; }

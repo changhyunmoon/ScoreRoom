@@ -67,7 +67,8 @@ function RosterPopup({ project, kind, list, onClose }: { project: Project; kind:
 
   return (
     <Popup label={`${meta.label} 목록`} onClose={onClose} className="roster-popup"
-      head={<><Chip tone={kind === 'done' ? 'green' : kind === 'todo' ? 'amber' : 'blue'} icon={meta.icon}>{meta.label}</Chip><h2>{project.name} · {list.length}명</h2></>}
+      // 제목은 짧게(종류·인원), 평가룸 이름은 아래 한 줄로 (긴 이름이 휴대폰에서 목록 자리를 차지하지 않게)
+      head={<><h2 className={`roster-popup-title ${meta.tone}`}><Icon name={meta.icon} size={18} />{meta.label} {list.length}명</h2><p className="roster-room muted small" title={project.name}>{project.name}</p></>}
       foot={selectable ? (
         <div className="roster-foot">
           <label className="roster-pick-all">

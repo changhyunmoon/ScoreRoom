@@ -40,11 +40,14 @@ export function isCounted(d: DB, project: Project, pres: Presentation, raterId: 
 export function computeResults(d: DB, project: Project): ResultRow[] {
   const { aggMin, aggMax, min, max } = project.settings;
   const hasAgg = aggMin !== null && aggMax !== null;
-  // 평가하는 사람만 칸으로 만든다 (관리자도 평가하기가 꺼져 있으면 룸 관리자는 빠진다)
-  const ms = members(d, project.id).filter(m => project.settings.allowAdminRating || !m.isAdmin);
+  // 평가자로 세는 사람만 칸으로 만든다. 관리자 평가를 껐거나 룸 관리자가 준 점수를 미포함하면 룸 관리자는 빠진다 (서버 RoomRoster.raters와 같은 규칙)
+  const { allowAdminRating, countAdmin } = project.settings;
+  const ms = members(d, project.id).filter(m => !m.isAdmin || (allowAdminRating && countAdmin));
+  const raterIds = new Set(ms.map(m => m.userId));
   return presentationsOf(d, project.id).flatMap(pres => crewOf(pres).map(({ id: targetId, role }) => {
-    const ratings = d.ratings.filter(r => r.presentationId === pres.id && r.targetId === targetId);
-    // 평균·합계에는 집계에 넣는 점수만. count(평가함)는 제출한 사람 모두
+    // 평가자로 세지 않는 사람(빠진 룸 관리자)이 준 점수는 평가함·평균에서 모두 뺀다
+    const ratings = d.ratings.filter(r => r.presentationId === pres.id && r.targetId === targetId && raterIds.has(r.raterId));
+    // 평균·합계에는 집계에 넣는 점수만. count(평가함)는 평가자로 세는 사람이 제출한 점수 모두
     const counted = new Set(ratings.filter(r => isCounted(d, project, pres, r.raterId, targetId)).map(r => r.raterId));
     const scores = ratings.filter(r => counted.has(r.raterId)).map(r => r.score);
     const inScores = hasAgg ? scores.filter(s => s >= aggMin! && s <= aggMax!) : [];

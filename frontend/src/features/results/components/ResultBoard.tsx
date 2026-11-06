@@ -152,7 +152,10 @@ export function ResultBoard({ project, detail = true }: { project: Project; deta
   const colCount = 1 + 1 + 5 + (detail ? 3 : 2) + (hasAgg ? (detail ? 3 : 2) : 0) + (detail ? 1 : 0);
   // 평가자는 팀 구조도 순 (팀 위 → 아래, 같은 팀은 조직도 순서)
   const raterTeamRank = (t: string | null) => (t !== null && tRank.has(t) ? tRank.get(t)! : Number.MAX_SAFE_INTEGER);
-  const raters = members(db, project.id).filter(m => project.settings.allowAdminRating || !m.isAdmin).sort((a, b) => raterTeamRank(a.teamIdAtJoin) - raterTeamRank(b.teamIdAtJoin)
+  // 관리자가 평가하지 않거나, 룸 관리자가 준 점수를 미포함하면(미리보기 포함) 점수표 줄과 상세 목록에서 룸 관리자를 뺀다
+  const showAdmins = project.settings.allowAdminRating && s.countAdmin;
+  const hiddenRater = (uid: string) => !showAdmins && !!membership(db, project.id, uid)?.isAdmin;
+  const raters = members(db, project.id).filter(m => !hiddenRater(m.userId)).sort((a, b) => raterTeamRank(a.teamIdAtJoin) - raterTeamRank(b.teamIdAtJoin)
     || (a.teamIdAtJoin ?? '').localeCompare(b.teamIdAtJoin ?? '')
     || (userOf(db, a.userId)?.rank ?? Number.MAX_SAFE_INTEGER) - (userOf(db, b.userId)?.rank ?? Number.MAX_SAFE_INTEGER)
     || userName(db, a.userId).localeCompare(userName(db, b.userId)));
@@ -234,11 +237,20 @@ export function ResultBoard({ project, detail = true }: { project: Project; deta
               )}
               {g.rows.map(r => {
                 const open = detail && openKey === r.key;
-                const scored = r.cells.filter((c): c is ScoreCell => c.kind === 'SCORE');
-                const notRated = r.cells.filter(c => c.kind === 'NOT_RATED');
-                const blocked = r.cells.filter((c): c is Extract<Cell, { kind: 'BLOCKED' }> => c.kind === 'BLOCKED');
+                const cells = r.cells.filter(c => !hiddenRater(c.userId));
+                const scored = cells.filter((c): c is ScoreCell => c.kind === 'SCORE');
+                const notRated = cells.filter(c => c.kind === 'NOT_RATED');
+                const blocked = cells.filter((c): c is Extract<Cell, { kind: 'BLOCKED' }> => c.kind === 'BLOCKED');
                 const span = colCount;
-                const sm = summaryOf(r);
+                // 인원: 저장된 값은 서버 집계, 미리보기 중이면 미리보기 설정으로 만든 칸에서 센다 (평균과 같은 기준)
+                const saved = summaryOf(r);
+                const sm = previewing ? {
+                  total: r.cells.length,
+                  blocked: r.cells.filter(c => c.kind === 'BLOCKED').length,
+                  eligible: r.cells.filter(c => c.kind !== 'BLOCKED').length,
+                  scored: r.cells.filter(c => c.kind === 'SCORE').length,
+                  notRated: r.cells.filter(c => c.kind === 'NOT_RATED').length,
+                } : saved;
                 return (
                   <Fragment key={r.key}>
                     {/* 칸을 누르면 그 칸·줄·열을 표시하고, 상세(평가자별 점수·피드백)는 맨 오른쪽 펼치기 버튼으로만 연다 */}
