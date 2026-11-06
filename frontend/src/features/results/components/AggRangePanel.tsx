@@ -33,10 +33,10 @@ export function previewSettings(p: Project, d: AggDraft): { settings: Project['s
 export const aggChanged = (a: Project['settings'], b: Project['settings']) =>
   a.aggMin !== b.aggMin || a.aggMax !== b.aggMax || a.countSelf !== b.countSelf || a.countSameCrew !== b.countSameCrew || a.countSameTeam !== b.countSameTeam;
 
-const INCLUDE: { key: 'countSelf' | 'countSameCrew' | 'countSameTeam'; label: string; rule: 'allowSelf' | 'allowSameCrew' | 'allowSameTeam'; hint: string }[] = [
-  { key: 'countSameTeam', label: '같은 회사 팀원 점수', rule: 'allowSameTeam', hint: '발표자와 같은 회사 팀인 사람이 준 점수' },
-  { key: 'countSameCrew', label: '같은 발표 팀원 점수', rule: 'allowSameCrew', hint: '같은 발표의 다른 구성원이 준 점수' },
-  { key: 'countSelf', label: '본인 점수', rule: 'allowSelf', hint: '발표자가 자기 자신에게 준 점수' },
+const INCLUDE: { key: 'countSelf' | 'countSameCrew' | 'countSameTeam'; label: string; hint: string }[] = [
+  { key: 'countSameTeam', label: '같은 회사 팀원 점수', hint: '발표자와 같은 회사 팀인 사람이 준 점수' },
+  { key: 'countSameCrew', label: '같은 발표 팀원 점수', hint: '같은 발표의 다른 구성원이 준 점수' },
+  { key: 'countSelf', label: '본인 점수', hint: '발표자가 자기 자신에게 준 점수' },
 ];
 
 /** onReset: 입력을 버리고 저장된 설정을 따른다 (되돌리기·저장 후) */
@@ -87,26 +87,19 @@ export function AggRangePanel({ project, draft, onChange, onReset }: { project: 
           </div>
         </div>
 
-        {/* 평균·순위(전체·집계 기준 모두)에 넣을 점수. 평가 규칙에서 막혀 있으면 그런 점수가 없으므로 고를 수 없다 */}
+        {/* 평균·순위(전체·집계 기준 모두)에 넣을 점수. 평가 규칙과 상관없이 항상 고를 수 있다 */}
         <div className="agg-item">
           <span className="agg-label">집계에 넣을 점수</span>
           <div className="agg-value agg-includes">
-            {INCLUDE.map(x => {
-              const blocked = !saved[x.rule];
-              return (
-                <div key={x.key} className="agg-include" title={blocked ? '평가 규칙에서 막혀 있어 이런 점수가 없어요 (관리 > 설정에서 바꿀 수 있어요)' : x.hint}>
-                  <span className="agg-include-name">{x.label}</span>
-                  {blocked
-                    ? <Chip>해당 없음</Chip>
-                    : (
-                      <div className="segmented sm" role="group" aria-label={x.label}>
-                        <button type="button" className={draft[x.key] ? 'on' : ''} disabled={!open} onClick={() => onChange({ ...draft, [x.key]: true })}>포함</button>
-                        <button type="button" className={!draft[x.key] ? 'on' : ''} disabled={!open} onClick={() => onChange({ ...draft, [x.key]: false })}>미포함</button>
-                      </div>
-                    )}
+            {INCLUDE.map(x => (
+              <div key={x.key} className="agg-include" title={x.hint}>
+                <span className="agg-include-name">{x.label}</span>
+                <div className="segmented sm" role="group" aria-label={x.label}>
+                  <button type="button" className={draft[x.key] ? 'on' : ''} disabled={!open} onClick={() => onChange({ ...draft, [x.key]: true })}>포함</button>
+                  <button type="button" className={!draft[x.key] ? 'on' : ''} disabled={!open} onClick={() => onChange({ ...draft, [x.key]: false })}>미포함</button>
                 </div>
-              );
-            })}
+              </div>
+            ))}
           </div>
         </div>
       </div>
