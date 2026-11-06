@@ -55,7 +55,7 @@ class StateApiTest extends IntegrationTest {
     }
 
     @Test
-    void 룸_운영자는_모든_점수와_집계를_본다() throws Exception {
+    void 룸_관리자는_모든_점수와_집계를_본다() throws Exception {
         mvc.perform(get("/api/v1/state").with(as(owner)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.ratings", hasSize(2)))

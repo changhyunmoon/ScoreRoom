@@ -70,7 +70,7 @@ export default function PresentationFormPage() {
   const m = membership(db, project.id, me.id);
   if (!m) return <RoomNotFound />;
   if (prid && !existing) return <Empty>발표를 찾을 수 없습니다. 삭제됐을 수 있어요. <Link to={`/p/${project.id}`}>목록으로</Link></Empty>;
-  if (existing && !canEditPresentation(existing, me.id, m.isAdmin)) return <Empty>발표 구성원, 발표를 만든 사람, 룸 운영자만 편집할 수 있습니다.</Empty>;
+  if (existing && !canEditPresentation(existing, me.id, m.isAdmin)) return <Empty>발표 구성원, 발표를 만든 사람, 룸 관리자만 편집할 수 있습니다.</Empty>;
   if (project.status === 'CLOSED') return <Empty>마감된 평가룸은 편집할 수 없습니다.</Empty>;
 
   // 한 사람은 평가룸에서 발표 하나에만 참여한다. 다른 발표에 이미 들어 있는 사람의 그 발표
@@ -108,7 +108,7 @@ export default function PresentationFormPage() {
       ? rankOf(a.userId) - rankOf(b.userId) || byName(a.userId, b.userId)
       : (a.userId === me.id ? -1 : b.userId === me.id ? 1 : byName(a.userId, b.userId)));
   const back = m.isAdmin && existing ? `/p/${project.id}/admin` : `/p/${project.id}`;
-  // 룸 운영자는 평가룸의 모든 평가를 받으므로 삭제될 평가 수를 정확히 보여줄 수 있다
+  // 룸 관리자는 평가룸의 모든 평가를 받으므로 삭제될 평가 수를 정확히 보여줄 수 있다
   const ratingCount = existing ? db.ratings.filter(r => r.presentationId === existing.id).length : 0;
 
   const rolesOf = (id: ID): Role[] => (id === f.leaderId ? ['LEADER'] : f.type === 'PERSONAL' || !f.roles[id] ? [] : ['MEMBER']);
@@ -144,7 +144,7 @@ export default function PresentationFormPage() {
     setF({ ...f, leaderId: lead, roles });
   };
   // 우리 회사 팀 불러오기: 내 팀 참여자 전원. 지금 등록하는 사람(나)은 항상 들어가고 기본 대표, 나머지는 팀원으로 채운다.
-  // 내가 이미 다른 발표에 들어 있으면(룸 운영자가 대신 등록하는 경우) 조직도에서 가장 위 사람을 대표로 둔다
+  // 내가 이미 다른 발표에 들어 있으면(룸 관리자가 대신 등록하는 경우) 조직도에서 가장 위 사람을 대표로 둔다
   const fillMyTeam = (type: PresType = f.type) => {
     // 다른 발표에 이미 등록된 사람은 빼고 불러온다
     const crew = ms.filter(x => x.teamIdAtJoin === myTeam && !takenBy(x.userId)).map(x => x.userId)
@@ -390,7 +390,7 @@ export default function PresentationFormPage() {
                 : '발표와 올린 자료가 모두 삭제되고 되돌릴 수 없습니다.'}
               onConfirm={() => run(() => mutate(deletePresentation(project.id, existing.id)), '발표를 삭제했습니다.').then(ok => ok && nav(back))} />
           ) : (
-            <p className="muted">점수를 받은 발표는 룸 운영자만 삭제할 수 있습니다.</p>
+            <p className="muted">점수를 받은 발표는 룸 관리자만 삭제할 수 있습니다.</p>
           )}
         </div>
       )}

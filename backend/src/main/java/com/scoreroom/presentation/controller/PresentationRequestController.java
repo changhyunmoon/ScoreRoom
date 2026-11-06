@@ -24,7 +24,7 @@ public class PresentationRequestController {
         this.requestService = requestService;
     }
 
-    /** 룸 운영자: 발표 미등록자에게 발표 등록 요청 알림을 보낸다 */
+    /** 룸 관리자: 발표 미등록자에게 발표 등록 요청 알림을 보낸다 */
     @PostMapping
     public SentResponse request(@AuthenticationPrincipal AuthenticatedUser me, @PathVariable UUID projectId,
             @RequestBody PresentationRequestRequest request) {

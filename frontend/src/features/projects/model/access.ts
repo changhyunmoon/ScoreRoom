@@ -7,7 +7,7 @@ type WithMemberships = { memberships: Membership[] };
 export const members = (d: WithMemberships, pid: ID) => d.memberships.filter(m => m.projectId === pid);
 export const membership = (d: WithMemberships, pid: ID, userId: ID) => d.memberships.find(m => m.projectId === pid && m.userId === userId);
 
-/** 평가룸에서 내 자격: 룸 운영자 / 참여자 / 전체 열람(참여하지 않았지만 볼 수만 있음) / 없음 */
+/** 평가룸에서 내 자격: 룸 관리자 / 참여자 / 전체 열람(참여하지 않았지만 볼 수만 있음) / 없음 */
 export function roomAccess(d: WithMemberships, projectId: ID, user: { id: ID; canViewAll: boolean }) {
   const m = membership(d, projectId, user.id);
   if (m) return m.isAdmin ? 'admin' : 'member';

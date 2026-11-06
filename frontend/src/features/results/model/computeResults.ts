@@ -1,5 +1,5 @@
 // 결과 표의 줄과 평가자별 칸. 인원·평균·순위는 서버 집계(Summary)를 쓰고,
-// 평가자별 점수·합계는 룸 운영자에게만 내려오는 점수로 계산한다
+// 평가자별 점수·합계는 룸 관리자에게만 내려오는 점수로 계산한다
 import type { ID } from '../../../shared/lib/types';
 import { crewOf, involvedIds, presentationsOf, type CrewRole, type Presentation } from '../../presentations';
 import { members, membership, type Project } from '../../projects';

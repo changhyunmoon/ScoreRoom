@@ -78,7 +78,7 @@ export function SettingsTab({ project }: { project: Project }) {
       <section className="card stack">
         <SectionTitle icon="eye" title="발표 화면 표시" />
         <Toggle disabled={!open} checked={f.showRatingStatus} onChange={v => setF({ ...f, showRatingStatus: v })}
-          title="참여자에게 평가 현황 보이기" desc="발표 목록의 각 사람 왼쪽에 전체·평가함·평가 불가·미평가 인원을 보여 줘요. 끄면 룸 운영자만 볼 수 있어요. 평균 점수는 켜도 참여자에게 보이지 않아요." />
+          title="참여자에게 평가 현황 보이기" desc="발표 목록의 각 사람 왼쪽에 전체·평가함·평가 불가·미평가 인원을 보여 줘요. 끄면 룸 관리자만 볼 수 있어요. 평균 점수는 켜도 참여자에게 보이지 않아요." />
       </section>
 
       {open && (

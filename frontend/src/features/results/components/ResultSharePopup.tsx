@@ -1,4 +1,4 @@
-// 결과 공유: 순위 결과를 이미지(PNG)로 만들어 내려받는다. 룸 운영자만 쓴다.
+// 결과 공유: 순위 결과를 이미지(PNG)로 만들어 내려받는다. 룸 관리자만 쓴다.
 // 1단계 설정 → 2단계 테마 → 3단계 미리보기·다운로드
 import { useEffect, useState } from 'react';
 import { Icon } from '../../../shared/icons/Icon';

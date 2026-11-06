@@ -30,7 +30,7 @@ export const blockText: Record<Exclude<Block, null>, string> = {
 };
 export const blockShort: Record<Exclude<Block, null>, string> = { SELF: '본인', SAME_CREW: '같은 발표', SAME_TEAM: '같은 팀' };
 
-/** 평가 규칙을 바꾸면 새 규칙에 맞지 않게 되는 기존 평가 (저장할 때 삭제된다). 룸 운영자는 평가룸 전체 평가를 받는다 */
+/** 평가 규칙을 바꾸면 새 규칙에 맞지 않게 되는 기존 평가 (저장할 때 삭제된다). 룸 관리자는 평가룸 전체 평가를 받는다 */
 export function ratingsBlockedBy(d: RoomData, project: Project, settings: Project['settings']) {
   const changed = { ...project, settings };
   return d.ratings.filter(r => {

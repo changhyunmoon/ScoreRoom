@@ -18,7 +18,7 @@ import com.scoreroom.project.domain.Membership;
 import com.scoreroom.project.repository.MembershipRepository;
 import com.scoreroom.project.service.RoomGuard;
 
-/** 룸 운영자가 발표를 아직 등록하지 않은 참여자에게 '발표 등록 요청' 알림을 보낸다 */
+/** 룸 관리자가 발표를 아직 등록하지 않은 참여자에게 '발표 등록 요청' 알림을 보낸다 */
 @Service
 public class PresentationRequestService {
 

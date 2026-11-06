@@ -9,7 +9,7 @@ import com.scoreroom.project.domain.ProjectSettings;
 import com.scoreroom.project.domain.ProjectStatus;
 
 /**
- * 화면의 Project 타입. 입장 코드(invite)는 룸 운영자에게만 채운다.
+ * 화면의 Project 타입. 입장 코드(invite)는 룸 관리자에게만 채운다.
  * version: 위험한 변경을 확인받을 때 함께 보내는 값
  */
 public record ProjectResponse(

@@ -1,5 +1,5 @@
 // 결과 표. 한 줄 = 발표 구성원 한 명 (이름 아래 발표 제목).
-// - 룸 운영자(detail): 평가자별 점수·피드백·합계와 평가자별 점수표까지
+// - 룸 관리자(detail): 평가자별 점수·피드백·합계와 평가자별 점수표까지
 // - 전체 열람 권한자: 인원·평균·순위만 (누가 몇 점을 줬는지와 피드백은 서버가 보내지 않는다)
 import { Fragment, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -102,18 +102,18 @@ export function ResultBoard({ project, detail = true }: { project: Project; deta
     onClick: () => setTsel(tsel?.row === rowKey && tsel.col === col ? null : { row: rowKey, col }),
   });
   const thc = (col: string, cls = '') => `${cls} ${tsel?.col === col ? 'x-col' : ''}`;
-  // 집계 기준 범위 미리보기 (룸 운영자). null이면 저장된 기준을 따른다
+  // 집계 기준 범위 미리보기 (룸 관리자). null이면 저장된 기준을 따른다
   const [aggDraft, setAggDraft] = useState<AggDraft | null>(null);
   const preview = detail && aggDraft ? previewSettings(project, aggDraft).settings : project.settings;
   const previewing = aggChanged(preview, project.settings);
   const s = preview;
   const hasAgg = s.aggMin !== null && s.aggMax !== null;
-  // 인원·평균·순위는 서버 집계(summaries)를 쓴다. 합계와 평가자별 점수(detail)는 룸 운영자에게만 보이는 점수로 계산한다.
-  // 집계 기준을 미리보기 중이면 룸 운영자가 가진 점수로 기준 안 평균을 바로 다시 계산한다 (저장하면 서버 집계와 같아진다)
+  // 인원·평균·순위는 서버 집계(summaries)를 쓴다. 합계와 평가자별 점수(detail)는 룸 관리자에게만 보이는 점수로 계산한다.
+  // 집계 기준을 미리보기 중이면 룸 관리자가 가진 점수로 기준 안 평균을 바로 다시 계산한다 (저장하면 서버 집계와 같아진다)
   const base = computeResults(db, previewing ? { ...project, settings: preview } : project);
   const summaryOf = (r: ResultRow) => db.summaries.find(x => x.presentationId === r.pres.id && x.targetId === r.targetId);
   const inAvgOf = (r: ResultRow) => (previewing ? r.inAvg : summaryOf(r)?.inAvg ?? null);
-  // 미리보기 중이면 룸 운영자가 가진 점수로 전체 평균도 다시 계산한다 (점수 포함·미포함이 바뀌면 전체 평균도 바뀐다)
+  // 미리보기 중이면 룸 관리자가 가진 점수로 전체 평균도 다시 계산한다 (점수 포함·미포함이 바뀌면 전체 평균도 바뀐다)
   const avgOf = (r: ResultRow) => (previewing ? r.avg : summaryOf(r)?.avg ?? null);
   // 순위는 화면에 보이는 평균(소수점 넷째 자리 / 정수 반올림 설정)으로 매긴다. 보이는 값이 같으면 같은 순위
   const rank = rankBy(base, r => roundAvg(avgOf(r), decimals));

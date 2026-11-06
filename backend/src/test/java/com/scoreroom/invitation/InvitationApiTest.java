@@ -28,6 +28,23 @@ class InvitationApiTest extends IntegrationTest {
     }
 
     @Test
+    void 새_코드를_발급하면_이전_코드는_바로_쓸_수_없다() throws Exception {
+        mvc.perform(json(post("/api/v1/projects/{p}/invite", room), "{\"minutes\":null}").with(as(owner)))
+                .andExpect(status().isNoContent());
+        String oldCode = jdbc.queryForObject("select code from invite_codes where project_id = ?", String.class, room);
+        mvc.perform(json(post("/api/v1/projects/{p}/invite", room), "{\"minutes\":30}").with(as(owner)))
+                .andExpect(status().isNoContent());
+        String newCode = jdbc.queryForObject("select code from invite_codes where project_id = ?", String.class, room);
+        assertThat(newCode).isNotEqualTo(oldCode);
+
+        mvc.perform(json(post("/api/v1/projects/join"), "{\"code\":\"" + oldCode + "\"}").with(as(guest)))
+                .andExpect(status().isBadRequest());
+        assertThat(count("select count(*) from memberships where project_id = ? and user_id = ?", room, guest.getId())).isZero();
+        mvc.perform(json(post("/api/v1/projects/join"), "{\"code\":\"" + newCode + "\"}").with(as(guest)))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     void 입장_코드로_한_번만_참여하고_중지하면_더_참여할_수_없다() throws Exception {
         mvc.perform(json(post("/api/v1/projects/{p}/invite", room), "{\"minutes\":null}").with(as(owner)))
                 .andExpect(status().isNoContent());
@@ -79,7 +96,7 @@ class InvitationApiTest extends IntegrationTest {
     }
 
     @Test
-    void 룸_운영자만_사람을_추가하고_시스템_관리자는_추가할_수_없다() throws Exception {
+    void 룸_관리자만_사람을_추가하고_시스템_관리자는_추가할_수_없다() throws Exception {
         User other = fixtures.user("other", null);
         mvc.perform(json(post("/api/v1/projects/{p}/members", room), "{\"userIds\":[\"" + other.getId() + "\"]}")
                 .with(as(guest))).andExpect(status().isForbidden());

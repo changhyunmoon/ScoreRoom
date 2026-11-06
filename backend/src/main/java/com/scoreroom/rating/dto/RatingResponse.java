@@ -5,7 +5,7 @@ import java.util.UUID;
 import com.scoreroom.common.web.Times;
 import com.scoreroom.rating.domain.Rating;
 
-/** 화면의 Rating 타입. 작성자 본인과 룸 운영자에게만 보낸다 */
+/** 화면의 Rating 타입. 작성자 본인과 룸 관리자에게만 보낸다 */
 public record RatingResponse(UUID id, UUID projectId, UUID presentationId, UUID targetId, UUID raterId, int score,
         String feedback, Long submittedAt) {
 

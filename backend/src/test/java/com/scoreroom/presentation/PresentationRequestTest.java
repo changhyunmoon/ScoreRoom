@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Test;
 import com.scoreroom.support.IntegrationTest;
 import com.scoreroom.user.domain.User;
 
-/** 룸 운영자는 발표 미등록자에게 발표 등록 요청 알림을 보낼 수 있다 */
+/** 룸 관리자는 발표 미등록자에게 발표 등록 요청 알림을 보낼 수 있다 */
 class PresentationRequestTest extends IntegrationTest {
 
     private User owner;
@@ -52,7 +52,7 @@ class PresentationRequestTest extends IntegrationTest {
     }
 
     @Test
-    void 룸_운영자만_보낼_수_있다() throws Exception {
+    void 룸_관리자만_보낼_수_있다() throws Exception {
         mvc.perform(json(post("/api/v1/projects/{p}/presentation-requests", room), body(pending)).with(as(registered)))
                 .andExpect(status().isForbidden());
         mvc.perform(json(post("/api/v1/projects/{p}/presentation-requests", room), "{\"userIds\":[]}").with(as(owner)))

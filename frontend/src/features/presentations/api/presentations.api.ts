@@ -14,6 +14,6 @@ export const movePresentation = (pid: ID, prid: ID, dir: -1 | 1) => http.post(`/
 /** 드래그로 바꾼 전체 순서를 저장 */
 export const reorderPresentations = (pid: ID, orderedIds: ID[]) => http.put(`/projects/${pid}/presentations/order`, { ids: orderedIds });
 
-/** 룸 운영자: 발표 미등록자에게 발표 등록 요청 알림을 보낸다. 실제로 보낸 인원을 돌려준다 */
+/** 룸 관리자: 발표 미등록자에게 발표 등록 요청 알림을 보낸다. 실제로 보낸 인원을 돌려준다 */
 export const requestPresentations = async (pid: ID, userIds: ID[]) =>
   (await http.post<{ sent: number }>(`/projects/${pid}/presentation-requests`, { userIds })).sent;

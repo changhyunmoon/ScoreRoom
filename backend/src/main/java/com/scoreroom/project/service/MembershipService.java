@@ -27,7 +27,7 @@ import com.scoreroom.rating.repository.RatingRepository;
 import com.scoreroom.user.domain.User;
 import com.scoreroom.user.service.UserAccessService;
 
-/** 평가룸 참여자: 참여, 사람 지정 추가, 룸 운영자 지정·해제, 제거 */
+/** 평가룸 참여자: 참여, 사람 지정 추가, 룸 관리자 지정·해제, 제거 */
 @Service
 public class MembershipService {
 
@@ -78,7 +78,7 @@ public class MembershipService {
     }
 
     /**
-     * 룸 운영자가 사람을 골라 바로 참여시킨다 (받는 사람의 수락 절차 없음). 추가된 사람에게는 초대 알림을 남긴다.
+     * 룸 관리자가 사람을 골라 바로 참여시킨다 (받는 사람의 수락 절차 없음). 추가된 사람에게는 초대 알림을 남긴다.
      * 이미 참여 중이거나 비활성 계정은 건너뛰고, 새로 추가한 인원을 돌려준다.
      */
     @Transactional
@@ -107,14 +107,14 @@ public class MembershipService {
         return added;
     }
 
-    /** 룸 운영자는 최소 1명이어야 한다 */
+    /** 룸 관리자는 최소 1명이어야 한다 */
     @Transactional
     public void setAdmin(UUID actorId, UUID projectId, UUID userId, boolean admin) {
         roomGuard.lockAsAdmin(projectId, actorId);
         Membership target = memberships.findByProjectIdAndUserId(projectId, userId)
                 .orElseThrow(() -> ApiException.notFound("참여자를 찾을 수 없습니다."));
         if (!admin && target.isAdmin() && memberships.countByProjectIdAndAdminTrue(projectId) <= 1) {
-            throw ApiException.badRequest("룸 운영자는 최소 1명이어야 합니다.");
+            throw ApiException.badRequest("룸 관리자는 최소 1명이어야 합니다.");
         }
         target.setAdmin(admin);
         audit.record(actorId, projectId, admin ? "ROOM_ADMIN_GRANTED" : "ROOM_ADMIN_REVOKED", 1);
@@ -133,7 +133,7 @@ public class MembershipService {
             return;
         }
         if (target.isAdmin() && memberships.countByProjectIdAndAdminTrue(projectId) <= 1) {
-            throw ApiException.badRequest("마지막 룸 운영자는 제거할 수 없습니다.");
+            throw ApiException.badRequest("마지막 룸 관리자는 제거할 수 없습니다.");
         }
         List<PresentationMember> involved = presentationMembers.findByProjectIdAndUserId(projectId, userId);
         boolean hasRatings = ratings.findByProjectId(projectId).stream()

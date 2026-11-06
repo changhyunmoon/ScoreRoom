@@ -170,7 +170,7 @@ public class AttachmentService {
         UUID actorId = room.membership().getUserId();
         boolean crew = presentationMembers.existsByPresentationIdAndUserId(presentationId, actorId);
         if (!presentation.canBeEditedBy(actorId, room.membership().isAdmin(), crew)) {
-            throw ApiException.forbidden("발표 구성원, 발표를 만든 사람, 룸 운영자만 발표 자료를 바꿀 수 있습니다.");
+            throw ApiException.forbidden("발표 구성원, 발표를 만든 사람, 룸 관리자만 발표 자료를 바꿀 수 있습니다.");
         }
     }
 

@@ -1,5 +1,5 @@
 // 참여자: 팀 구조도 순으로 팀별로 묶어 보여 준다 (발표 화면과 같은 모양).
-// 룸 운영자 지정·해제, 제거 (제거 영향을 보여주고 확인받는다)
+// 룸 관리자 지정·해제, 제거 (제거 영향을 보여주고 확인받는다)
 import { useState } from 'react';
 import { Icon } from '../../../../shared/icons/Icon';
 import { timeText } from '../../../../shared/lib/format';
@@ -13,7 +13,7 @@ import { members } from '../../model/access';
 import { groupByTeam, sortByTeamStructure } from '../../model/teamOrder';
 import type { Membership, Project } from '../../model/types';
 
-/** 참여자 제거 시 영향 범위 (룸 운영자는 평가룸의 모든 평가를 받으므로 화면에서 계산한다) */
+/** 참여자 제거 시 영향 범위 (룸 관리자는 평가룸의 모든 평가를 받으므로 화면에서 계산한다) */
 function removalImpact(d: DB, pid: ID, userId: ID) {
   const pres = d.presentations.filter(p => p.projectId === pid && involvedIds(p).includes(userId));
   return {
@@ -39,11 +39,11 @@ function MemberRow({ project, m, no }: { project: Project; m: Membership; no: nu
         {m.userId === me!.id && <small className="muted"> (나)</small>}
       </span>
       <span className="c-date muted">{timeText(m.joinedAt)}</span>
-      <span className="c-role">{m.isAdmin ? <Chip tone="violet" icon="shield">룸 운영자</Chip> : <Chip icon="user">참여자</Chip>}</span>
+      <span className="c-role">{m.isAdmin ? <Chip tone="violet" icon="shield">룸 관리자</Chip> : <Chip icon="user">참여자</Chip>}</span>
       <span className="c-act">
         {open && <>
-          <button className="btn sm" onClick={() => run(() => mutate(setMemberAdmin(project.id, m.userId, !m.isAdmin)), m.isAdmin ? '룸 운영자 권한을 해제했습니다.' : '룸 운영자 권한을 부여했습니다.')}>
-            {m.isAdmin ? '운영자 해제' : '운영자 지정'}
+          <button className="btn sm" onClick={() => run(() => mutate(setMemberAdmin(project.id, m.userId, !m.isAdmin)), m.isAdmin ? '룸 관리자 권한을 해제했습니다.' : '룸 관리자 권한을 부여했습니다.')}>
+            {m.isAdmin ? '관리자 해제' : '관리자 지정'}
           </button>
           {m.userId !== me!.id && (
             <ConfirmButton className="btn sm danger" label="제거" confirmLabel="제거"
@@ -90,7 +90,7 @@ export function MembersTab({ project }: { project: Project }) {
                 <Icon name="building" size={14} />
                 <b>{teamOf(first)}</b>
                 <span className="team-path">{teamPath(db.teams, first.teamIdAtJoin)}</span>
-                <span className="team-count">{g.rows.length}명{admins > 0 ? ` · 운영자 ${admins}명` : ''}</span>
+                <span className="team-count">{g.rows.length}명{admins > 0 ? ` · 관리자 ${admins}명` : ''}</span>
               </div>
               {g.rows.map(({ item, index }) => <MemberRow key={item.userId} project={project} m={item} no={index + 1} />)}
             </div>

@@ -52,9 +52,9 @@ import com.scoreroom.user.service.UserAccessService;
  * 권한에 맞게 서버에서 걸러서 보낸다.
  * - 이메일·전화번호: 본인과 시스템 관리자에게만
  * - 평가룸: 참여한 곳 (전체 열람 권한이 있으면 전부)
- * - 입장 코드: 룸 운영자에게만
- * - 점수·피드백: 룸 운영자는 그 평가룸 전체, 그 외에는 본인이 준 것만 (전체 열람 권한자도 남의 점수는 못 봄)
- * - 집계: 룸 운영자와 전체 열람 권한자에게만
+ * - 입장 코드: 룸 관리자에게만
+ * - 점수·피드백: 룸 관리자는 그 평가룸 전체, 그 외에는 본인이 준 것만 (전체 열람 권한자도 남의 점수는 못 봄)
+ * - 집계: 룸 관리자와 전체 열람 권한자에게만
  * 한 응답 안의 데이터가 서로 맞도록 같은 스냅샷(REPEATABLE READ)에서 읽는다.
  */
 @Service
@@ -176,7 +176,7 @@ public class StateService {
     }
 
     /**
-     * 사람별 집계. summaryOf(룸 운영자·전체 열람)는 점수까지, countsOnly(평가 현황을 켠 평가룸의 참여자)는
+     * 사람별 집계. summaryOf(룸 관리자·전체 열람)는 점수까지, countsOnly(평가 현황을 켠 평가룸의 참여자)는
      * 전체·평가함·평가 불가·미평가 인원만 보낸다.
      */
     private static List<SummaryResponse> summaries(List<Project> visibleProjects, Set<UUID> summaryOf, Set<UUID> countsOnly,

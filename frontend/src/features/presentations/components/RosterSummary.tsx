@@ -1,4 +1,4 @@
-// 발표 화면 위쪽 (룸 운영자): 참여자 / 발표 등록 / 발표 미등록 인원. 누르면 해당하는 사람 목록이 팝업으로 뜨고,
+// 발표 화면 위쪽 (룸 관리자): 참여자 / 발표 등록 / 발표 미등록 인원. 누르면 해당하는 사람 목록이 팝업으로 뜨고,
 // 미등록 목록에서는 사람을 골라 '발표 등록 요청' 알림을 보낼 수 있다.
 import { useState } from 'react';
 import { Icon, type IconName } from '../../../shared/icons/Icon';
@@ -47,7 +47,7 @@ function RosterPopup({ project, kind, list, onClose }: { project: Project; kind:
   const { db, me } = useSession();
   const meta = KINDS.find(k => k.key === kind)!;
   const selectable = kind === 'todo' && project.status === 'OPEN';
-  // 미등록 목록: 나(룸 운영자)는 고를 수 없다
+  // 미등록 목록: 나(룸 관리자)는 고를 수 없다
   const candidates = list.filter(m => m.userId !== me!.id);
   const [picked, setPicked] = useState<Set<ID>>(new Set());
   const [sending, setSending] = useState(false);

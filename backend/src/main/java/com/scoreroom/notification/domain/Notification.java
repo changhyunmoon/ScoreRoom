@@ -15,9 +15,9 @@ import com.scoreroom.common.persistence.PersistableEntity;
 @Table(name = "notifications")
 public class Notification extends PersistableEntity<UUID> {
 
-    /** 룸 운영자가 평가룸에 바로 추가함 */
+    /** 룸 관리자가 평가룸에 바로 추가함 */
     public static final String ROOM_INVITED = "ROOM_INVITED";
-    /** 룸 운영자가 발표를 등록해 달라고 요청함 */
+    /** 룸 관리자가 발표를 등록해 달라고 요청함 */
     public static final String PRESENTATION_REQUESTED = "PRESENTATION_REQUESTED";
 
     @Id

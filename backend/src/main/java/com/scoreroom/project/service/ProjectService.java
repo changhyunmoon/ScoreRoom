@@ -50,7 +50,7 @@ public class ProjectService {
         this.clock = clock;
     }
 
-    /** 시스템 관리자에게 평가룸 생성 권한을 받은 사람만 만든다. 만든 사람은 룸 운영자가 된다 */
+    /** 시스템 관리자에게 평가룸 생성 권한을 받은 사람만 만든다. 만든 사람은 룸 관리자가 된다 */
     @Transactional
     public UUID create(UUID actorId, CreateProjectRequest request) {
         User actor = userAccess.require(actorId);

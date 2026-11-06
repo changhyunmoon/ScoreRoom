@@ -53,12 +53,12 @@ public class RoomGuard {
         return beginWrite(project, membership);
     }
 
-    /** 진행 중인 평가룸의 룸 운영자로서 쓰기 */
+    /** 진행 중인 평가룸의 룸 관리자로서 쓰기 */
     @Transactional(propagation = Propagation.MANDATORY)
     public RoomWrite lockAsAdmin(UUID projectId, UUID actorId) {
         RoomWrite write = lockAsMember(projectId, actorId);
         if (!write.membership().isAdmin()) {
-            throw ApiException.forbidden("룸 운영자만 가능합니다.");
+            throw ApiException.forbidden("룸 관리자만 가능합니다.");
         }
         return write;
     }

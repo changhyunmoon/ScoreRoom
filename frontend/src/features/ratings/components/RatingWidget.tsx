@@ -1,4 +1,4 @@
-// 발표 구성원(대표·발표자·팀원) 한 명씩 점수(필수)와 피드백(선택)을 준다. 피드백은 나와 룸 운영자만 본다
+// 발표 구성원(대표·발표자·팀원) 한 명씩 점수(필수)와 피드백(선택)을 준다. 피드백은 나와 룸 관리자만 본다
 import { useEffect, useState } from 'react';
 import { Icon } from '../../../shared/icons/Icon';
 import { timeText } from '../../../shared/lib/format';
@@ -88,7 +88,7 @@ function PersonRating({ project, pres, targetId, role }: { project: Project; pre
           </button>
           {mine && <button className="btn ghost" onClick={() => setEditing(false)}>취소</button>}
         </div>
-        <textarea className={`pr-feedback-input ${tooLong ? 'invalid' : ''}`} rows={2} value={feedback} placeholder="피드백 (선택) · 룸 운영자만 볼 수 있어요"
+        <textarea className={`pr-feedback-input ${tooLong ? 'invalid' : ''}`} rows={2} value={feedback} placeholder="피드백 (선택) · 룸 관리자만 볼 수 있어요"
           aria-label={`${userName(db, targetId)} 피드백`} onChange={e => setFeedback(e.target.value)} />
         <div className="row between small">
           {val !== '' && !valid ? <span className="err-text">{min}~{max} 사이의 정수를 입력해 주세요.</span> : <span />}

@@ -110,7 +110,7 @@ class RoomAdminApiTest extends IntegrationTest {
     }
 
     @Test
-    void 평가_현황은_켜져_있으면_참여자에게_인원_수만_보이고_꺼도_룸_운영자에게는_보인다() throws Exception {
+    void 평가_현황은_켜져_있으면_참여자에게_인원_수만_보이고_꺼도_룸_관리자에게는_보인다() throws Exception {
         UUID pres = fixtures.teamPresentation(room, leader, List.of(presenter), List.of());
         rate(owner, pres, presenter, 80);
 
@@ -126,7 +126,7 @@ class RoomAdminApiTest extends IntegrationTest {
         mvc.perform(get("/api/v1/state").with(as(member)))
                 .andExpect(jsonPath("$.projects[0].settings.showRatingStatus").value(false))
                 .andExpect(jsonPath("$.summaries.length()").value(0));
-        // 룸 운영자는 꺼져 있어도 점수까지 받는다
+        // 룸 관리자는 꺼져 있어도 점수까지 받는다
         mvc.perform(get("/api/v1/state").with(as(owner)))
                 .andExpect(jsonPath("$.summaries[?(@.targetId == '" + presenter.getId() + "')].avg").value(80.0));
         // 다른 설정만 바꿀 때 값을 보내지 않으면 그대로 유지한다
@@ -136,7 +136,7 @@ class RoomAdminApiTest extends IntegrationTest {
     }
 
     @Test
-    void 마지막_룸_운영자는_해제하거나_제거할_수_없다() throws Exception {
+    void 마지막_룸_관리자는_해제하거나_제거할_수_없다() throws Exception {
         mvc.perform(json(put("/api/v1/projects/{p}/members/{u}/admin", room, owner.getId()), "{\"isAdmin\":false}")
                 .with(as(owner))).andExpect(status().isBadRequest());
         mvc.perform(delete("/api/v1/projects/{p}/members/{u}", room, owner.getId()).with(as(owner)))
@@ -144,7 +144,7 @@ class RoomAdminApiTest extends IntegrationTest {
     }
 
     @Test
-    void 운영자가_아니면_설정을_바꿀_수_없다() throws Exception {
+    void 관리자가_아니면_설정을_바꿀_수_없다() throws Exception {
         mvc.perform(json(put("/api/v1/projects/{p}/settings", room), "{\"min\":0,\"max\":10}").with(as(member)))
                 .andExpect(status().isForbidden());
     }
@@ -196,14 +196,14 @@ class RoomAdminApiTest extends IntegrationTest {
     }
 
     @Test
-    void 구성원은_누구나_발표를_수정_삭제하고_점수를_받은_발표는_운영자만_삭제한다() throws Exception {
+    void 구성원은_누구나_발표를_수정_삭제하고_점수를_받은_발표는_관리자만_삭제한다() throws Exception {
         UUID shared = fixtures.teamPresentation(room, leader, List.of(presenter), List.of(member));
         String rename = "{\"title\":\"새 제목\",\"type\":\"TEAM\",\"leaderId\":\"%s\",\"presenterIds\":[\"%s\"],\"memberIds\":[\"%s\"]}"
                 .formatted(leader.getId(), presenter.getId(), member.getId());
         // 팀원도 수정할 수 있다
         mvc.perform(json(put("/api/v1/projects/{p}/presentations/{pr}", room, shared), rename).with(as(member)))
                 .andExpect(status().isOk());
-        // 점수를 받으면 구성원은 지울 수 없고 운영자만 지운다
+        // 점수를 받으면 구성원은 지울 수 없고 관리자만 지운다
         rate(owner, shared, member, 75);
         mvc.perform(delete("/api/v1/projects/{p}/presentations/{pr}", room, shared).with(as(member)))
                 .andExpect(status().isForbidden());

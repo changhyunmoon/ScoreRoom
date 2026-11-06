@@ -85,13 +85,13 @@ public class PresentationService {
         syncMembers(presentation, crew, current);
     }
 
-    /** 수정할 수 있는 사람이 삭제한다. 점수를 받은 발표는 남의 평가가 함께 지워지므로 룸 운영자만 지운다 */
+    /** 수정할 수 있는 사람이 삭제한다. 점수를 받은 발표는 남의 평가가 함께 지워지므로 룸 관리자만 지운다 */
     @Transactional
     public void delete(UUID actorId, UUID projectId, UUID presentationId) {
         RoomWrite room = roomGuard.lockAsMember(projectId, actorId);
         Presentation presentation = requireEditable(room, presentationId);
         if (!room.membership().isAdmin() && ratings.existsByPresentationId(presentationId)) {
-            throw ApiException.forbidden("점수를 받은 발표는 룸 운영자만 삭제할 수 있습니다.");
+            throw ApiException.forbidden("점수를 받은 발표는 룸 관리자만 삭제할 수 있습니다.");
         }
         remover.remove(presentation);
     }
@@ -136,7 +136,7 @@ public class PresentationService {
         UUID actorId = room.membership().getUserId();
         boolean crew = presentationMembers.existsByPresentationIdAndUserId(presentationId, actorId);
         if (!presentation.canBeEditedBy(actorId, room.membership().isAdmin(), crew)) {
-            throw ApiException.forbidden("발표 구성원, 발표를 만든 사람, 룸 운영자만 수정·삭제할 수 있습니다.");
+            throw ApiException.forbidden("발표 구성원, 발표를 만든 사람, 룸 관리자만 수정·삭제할 수 있습니다.");
         }
         return presentation;
     }

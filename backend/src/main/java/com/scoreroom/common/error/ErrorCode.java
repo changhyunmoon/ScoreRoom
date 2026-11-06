@@ -6,7 +6,7 @@ import org.springframework.http.HttpStatus;
 public enum ErrorCode {
     /** 입력 형식 오류 */
     VALIDATION_FAILED(HttpStatus.BAD_REQUEST),
-    /** 업무 규칙 위반 (예: 마지막 룸 운영자 해제) */
+    /** 업무 규칙 위반 (예: 마지막 룸 관리자 해제) */
     RULE_VIOLATION(HttpStatus.BAD_REQUEST),
     /** 로그인이 필요하거나 세션이 만료됨 */
     UNAUTHENTICATED(HttpStatus.UNAUTHORIZED),

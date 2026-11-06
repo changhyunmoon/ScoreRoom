@@ -9,7 +9,7 @@ import { markAllNotificationsRead } from '../api/notifications.api';
 import type { Notification } from '../model/types';
 
 function message(n: Notification) {
-  const who = <b>{n.actorName || '룸 운영자'}</b>;
+  const who = <b>{n.actorName || '룸 관리자'}</b>;
   if (n.type === 'PRESENTATION_REQUESTED') return <>{who}님이 <b>{n.projectName}</b> 평가룸에 발표를 등록해 달라고 요청했어요.</>;
   return <>{who}님이 <b>{n.projectName}</b> 평가룸에 초대했어요.</>;
 }

@@ -63,7 +63,7 @@ export function ProjectShell({ project, current, children }: { project: Project;
           {open ? <Chip tone="green" icon="play">진행 중</Chip> : <Chip icon="flag">마감됨</Chip>}
           {viewer
             ? <Chip tone="violet" icon="eye">열람 전용</Chip>
-            : <Chip tone="violet" icon={m?.isAdmin ? 'shield' : 'user'}>{m?.isAdmin ? '룸 운영자' : '참여자'}</Chip>}
+            : <Chip tone="violet" icon={m?.isAdmin ? 'shield' : 'user'}>{m?.isAdmin ? '룸 관리자' : '참여자'}</Chip>}
         </div>
         {open && !viewer && <div className="lnb-write">{myPres
           ? <Link to={`${base}/pres/${myPres.id}`} className={`btn outline block ${current === 'write' ? 'on' : ''}`}><Icon name="pencil" size={16} />내 발표 편집</Link>

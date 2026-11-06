@@ -33,7 +33,7 @@ export default function RoomAdminPage() {
   // 예전 '결과 보기' 탭은 결과 현황 페이지로 합쳤다
   if (tabParam === 'result') return <Navigate to={`/p/${project.id}/results`} replace />;
   const m = membership(db, project.id, me.id);
-  if (!m?.isAdmin) return <Empty icon="lock">룸 운영자만 볼 수 있는 화면이에요. <Link to={`/p/${project.id}`}>참여자 화면으로</Link></Empty>;
+  if (!m?.isAdmin) return <Empty icon="lock">룸 관리자만 볼 수 있는 화면이에요. <Link to={`/p/${project.id}`}>참여자 화면으로</Link></Empty>;
 
   const list = presentationsOf(db, project.id);
   const sums = db.summaries.filter(x => list.some(p => p.id === x.presentationId));

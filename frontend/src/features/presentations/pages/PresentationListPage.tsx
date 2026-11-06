@@ -59,11 +59,11 @@ const RATE_SHORT: Record<MyStatus, { text: string; cls: string }> = {
 };
 
 /**
- * 발표 삭제. 발표 구성원(팀 발표면 팀원 모두), 만든 사람, 룸 운영자가 지울 수 있다.
- * 점수를 받은 발표는 다른 사람의 평가가 함께 지워지므로 룸 운영자만 지운다 (서버도 같은 규칙).
+ * 발표 삭제. 발표 구성원(팀 발표면 팀원 모두), 만든 사람, 룸 관리자가 지울 수 있다.
+ * 점수를 받은 발표는 다른 사람의 평가가 함께 지워지므로 룸 관리자만 지운다 (서버도 같은 규칙).
  */
 export function DeletePresentation({ project, pres, isAdmin, size = 'sm' }: { project: Project; pres: Presentation; isAdmin: boolean; size?: 'sm' | 'md' }) {
-  if (pres.hasRatings && !isAdmin) return <small className="muted">점수를 받은 발표는 룸 운영자만 삭제할 수 있어요.</small>;
+  if (pres.hasRatings && !isAdmin) return <small className="muted">점수를 받은 발표는 룸 관리자만 삭제할 수 있어요.</small>;
   return (
     <ConfirmButton label="삭제" className={`btn ${size === 'sm' ? 'sm ' : ''}danger`} confirmLabel="발표 삭제"
       detail={<>'{pres.title}' 발표와 올린 자료가 모두 삭제돼요.{pres.type === 'TEAM' && ' 팀원 모두 발표 등록 전으로 돌아가요.'}{pres.hasRatings && ' 받은 평가도 함께 지워져요.'}</>}
@@ -187,7 +187,7 @@ export default function PresentationListPage() {
   const remaining = total - doneCount;
   const s = project.settings;
   const closed = project.status === 'CLOSED';
-  // 사람별 평가 현황: 룸 운영자(와 전체 열람)는 항상, 참여자는 룸 운영자가 설정에서 켰을 때만
+  // 사람별 평가 현황: 룸 관리자(와 전체 열람)는 항상, 참여자는 룸 관리자가 설정에서 켰을 때만
   const showStats = !!m?.isAdmin || viewer || s.showRatingStatus;
 
   // 팀 구조도 순: 참여 당시 팀(상위 팀 → 하위 팀), 같은 팀은 조직도 순서(위 = 높은 사람), 소속 없음은 맨 뒤
@@ -239,7 +239,7 @@ export default function PresentationListPage() {
         </div>
       )}
 
-      {/* 룸 운영자: 참여자 · 발표 등록 · 발표 미등록 인원 (누르면 목록 팝업, 미등록자에게 발표 등록 요청) */}
+      {/* 룸 관리자: 참여자 · 발표 등록 · 발표 미등록 인원 (누르면 목록 팝업, 미등록자에게 발표 등록 요청) */}
       {m?.isAdmin && f === 'all' && <RosterSummary project={project} />}
 
       <div className="board-tools">

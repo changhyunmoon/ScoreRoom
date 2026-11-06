@@ -72,7 +72,7 @@ public class Presentation extends TimestampedEntity<UUID> {
         this.sortOrder = sortOrder;
     }
 
-    /** 발표와 자료를 수정·삭제할 수 있는 사람: 룸 운영자, 구성원(대표·발표자·팀원), 발표를 만든 사람 */
+    /** 발표와 자료를 수정·삭제할 수 있는 사람: 룸 관리자, 구성원(대표·발표자·팀원), 발표를 만든 사람 */
     public boolean canBeEditedBy(UUID userId, boolean roomAdmin, boolean crewMember) {
         return roomAdmin || crewMember || leaderId.equals(userId) || createdBy.equals(userId);
     }

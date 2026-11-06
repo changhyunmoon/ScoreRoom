@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { Icon } from '../../../../shared/icons/Icon';
 import { useNow } from '../../../../shared/hooks/useNow';
+import { copyText } from '../../../../shared/lib/clipboard';
 import { mmss, timeText } from '../../../../shared/lib/format';
 import { Chip, IconText, SectionTitle, run, toast } from '../../../../shared/ui';
 import { Link } from 'react-router-dom';
@@ -59,7 +60,7 @@ export function InviteTab({ project }: { project: Project }) {
               </div>
               {isActive && (
                 <div className="row gap-sm">
-                  <button className="btn sm" onClick={() => { navigator.clipboard?.writeText(inv.code); toast('코드를 복사했어요.'); }}><IconText icon="copy">복사</IconText></button>
+                  <button className="btn sm" onClick={() => { copyText(inv.code).then(ok => toast(ok ? `코드 ${inv.code}를 복사했어요.` : `복사하지 못했어요. 코드 ${inv.code}를 직접 입력해 주세요.`, ok ? undefined : 'err')); }}><IconText icon="copy">복사</IconText></button>
                   <button className="btn sm danger" onClick={() => run(() => mutate(revokeInvite(project.id)), '입장 코드를 중지했습니다. 이제 이 코드로 입장할 수 없어요.')}><IconText icon="stop">중지</IconText></button>
                 </div>
               )}
@@ -71,13 +72,14 @@ export function InviteTab({ project }: { project: Project }) {
               <div className="segmented">
                 {CODE_TTL.map(t => <button key={t.label} className={minutes === t.minutes ? 'on' : ''} onClick={() => setMinutes(t.minutes)}>{t.label}</button>)}
               </div>
-              <button className="btn primary solid" onClick={() => run(() => mutate(issueInvite(project.id, minutes)), isActive ? '새 코드를 발급했어요. 이전 코드는 무효화됩니다.' : '코드를 발급했어요.')}>
+              <button className="btn primary solid" onClick={() => run(() => mutate(issueInvite(project.id, minutes)),
+                isActive && inv ? `새 코드를 발급했어요. 이전 코드 ${inv.code}는 자동으로 중지돼 더 이상 쓸 수 없어요.` : '코드를 발급했어요.')}>
                 <IconText icon={isActive ? 'refresh' : 'plus'}>{isActive ? '재발급' : '코드 발급'}</IconText>
               </button>
             </div>
           </div>
           <ul className="help-list">
-            <li><b>재발급</b> 이전 코드를 즉시 무효화하고 새 코드를 만들어요.</li>
+            <li><b>재발급</b> 새 코드를 만들면 이전 코드는 자동으로 중지돼요. 이전 코드로는 더 이상 들어올 수 없어요.</li>
             <li><b>중지</b> 새 코드를 발급하기 전까지 아무도 참여할 수 없어요.</li>
             <li>어느 경우든 이미 참여한 사람은 그대로 남아요.</li>
           </ul>
@@ -100,7 +102,7 @@ function InvitePeople({ project }: { project: Project }) {
         desc={<>회사 팀 구조도에서 사람을 골라요. 초대한 사람은 <b>바로 이 평가룸에 참여</b>되고, 우측 상단 <b>알림</b>으로 초대 소식을 받아요.</>}
         right={<button className="btn primary solid" onClick={() => setPicking(true)}><IconText icon="plus">초대하기</IconText></button>} />
       <p className="muted small">
-        현재 참여자 <b>{all.length}명</b> · 운영자 지정과 제거는 <Link to={`/p/${project.id}/admin?tab=members`}>참여자</Link> 탭에서 할 수 있어요.
+        현재 참여자 <b>{all.length}명</b> · 관리자 지정과 제거는 <Link to={`/p/${project.id}/admin?tab=members`}>참여자</Link> 탭에서 할 수 있어요.
       </p>
       {/* 초대된(참여 중인) 사람: 팀 구조도 순으로 팀별로 묶어 항상 보여 준다. 많으면 이 칸 안에서 스크롤 */}
       <div className="invited-list">
@@ -116,7 +118,7 @@ function InvitePeople({ project }: { project: Project }) {
               {g.rows.map(({ item: m }) => (
                 <div key={m.userId} className="invited-row">
                   <span className="invited-name"><b>{userName(db, m.userId)}</b>{userOf(db, m.userId)?.position && <small className="muted"> {userOf(db, m.userId)!.position}</small>}</span>
-                  {m.isAdmin && <Chip tone="violet" icon="shield">룸 운영자</Chip>}
+                  {m.isAdmin && <Chip tone="violet" icon="shield">룸 관리자</Chip>}
                   <small className="muted invited-date">{timeText(m.joinedAt)} 참여</small>
                 </div>
               ))}

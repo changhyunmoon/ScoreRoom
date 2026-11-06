@@ -22,13 +22,13 @@ public class NotificationService {
         this.clock = clock;
     }
 
-    /** 룸 운영자(actorId)가 userId를 평가룸에 추가했다고 알린다. 추가하는 작업과 같은 트랜잭션에서 부른다 */
+    /** 룸 관리자(actorId)가 userId를 평가룸에 추가했다고 알린다. 추가하는 작업과 같은 트랜잭션에서 부른다 */
     @Transactional(propagation = Propagation.MANDATORY)
     public void roomInvited(UUID userId, UUID projectId, UUID actorId) {
         notifications.save(Notification.roomInvited(userId, projectId, actorId, clock.instant()));
     }
 
-    /** 룸 운영자(actorId)가 userId에게 발표 등록을 요청했다고 알린다 */
+    /** 룸 관리자(actorId)가 userId에게 발표 등록을 요청했다고 알린다 */
     @Transactional(propagation = Propagation.MANDATORY)
     public void presentationRequested(UUID userId, UUID projectId, UUID actorId) {
         notifications.save(Notification.presentationRequested(userId, projectId, actorId, clock.instant()));

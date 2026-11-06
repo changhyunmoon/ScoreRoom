@@ -71,7 +71,7 @@ export default function ProjectListPage() {
     if (busy) return;
     setBusy(true);
     let pid = '';
-    const ok = await run(async () => { pid = await mutate(createProject(name, desc)); }, '평가룸을 만들었습니다. 룸 운영자로 지정되었어요.');
+    const ok = await run(async () => { pid = await mutate(createProject(name, desc)); }, '평가룸을 만들었습니다. 룸 관리자로 지정되었어요.');
     setBusy(false);
     if (ok) nav(`/p/${pid}/admin`);
   };
@@ -143,7 +143,7 @@ export default function ProjectListPage() {
                 <span className="t">{r.p.name}</span>
                 <span className="t-sub">{r.p.description || ' '}</span>
               </span>
-              <span className="c-role">{r.m.isAdmin ? <Chip tone="violet" icon="shield">룸 운영자</Chip> : <Chip icon="user">참여자</Chip>}</span>
+              <span className="c-role">{r.m.isAdmin ? <Chip tone="violet" icon="shield">룸 관리자</Chip> : <Chip icon="user">참여자</Chip>}</span>
               <span className="c-num">{members(db, r.p.id).length}명</span>
               <span className="c-num">{r.list.length}개</span>
               <span className="c-todo">
@@ -187,7 +187,7 @@ function AllRooms() {
       <div className="btable projects">
         <div className="bhead">
           <span className="c-no">No</span><span className="c-title">평가룸 이름</span><span className="c-role">내 권한</span>
-          <span className="c-num">참여자</span><span className="c-num">발표</span><span className="c-todo">운영자</span><span className="c-date">생성일</span><span className="c-state">상태</span>
+          <span className="c-num">참여자</span><span className="c-num">발표</span><span className="c-todo">관리자</span><span className="c-date">생성일</span><span className="c-state">상태</span>
         </div>
         {shown.length === 0 && <div className="bempty">{q ? '검색 결과가 없습니다.' : '평가룸이 없습니다.'}</div>}
         {shown.map(p => {
@@ -197,7 +197,7 @@ function AllRooms() {
             <Link key={p.id} to={`/p/${p.id}`} className="prow">
               <span className="c-no">{allNo.get(p.id)}</span>
               <span className="c-title"><span className="t">{p.name}</span><span className="t-sub">{p.description || ' '}</span></span>
-              <span className="c-role">{r ? (r.isAdmin ? <Chip tone="violet" icon="shield">룸 운영자</Chip> : <Chip icon="user">참여자</Chip>) : <Chip icon="eye">열람</Chip>}</span>
+              <span className="c-role">{r ? (r.isAdmin ? <Chip tone="violet" icon="shield">룸 관리자</Chip> : <Chip icon="user">참여자</Chip>) : <Chip icon="eye">열람</Chip>}</span>
               <span className="c-num">{members(db, p.id).length}명</span>
               <span className="c-num">{presentationsOf(db, p.id).length}개</span>
               <span className="c-todo ellipsis" title={admins.join(', ')}>{admins[0] ?? '-'}{admins.length > 1 && ` 외 ${admins.length - 1}명`}</span>
