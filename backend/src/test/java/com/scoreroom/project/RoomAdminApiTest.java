@@ -157,12 +157,20 @@ class RoomAdminApiTest extends IntegrationTest {
                 .formatted(leader.getId(), presenter.getId(), member.getId(), owner.getId());
         mvc.perform(json(put("/api/v1/projects/{p}/presentations/{pr}", room, shared), addOwner).with(as(leader)))
                 .andExpect(status().isBadRequest());
-        String swapRoles = "{\"title\":\"팀 발표\",\"type\":\"TEAM\",\"leaderId\":\"%s\",\"presenterIds\":[\"%s\"],\"memberIds\":[\"%s\"]}"
-                .formatted(leader.getId(), member.getId(), presenter.getId());
-        mvc.perform(json(put("/api/v1/projects/{p}/presentations/{pr}", room, shared), swapRoles).with(as(leader)))
+        // 역할(대표·팀원)은 바꿀 수 있다: 대표를 member로 바꾸고 원래 대표는 팀원으로
+        String swapLeader = "{\"title\":\"팀 발표\",\"type\":\"TEAM\",\"leaderId\":\"%s\",\"presenterIds\":[],\"memberIds\":[\"%s\",\"%s\"]}"
+                .formatted(member.getId(), leader.getId(), presenter.getId());
+        mvc.perform(json(put("/api/v1/projects/{p}/presentations/{pr}", room, shared), swapLeader).with(as(leader)))
                 .andExpect(status().isOk());
-        assertThat(jdbc.queryForObject("select is_presenter from presentation_members where presentation_id = ? and user_id = ?",
-                Boolean.class, shared, member.getId())).isTrue();
+        assertThat(jdbc.queryForObject("select leader_id from presentations where id = ?", UUID.class, shared))
+                .isEqualTo(member.getId());
+    }
+
+    @Test
+    void 발표자_구분은_없고_예전_화면이_보낸_발표자도_팀원으로_저장된다() throws Exception {
+        UUID shared = fixtures.teamPresentation(room, leader, List.of(presenter), List.of(member));
+        assertThat(count("select count(*) from presentation_members where presentation_id = ? and is_presenter", shared)).isZero();
+        assertThat(count("select count(*) from presentation_members where presentation_id = ?", shared)).isEqualTo(3);
     }
 
     @Test

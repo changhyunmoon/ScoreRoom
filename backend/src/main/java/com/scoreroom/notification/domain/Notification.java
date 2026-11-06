@@ -17,6 +17,8 @@ public class Notification extends PersistableEntity<UUID> {
 
     /** 룸 운영자가 평가룸에 바로 추가함 */
     public static final String ROOM_INVITED = "ROOM_INVITED";
+    /** 룸 운영자가 발표를 등록해 달라고 요청함 */
+    public static final String PRESENTATION_REQUESTED = "PRESENTATION_REQUESTED";
 
     @Id
     private UUID id;
@@ -43,10 +45,18 @@ public class Notification extends PersistableEntity<UUID> {
     }
 
     public static Notification roomInvited(UUID userId, UUID projectId, UUID actorId, Instant now) {
+        return of(ROOM_INVITED, userId, projectId, actorId, now);
+    }
+
+    public static Notification presentationRequested(UUID userId, UUID projectId, UUID actorId, Instant now) {
+        return of(PRESENTATION_REQUESTED, userId, projectId, actorId, now);
+    }
+
+    private static Notification of(String type, UUID userId, UUID projectId, UUID actorId, Instant now) {
         Notification n = new Notification();
         n.id = UUID.randomUUID();
         n.userId = userId;
-        n.type = ROOM_INVITED;
+        n.type = type;
         n.projectId = projectId;
         n.actorId = actorId;
         n.createdAt = now;

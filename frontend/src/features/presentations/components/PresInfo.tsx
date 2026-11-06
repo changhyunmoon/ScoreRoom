@@ -7,10 +7,10 @@ import { downloadAttachment } from '../../attachments';
 import { teamName, userName } from '../../organization';
 import { membership, type Project } from '../../projects';
 import { useSession, type DB } from '../../session';
-import { involvedIds } from '../model/crew';
+import { involvedIds, teamMembersOf } from '../model/crew';
 import type { Presentation } from '../model/types';
 
-/** 발표 구성원을 대표 · 발표자 · 팀원으로 나눠 보여준다 */
+/** 발표 구성원을 대표 · 팀원으로 나눠 보여준다 (예전 발표자도 팀원) */
 export function Presenters({ db, project, pres }: { db: DB; project: Project; pres: Presentation }) {
   const person = (id: ID) => (
     <span key={id} className="person">
@@ -21,8 +21,7 @@ export function Presenters({ db, project, pres }: { db: DB; project: Project; pr
   return (
     <div className="crew">
       <div className="crew-row"><span className="crew-label lead">대표</span>{person(pres.leaderId)}</div>
-      {pres.presenterIds.length > 0 && <div className="crew-row"><span className="crew-label presenter">발표자</span>{pres.presenterIds.map(person)}</div>}
-      {pres.memberIds.length > 0 && <div className="crew-row"><span className="crew-label member">팀원</span>{pres.memberIds.map(person)}</div>}
+      {teamMembersOf(pres).length > 0 && <div className="crew-row"><span className="crew-label member">팀원</span>{teamMembersOf(pres).map(person)}</div>}
     </div>
   );
 }
@@ -69,7 +68,6 @@ export function PresInfo({ project, pres, showMyRole }: { project: Project; pres
             <div className="my-role small">
               <Icon name="user" size={14} />내 역할:
               {pres.leaderId === me!.id ? <span className="crew-label lead">대표</span>
-                : pres.presenterIds.includes(me!.id) ? <span className="crew-label presenter">발표자</span>
                 : <span className="crew-label member">팀원</span>}
             </div>
           )}

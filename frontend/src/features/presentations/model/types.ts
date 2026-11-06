@@ -8,7 +8,7 @@ export type PresRole = 'PRESENTER' | 'MEMBER';
 /**
  * 발표 구성원
  * - leaderId: 대표 (1명). 대표로만 표시하고 발표자·팀원 목록에는 넣지 않는다.
- * - presenterIds: 발표자. 대표가 발표도 하면 대표도 여기에 들어간다 (대표+발표자)
+ * - presenterIds: 예전의 발표자 구분 (이제 없음, 새로 저장하면 비어 있다. 예전 데이터는 팀원으로 본다)
  * - memberIds: 팀원 (대표 외에 함께 준비한 사람)
  * 평가 규칙(본인 발표·같은 팀 제한)은 구성원 전체(involvedIds)에 적용한다.
  */

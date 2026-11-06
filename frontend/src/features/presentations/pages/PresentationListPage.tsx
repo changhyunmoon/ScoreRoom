@@ -12,6 +12,7 @@ import type { Summary } from '../../results';
 import { mutate, useSession } from '../../session';
 import { deletePresentation } from '../api/presentations.api';
 import { PresInfo } from '../components/PresInfo';
+import { RosterSummary } from '../components/RosterSummary';
 import { canEditPresentation, crewOf, involvedIds, presentationOfUser, presTypeText, roleText } from '../model/crew';
 import type { Presentation } from '../model/types';
 
@@ -237,6 +238,9 @@ export default function PresentationListPage() {
           </div>
         </div>
       )}
+
+      {/* 룸 운영자: 참여자 · 발표 등록 · 발표 미등록 인원 (누르면 목록 팝업, 미등록자에게 발표 등록 요청) */}
+      {m?.isAdmin && f === 'all' && <RosterSummary project={project} />}
 
       <div className="board-tools">
         <span className="muted small">발표 등록</span>
