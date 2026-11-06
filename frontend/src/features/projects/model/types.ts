@@ -16,6 +16,8 @@ export interface Settings {
   countSelf: boolean; countSameCrew: boolean; countSameTeam: boolean;
   /** 룸 관리자도 평가할지 (새 평가룸 기본: 안 함). 끄면 관리자는 평가자에서 빠진다. 관리자는 어떤 경우에도 발표하지 않는다 */
   allowAdminRating: boolean;
+  /** 룸 관리자가 준 점수를 집계(평균·순위)에 넣을지 (기본: 포함) */
+  countAdmin: boolean;
 }
 
 /** 입장 코드. expiresAt이 null이면 기간 무제한 (중지할 때까지 유효) */

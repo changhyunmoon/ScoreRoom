@@ -81,6 +81,9 @@ public class Project extends TimestampedEntity<UUID> {
     @Column(name = "allow_admin_rating", nullable = false)
     private boolean allowAdminRating;
 
+    @Column(name = "count_admin", nullable = false)
+    private boolean countAdmin;
+
     protected Project() {
     }
 
@@ -94,7 +97,7 @@ public class Project extends TimestampedEntity<UUID> {
 
     public ProjectSettings settings() {
         return new ProjectSettings(scoreMin, scoreMax, aggMin, aggMax, allowSelf, allowSameTeam, allowSameCrew, allowEdit,
-                showRatingStatus, countSelf, countSameCrew, countSameTeam, allowAdminRating);
+                showRatingStatus, countSelf, countSameCrew, countSameTeam, allowAdminRating, countAdmin);
     }
 
     public void applySettings(ProjectSettings settings) {
@@ -111,6 +114,7 @@ public class Project extends TimestampedEntity<UUID> {
         this.countSameCrew = settings.countSameCrew();
         this.countSameTeam = settings.countSameTeam();
         this.allowAdminRating = settings.allowAdminRating();
+        this.countAdmin = settings.countAdmin();
     }
 
     public boolean isOpen() {

@@ -1,4 +1,4 @@
-// 결과 현황의 집계 설정 (룸 관리자): 집계 기준 범위 + 집계에 넣을 점수(본인 / 같은 발표 팀원 / 같은 회사 팀원).
+// 결과 현황의 집계 설정 (룸 관리자): 집계 기준 범위 + 집계에 넣을 점수(같은 회사 팀원 / 같은 발표 팀원 / 본인 / 룸 관리자).
 // 바꾸면 표의 평균·순위가 바로 바뀌고(미리보기), [저장]을 눌러야 평가룸 설정에 저장되어 다른 사람에게도 반영된다.
 // 점수를 빼도 지워지지는 않는다. 다시 넣으면 원래대로 돌아온다.
 import { Icon } from '../../../shared/icons/Icon';
@@ -9,7 +9,7 @@ import { mutate } from '../../session';
 /** 입력 중인 값. 숫자 칸은 지우고 다시 쓸 수 있도록 문자열로 둔다 */
 export interface AggDraft {
   on: boolean; min: string; max: string;
-  countSelf: boolean; countSameCrew: boolean; countSameTeam: boolean;
+  countSelf: boolean; countSameCrew: boolean; countSameTeam: boolean; countAdmin: boolean;
 }
 
 export const draftOf = (p: Project): AggDraft => ({
@@ -17,11 +17,12 @@ export const draftOf = (p: Project): AggDraft => ({
   min: String(p.settings.aggMin ?? p.settings.min),
   max: String(p.settings.aggMax ?? p.settings.max),
   countSelf: p.settings.countSelf, countSameCrew: p.settings.countSameCrew, countSameTeam: p.settings.countSameTeam,
+  countAdmin: p.settings.countAdmin,
 });
 
 /** 입력값을 설정으로. 범위에 문제가 있으면 error에 안내 문구가 들어가고 범위는 저장된 값 그대로 */
 export function previewSettings(p: Project, d: AggDraft): { settings: Project['settings']; error: string | null } {
-  const saved = { ...p.settings, countSelf: d.countSelf, countSameCrew: d.countSameCrew, countSameTeam: d.countSameTeam };
+  const saved = { ...p.settings, countSelf: d.countSelf, countSameCrew: d.countSameCrew, countSameTeam: d.countSameTeam, countAdmin: d.countAdmin };
   if (!d.on) return { settings: { ...saved, aggMin: null, aggMax: null }, error: null };
   if (d.min.trim() === '' || d.max.trim() === '') return { settings: saved, error: '최저치와 최대치를 모두 입력해 주세요.' };
   const next = { ...saved, aggMin: Number(d.min), aggMax: Number(d.max) };
@@ -31,12 +32,15 @@ export function previewSettings(p: Project, d: AggDraft): { settings: Project['s
 
 /** 저장된 집계 설정과 다른지 */
 export const aggChanged = (a: Project['settings'], b: Project['settings']) =>
-  a.aggMin !== b.aggMin || a.aggMax !== b.aggMax || a.countSelf !== b.countSelf || a.countSameCrew !== b.countSameCrew || a.countSameTeam !== b.countSameTeam;
+  a.aggMin !== b.aggMin || a.aggMax !== b.aggMax || a.countSelf !== b.countSelf || a.countSameCrew !== b.countSameCrew || a.countSameTeam !== b.countSameTeam
+  || a.countAdmin !== b.countAdmin;
 
-const INCLUDE: { key: 'countSelf' | 'countSameCrew' | 'countSameTeam'; label: string; hint: string }[] = [
-  { key: 'countSameTeam', label: '같은 회사 팀원 점수', hint: '발표자와 같은 회사 팀인 사람이 준 점수' },
-  { key: 'countSameCrew', label: '같은 발표 팀원 점수', hint: '같은 발표의 다른 구성원이 준 점수' },
-  { key: 'countSelf', label: '본인 점수', hint: '발표자가 자기 자신에게 준 점수' },
+// '누가 준 점수인지'로 이름을 붙인다 (발표자와 가까운 사람 → 먼 사람 순)
+const INCLUDE: { key: 'countSelf' | 'countSameCrew' | 'countSameTeam' | 'countAdmin'; label: string; hint: string }[] = [
+  { key: 'countSelf', label: '발표자 본인이 준 점수', hint: '발표자가 자기 자신에게 준 점수' },
+  { key: 'countSameCrew', label: '같은 발표 팀원이 준 점수', hint: '팀 발표에서 함께 발표한 사람끼리 준 점수' },
+  { key: 'countSameTeam', label: '같은 회사 팀원이 준 점수', hint: '발표자와 같은 회사 팀인 사람이 준 점수' },
+  { key: 'countAdmin', label: '룸 관리자가 준 점수', hint: '이 평가룸의 룸 관리자가 발표자에게 준 점수' },
 ];
 
 /** onReset: 입력을 버리고 저장된 설정을 따른다 (되돌리기·저장 후) */
@@ -88,12 +92,16 @@ export function AggRangePanel({ project, draft, onChange, onReset }: { project: 
         </div>
 
         {/* 평균·순위(전체·집계 기준 모두)에 넣을 점수. 평가 규칙과 상관없이 항상 고를 수 있다 */}
-        <div className="agg-item">
-          <span className="agg-label">집계에 넣을 점수</span>
-          <div className="agg-value agg-includes">
-            {INCLUDE.map(x => (
-              <div key={x.key} className="agg-include" title={x.hint}>
-                <span className="agg-include-name">{x.label}</span>
+        <div className="agg-item top">
+          <span className="agg-label">집계에 넣을 점수<small>미포함해도 점수는 지워지지 않아요</small></span>
+          <div className="agg-includes">
+            {/* 룸 관리자 점수는 관리자도 평가하는 평가룸에서만 고를 수 있다 */}
+            {INCLUDE.filter(x => x.key !== 'countAdmin' || saved.allowAdminRating).map(x => (
+              <div key={x.key} className={`agg-include ${draft[x.key] ? '' : 'off'}`}>
+                <span className="agg-include-text">
+                  <span className="agg-include-name">{x.label}</span>
+                  <small className="agg-include-desc">{x.hint}</small>
+                </span>
                 <div className="segmented sm" role="group" aria-label={x.label}>
                   <button type="button" className={draft[x.key] ? 'on' : ''} disabled={!open} onClick={() => onChange({ ...draft, [x.key]: true })}>포함</button>
                   <button type="button" className={!draft[x.key] ? 'on' : ''} disabled={!open} onClick={() => onChange({ ...draft, [x.key]: false })}>미포함</button>

@@ -118,4 +118,21 @@ class RoomAdminRoleTest extends IntegrationTest {
                 .andExpect(jsonPath("$.summaries[0].blocked").value(1)) // 본인 평가 불가만 남는다
                 .andExpect(jsonPath("$.summaries[0].scored").value(1));
     }
+
+    @Test
+    void 룸_관리자_점수를_미포함하면_평균에서_빠지고_평가함_인원은_그대로다() throws Exception {
+        UUID pres = fixtures.personal(room, a);
+        mvc.perform(json(put("/api/v1/projects/{p}/presentations/{pr}/ratings/{t}", room, pres, a.getId()), "{\"score\":60}")
+                .with(as(owner))).andExpect(status().isNoContent());
+        mvc.perform(json(put("/api/v1/projects/{p}/presentations/{pr}/ratings/{t}", room, pres, a.getId()), "{\"score\":100}")
+                .with(as(b))).andExpect(status().isNoContent());
+        mvc.perform(get("/api/v1/state").with(as(owner))).andExpect(jsonPath("$.summaries[0].avg").value(80.0));
+
+        mvc.perform(json(put("/api/v1/projects/{p}/settings", room), "{\"min\":0,\"max\":100,\"countAdmin\":false}")
+                .with(as(owner))).andExpect(status().isOk());
+        mvc.perform(get("/api/v1/state").with(as(owner)))
+                .andExpect(jsonPath("$.summaries[0].avg").value(100.0))
+                .andExpect(jsonPath("$.summaries[0].scored").value(2));
+        assertThat(count("select count(*) from ratings")).isEqualTo(2);
+    }
 }

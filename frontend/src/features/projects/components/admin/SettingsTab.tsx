@@ -35,7 +35,7 @@ export function SettingsTab({ project }: { project: Project }) {
     showRatingStatus: f.showRatingStatus,
     // 집계에 넣을 점수는 결과 현황에서 정한 값을 그대로 보낸다
     countSelf: s.countSelf, countSameCrew: s.countSameCrew, countSameTeam: s.countSameTeam,
-    allowAdminRating: f.allowAdminRating,
+    allowAdminRating: f.allowAdminRating, countAdmin: s.countAdmin,
   };
   const blank = [f.min, f.max].some(v => v.trim() === '');
   const err = blank ? '빈 값이 있습니다.' : validateSettings(next);

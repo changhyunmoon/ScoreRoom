@@ -24,10 +24,12 @@ export interface ResultRow {
 
 /**
  * 이 점수를 집계(평균·순위)에 넣을지. 서버(RoomRoster.counts)와 같은 규칙:
- * 본인 점수는 본인 설정만 따르고, 그 밖에는 같은 발표 팀원·같은 회사 팀원 설정 중 하나라도 빼라고 하면 뺀다
+ * 본인 점수는 본인 설정만 따르고, 그 밖에는 같은 발표 팀원·같은 회사 팀원 설정 중 하나라도 빼라고 하면 뺀다.
+ * 룸 관리자 점수를 빼기로 했으면 관리자 점수는 뺀다
  */
 export function isCounted(d: DB, project: Project, pres: Presentation, raterId: ID, targetId: ID) {
   const s = project.settings;
+  if (!s.countAdmin && membership(d, project.id, raterId)?.isAdmin) return false;
   if (raterId === targetId) return s.countSelf;
   if (!s.countSameCrew && involvedIds(pres).includes(raterId)) return false;
   const raterTeam = membership(d, project.id, raterId)?.teamIdAtJoin ?? null;

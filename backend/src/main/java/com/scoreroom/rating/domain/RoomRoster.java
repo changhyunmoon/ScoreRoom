@@ -57,9 +57,12 @@ public final class RoomRoster {
 
     /**
      * 이 점수를 집계(평균·순위)에 넣을지. 본인 점수는 본인 설정만 따르고,
-     * 그 밖에는 같은 발표 팀원·같은 회사 팀원 설정 중 하나라도 빼라고 하면 뺀다
+     * 그 밖에는 같은 발표 팀원·같은 회사 팀원 설정 중 하나라도 빼라고 하면 뺀다. 룸 관리자 점수를 빼기로 했으면 관리자 점수는 뺀다
      */
     public boolean counts(ProjectSettings settings, UUID presentationId, UUID raterId, UUID targetId) {
+        if (!settings.countAdmin() && adminIds.contains(raterId)) {
+            return false;
+        }
         if (raterId.equals(targetId)) {
             return settings.countSelf();
         }
