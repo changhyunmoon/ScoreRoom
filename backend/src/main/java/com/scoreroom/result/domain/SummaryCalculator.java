@@ -48,15 +48,28 @@ public final class SummaryCalculator {
                         notRated++;
                     }
                 }
-                List<Integer> scores = received.stream().map(Rating::getScore).toList();
+                // 평균·순위에는 집계에 넣기로 한 점수만 쓴다 (평가함 인원은 제출한 사람 모두)
+                List<Integer> scores = received.stream()
+                        .filter(r -> roster.counts(settings, p.getId(), r.getRaterId(), targetId))
+                        .map(Rating::getScore).toList();
                 List<Integer> inRange = settings.hasAggregationRange()
                         ? scores.stream().filter(s -> s >= settings.aggMin() && s <= settings.aggMax()).toList()
                         : List.of();
                 rows.add(new SummaryResponse(p.getId(), targetId, members.size(), blocked, members.size() - blocked,
-                        scores.size(), notRated, average(scores), inRange.size(), average(inRange)));
+                        received.size(), notRated, average(scores), inRange.size(), inRangeAverage(settings, scores, inRange)));
             }
         }
         return rows;
+    }
+
+    /**
+     * 집계 기준 평균. 기준을 쓰고 집계에 넣는 점수가 있는데 모두 기준 밖이면 0점이다 (점수가 하나도 없으면 null)
+     */
+    private static Double inRangeAverage(ProjectSettings settings, List<Integer> scores, List<Integer> inRange) {
+        if (!settings.hasAggregationRange() || scores.isEmpty()) {
+            return null;
+        }
+        return inRange.isEmpty() ? 0.0 : average(inRange);
     }
 
     private static Double average(List<Integer> values) {

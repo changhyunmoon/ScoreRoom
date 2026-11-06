@@ -1,6 +1,5 @@
 package com.scoreroom.bootstrap.service;
 
-import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
@@ -19,11 +18,11 @@ import com.scoreroom.attachment.service.AttachmentService;
 import com.scoreroom.bootstrap.dto.StateResponse;
 import com.scoreroom.common.web.Times;
 import com.scoreroom.invitation.domain.InviteCode;
-import com.scoreroom.invitation.domain.Invitation;
-import com.scoreroom.invitation.dto.InvitationResponse;
 import com.scoreroom.invitation.dto.InviteCodeResponse;
-import com.scoreroom.invitation.repository.InvitationRepository;
 import com.scoreroom.invitation.repository.InviteCodeRepository;
+import com.scoreroom.notification.domain.Notification;
+import com.scoreroom.notification.dto.NotificationResponse;
+import com.scoreroom.notification.repository.NotificationRepository;
 import com.scoreroom.organization.service.TeamService;
 import com.scoreroom.presentation.domain.Crew;
 import com.scoreroom.presentation.domain.Presentation;
@@ -70,13 +69,14 @@ public class StateService {
     private final PresentationMemberRepository presentationMembers;
     private final RatingRepository ratings;
     private final InviteCodeRepository inviteCodes;
-    private final InvitationRepository invitations;
     private final AttachmentService attachmentService;
+    private final NotificationRepository notifications;
 
     public StateService(UserAccessService userAccess, UserRepository users, TeamService teamService,
             ProjectRepository projects, MembershipRepository memberships, PresentationRepository presentations,
             PresentationMemberRepository presentationMembers, RatingRepository ratings,
-            InviteCodeRepository inviteCodes, InvitationRepository invitations, AttachmentService attachmentService) {
+            InviteCodeRepository inviteCodes, AttachmentService attachmentService,
+            NotificationRepository notifications) {
         this.userAccess = userAccess;
         this.users = users;
         this.teamService = teamService;
@@ -86,15 +86,14 @@ public class StateService {
         this.presentationMembers = presentationMembers;
         this.ratings = ratings;
         this.inviteCodes = inviteCodes;
-        this.invitations = invitations;
         this.attachmentService = attachmentService;
+        this.notifications = notifications;
     }
 
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public StateResponse load(UUID meId) {
         User me = userAccess.require(meId);
         List<User> allUsers = users.findAllByOrderBySortOrderAscNameAsc();
-        Map<UUID, User> userById = allUsers.stream().collect(Collectors.toMap(User::getId, Function.identity()));
 
         List<Membership> mine = memberships.findByUserId(meId);
         Set<UUID> memberOf = mine.stream().map(Membership::getProjectId).collect(Collectors.toSet());
@@ -108,6 +107,10 @@ public class StateService {
         if (viewAll) {
             summaryOf.addAll(visible);
         }
+        // 참여자에게 평가 현황을 보이도록 켠 평가룸: 사람별 인원 수만 보내고 점수(평균)는 뺀다
+        Set<UUID> countsOnly = visibleProjects.stream()
+                .filter(p -> memberOf.contains(p.getId()) && !summaryOf.contains(p.getId()) && p.settings().showRatingStatus())
+                .map(Project::getId).collect(Collectors.toSet());
 
         Map<UUID, InviteCode> codes = inviteCodes.findByProjectIdIn(adminOf).stream()
                 .collect(Collectors.toMap(InviteCode::getProjectId, Function.identity()));
@@ -144,16 +147,43 @@ public class StateService {
                                 && (adminOf.contains(r.getProjectId()) || r.getRaterId().equals(meId)))
                         .map(RatingResponse::from)
                         .toList(),
-                summaries(visibleProjects, summaryOf, roomMembers, roomPresentations, membersByPresentation, crews,
-                        scopedRatings),
-                pendingInvitations(meId, adminOf, userById));
+                summaries(visibleProjects, summaryOf, countsOnly, roomMembers, roomPresentations, membersByPresentation,
+                        crews, scopedRatings),
+                myNotifications(meId, memberOf, visibleProjects, allUsers));
     }
 
-    private static List<SummaryResponse> summaries(List<Project> visibleProjects, Set<UUID> summaryOf,
+    /** 내 알림 (최근 50건). 지금 참여 중인 평가룸에 대한 것만 보여 준다 */
+    /** 점수(평균·범위 안 제출) 정보를 지운 집계 */
+    private static SummaryResponse countsOnly(SummaryResponse s) {
+        return new SummaryResponse(s.presentationId(), s.targetId(), s.total(), s.blocked(), s.eligible(), s.scored(),
+                s.notRated(), null, 0, null);
+    }
+
+    private List<NotificationResponse> myNotifications(UUID meId, Set<UUID> memberOf, List<Project> visibleProjects,
+            List<User> allUsers) {
+        Map<UUID, String> projectNames = visibleProjects.stream().collect(Collectors.toMap(Project::getId, Project::getName));
+        Map<UUID, String> userNames = allUsers.stream().collect(Collectors.toMap(User::getId, User::getName));
+        return notifications.findTop50ByUserIdOrderByCreatedAtDesc(meId).stream()
+                .filter(n -> memberOf.contains(n.getProjectId()))
+                .map(n -> toResponse(n, projectNames, userNames))
+                .toList();
+    }
+
+    private static NotificationResponse toResponse(Notification n, Map<UUID, String> projectNames, Map<UUID, String> userNames) {
+        return new NotificationResponse(n.getId(), n.getType(), n.getProjectId(), projectNames.getOrDefault(n.getProjectId(), ""),
+                n.getActorId(), userNames.getOrDefault(n.getActorId(), ""), Times.toMillis(n.getCreatedAt()),
+                n.getReadAt() == null ? null : Times.toMillis(n.getReadAt()));
+    }
+
+    /**
+     * 사람별 집계. summaryOf(룸 운영자·전체 열람)는 점수까지, countsOnly(평가 현황을 켠 평가룸의 참여자)는
+     * 전체·평가함·평가 불가·미평가 인원만 보낸다.
+     */
+    private static List<SummaryResponse> summaries(List<Project> visibleProjects, Set<UUID> summaryOf, Set<UUID> countsOnly,
             List<Membership> roomMembers, List<Presentation> roomPresentations,
             Map<UUID, List<PresentationMember>> membersByPresentation, Map<UUID, Crew> crews, List<Rating> scopedRatings) {
         return visibleProjects.stream()
-                .filter(p -> summaryOf.contains(p.getId()))
+                .filter(p -> summaryOf.contains(p.getId()) || countsOnly.contains(p.getId()))
                 .flatMap(project -> {
                     UUID pid = project.getId();
                     List<Presentation> list = roomPresentations.stream().filter(p -> p.getProjectId().equals(pid)).toList();
@@ -162,27 +192,9 @@ public class StateService {
                     RoomRoster roster = new RoomRoster(
                             roomMembers.stream().filter(m -> m.getProjectId().equals(pid)).toList(), crewRows);
                     List<Rating> roomRatings = scopedRatings.stream().filter(r -> r.getProjectId().equals(pid)).toList();
-                    return SummaryCalculator.summarize(project.settings(), roster, list, crews, roomRatings).stream();
+                    var stream = SummaryCalculator.summarize(project.settings(), roster, list, crews, roomRatings).stream();
+                    return summaryOf.contains(pid) ? stream : stream.map(StateService::countsOnly);
                 })
                 .toList();
-    }
-
-    /** 대기 중인 초대: 내가 받은 것 + 내가 운영하는 평가룸에서 보낸 것 (마감된 평가룸 제외) */
-    private List<InvitationResponse> pendingInvitations(UUID meId, Set<UUID> adminOf, Map<UUID, User> userById) {
-        Collection<UUID> adminIds = adminOf.isEmpty() ? List.of(new UUID(0, 0)) : adminOf;
-        List<Invitation> pending = invitations.findPendingVisibleTo(meId, adminIds);
-        Map<UUID, Project> projectById = projects.findByIdIn(pending.stream().map(Invitation::getProjectId).toList())
-                .stream().collect(Collectors.toMap(Project::getId, Function.identity()));
-        return pending.stream()
-                .filter(i -> projectById.containsKey(i.getProjectId()) && projectById.get(i.getProjectId()).isOpen())
-                .map(i -> new InvitationResponse(i.getId(), i.getProjectId(), projectById.get(i.getProjectId()).getName(),
-                        i.getInviterId(), nameOf(userById, i.getInviterId()), i.getInviteeId(),
-                        Times.toMillis(i.getCreatedAt())))
-                .toList();
-    }
-
-    private static String nameOf(Map<UUID, User> userById, UUID id) {
-        User user = userById.get(id);
-        return user == null ? "" : user.getName();
     }
 }

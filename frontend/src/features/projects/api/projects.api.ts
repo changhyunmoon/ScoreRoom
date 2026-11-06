@@ -13,6 +13,10 @@ export const issueInvite = (pid: ID, minutes: number | null) => http.post(`/proj
 /** 입장 코드 중지: 즉시 신규 참여를 막는다. 기존 참여자는 유지 */
 export const revokeInvite = (pid: ID) => http.del(`/projects/${pid}/invite`);
 
+/** 사람 지정 초대: 고른 사람을 바로 참여자로 추가한다 (수락 절차 없음). 이미 참여 중인 사람은 건너뛰고, 새로 추가한 인원을 돌려준다 */
+export const addMembers = async (pid: ID, userIds: ID[]) =>
+  (await http.post<{ added: number }>(`/projects/${pid}/members`, { userIds })).added;
+
 export const setMemberAdmin = (pid: ID, userId: ID, isAdmin: boolean) =>
   http.put(`/projects/${pid}/members/${userId}/admin`, { isAdmin });
 

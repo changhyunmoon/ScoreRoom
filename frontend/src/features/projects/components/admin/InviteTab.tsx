@@ -4,11 +4,11 @@ import { Icon } from '../../../../shared/icons/Icon';
 import { useNow } from '../../../../shared/hooks/useNow';
 import { mmss, timeText } from '../../../../shared/lib/format';
 import { Chip, IconText, SectionTitle, run, toast } from '../../../../shared/ui';
-import { cancelInvitation, inviteUsers } from '../../../invitations';
-import { OrgDirectory, teamName, userName } from '../../../organization';
+import { Link } from 'react-router-dom';
+import { OrgDirectory } from '../../../organization';
 import { mutate, useSession } from '../../../session';
-import { issueInvite, revokeInvite } from '../../api/projects.api';
-import { membership } from '../../model/access';
+import { addMembers, issueInvite, revokeInvite } from '../../api/projects.api';
+import { members, membership } from '../../model/access';
 import type { Project } from '../../model/types';
 
 export type InviteState = 'NONE' | 'ACTIVE' | 'REVOKED' | 'EXPIRED';
@@ -34,7 +34,7 @@ export function InviteTab({ project }: { project: Project }) {
         <div>
           <b>참여자를 모으는 방법은 두 가지예요.</b>
           <ul>
-            <li><b>사람 초대</b> 참여할 사람이 정해져 있을 때. 코드 없이 알림으로 바로 들어와요.</li>
+            <li><b>사람 초대</b> 참여할 사람이 정해져 있을 때. 초대하는 즉시 참여자로 추가되고 알림이 가요.</li>
             <li><b>입장 코드</b> 메신저·메일로 여러 사람에게 한 번에 알릴 때. 코드를 아는 누구나 들어올 수 있어요.</li>
           </ul>
         </div>
@@ -86,42 +86,30 @@ export function InviteTab({ project }: { project: Project }) {
   );
 }
 
-/** 조직도에서 사람을 골라 초대한다. 받은 사람은 우측 상단 알림에서 참여하거나 거절한다 */
+/** 조직도에서 사람을 골라 초대한다. 수락 절차 없이 바로 참여자로 추가된다 */
 function InvitePeople({ project }: { project: Project }) {
   const { db } = useSession();
   const [picking, setPicking] = useState(false);
-  const pending = db.invitations.filter(i => i.projectId === project.id);
   const isMember = (id: string) => !!membership(db, project.id, id);
-  const isPending = (id: string) => pending.some(i => i.inviteeId === id);
   return (
     <section className="card stack">
       <SectionTitle icon="users" title={<><span className="method-no">방법 1</span>사람 지정해서 초대</>}
-        desc={<>회사 팀 구조도에서 사람을 골라요. 받은 사람은 우측 상단 <b>알림</b>에서 [참여]를 누르면 바로 들어와요.</>}
+        desc={<>회사 팀 구조도에서 사람을 골라요. 초대한 사람은 <b>바로 이 평가룸에 참여</b>되고, 우측 상단 <b>알림</b>으로 초대 소식을 받아요.</>}
         right={<button className="btn primary solid" onClick={() => setPicking(true)}><IconText icon="plus">초대하기</IconText></button>} />
-      {pending.length === 0
-        ? <p className="muted small">대기 중인 초대가 없어요.</p>
-        : (
-          <div className="invite-list">
-            {pending.map(i => (
-              <div key={i.id} className="invite-row">
-                <span><b>{userName(db, i.inviteeId)}</b> <span className="muted small">{teamName(db, db.users.find(u => u.id === i.inviteeId)?.teamId ?? null)}</span></span>
-                <span className="muted small">{timeText(i.createdAt)} 초대 · 응답 대기</span>
-                <button className="btn sm ghost" onClick={() => run(() => mutate(cancelInvitation(i.id)), '초대를 취소했습니다.')}>취소</button>
-              </div>
-            ))}
-          </div>
-        )}
+      <p className="muted small">
+        현재 참여자 <b>{members(db, project.id).length}명</b> · 확인과 제거는 <Link to={`/p/${project.id}/admin?tab=members`}>참여자</Link> 탭에서 할 수 있어요.
+      </p>
       {picking && (
         <OrgDirectory onClose={() => setPicking(false)} picker={{
           title: `'${project.name}'에 초대`,
-          hint: '사람 옆의 체크박스를 눌러 초대 목록에 담으세요.',
+          hint: '사람 옆의 체크박스를 눌러 초대 목록에 담으세요. 초대하면 바로 참여자로 추가돼요.',
           listTitle: '초대 목록',
           confirmLabel: '초대',
-          disabledReason: id => (isMember(id) ? '참여 중' : isPending(id) ? '초대함' : null),
+          disabledReason: id => (isMember(id) ? '참여 중' : null),
           onConfirm: async ids => {
-            let invited = 0;
-            const ok = await run(async () => { invited = await mutate(inviteUsers(project.id, ids)); });
-            if (ok) toast(`${invited}명에게 초대를 보냈어요.`);
+            let added = 0;
+            const ok = await run(async () => { added = await mutate(addMembers(project.id, ids)); });
+            if (ok) toast(added > 0 ? `${added}명을 평가룸에 추가하고 알림을 보냈어요.` : '새로 추가된 사람이 없어요.');
             return ok;
           },
         }} />

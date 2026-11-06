@@ -20,10 +20,15 @@ export function fileSize(bytes: number) {
 }
 
 /** 평균: 정수로 반올림하거나 소수 넷째 자리까지. 값이 없으면 — */
+/** 평균을 화면에 보이는 자리까지 반올림한다 (소수점 넷째 자리 또는 정수). 순위도 이 값으로 매긴다 */
+export function roundAvg(v: number | null, decimals: boolean): number | null {
+  if (v === null) return null;
+  return decimals ? Math.round(v * 10000) / 10000 : Math.round(v);
+}
+
 export function formatAvg(v: number | null, decimals: boolean) {
-  if (v === null) return '—';
-  if (!decimals) return String(Math.round(v));
-  return String(Math.round(v * 10000) / 10000);
+  const r = roundAvg(v, decimals);
+  return r === null ? '—' : String(r);
 }
 
 /** 남은 시간: 12:05 */

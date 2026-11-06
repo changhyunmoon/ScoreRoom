@@ -48,6 +48,10 @@ public class User extends TimestampedEntity<UUID> {
     @Column(name = "can_view_all", nullable = false)
     private boolean canViewAll;
 
+    /** 평가룸 생성 권한 (시스템 관리자가 준다) */
+    @Column(name = "can_create_room", nullable = false)
+    private boolean canCreateRoom;
+
     @Column(nullable = false)
     private boolean enabled = true;
 
@@ -108,6 +112,13 @@ public class User extends TimestampedEntity<UUID> {
         this.canViewAll = canViewAll;
     }
 
+    public void setCreateRoom(boolean canCreateRoom) {
+        if (sysAdmin && canCreateRoom) {
+            throw ApiException.badRequest("시스템 관리자에게는 줄 수 없습니다.");
+        }
+        this.canCreateRoom = canCreateRoom;
+    }
+
     @Override
     public UUID getId() {
         return id;
@@ -147,6 +158,10 @@ public class User extends TimestampedEntity<UUID> {
 
     public boolean canViewAll() {
         return canViewAll;
+    }
+
+    public boolean canCreateRoom() {
+        return canCreateRoom;
     }
 
     public boolean isEnabled() {

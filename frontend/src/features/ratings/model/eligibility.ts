@@ -56,6 +56,12 @@ export function myStatus(d: RoomData, project: Project, pres: Presentation, user
   // 마감된 평가룸은 모든 발표가 끝난 것으로 보고, 다 평가하지 않은 발표는 '평가 안 함'으로 둔다
   return project.status === 'CLOSED' ? 'MISSED' : 'TODO';
 }
+/** 발표 구성원 한 명(targetId)에 대한 내 평가 상태 */
+export function personStatus(d: RoomData, project: Project, pres: Presentation, raterId: ID, targetId: ID): MyStatus {
+  if (blockReason(d, project, pres, raterId, targetId)) return 'BLOCKED';
+  if (d.ratings.some(r => r.presentationId === pres.id && r.targetId === targetId && r.raterId === raterId)) return 'DONE';
+  return project.status === 'CLOSED' ? 'MISSED' : 'TODO';
+}
 export const statusMeta = {
   TODO: { label: '평가 필요', tone: 'amber', icon: 'star' },
   DONE: { label: '평가 완료', tone: 'green', icon: 'checkCircle' },

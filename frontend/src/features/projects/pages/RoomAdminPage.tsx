@@ -15,9 +15,9 @@ import { members, membership } from '../model/access';
 
 type Tab = 'run' | 'invite' | 'members' | 'settings';
 const TABS: { key: Tab; label: string; icon: IconName }[] = [
-  { key: 'run', label: '발표 관리', icon: 'mic' },
   { key: 'invite', label: '초대·입장 코드', icon: 'ticket' },
   { key: 'members', label: '참여자', icon: 'users' },
+  { key: 'run', label: '발표 관리', icon: 'mic' },
   { key: 'settings', label: '설정', icon: 'sliders' },
 ];
 

@@ -26,6 +26,8 @@ import com.scoreroom.project.repository.MembershipRepository;
 import com.scoreroom.project.service.RoomGuard;
 import com.scoreroom.project.service.RoomGuard.RoomWrite;
 import com.scoreroom.rating.repository.RatingRepository;
+import com.scoreroom.user.domain.User;
+import com.scoreroom.user.repository.UserRepository;
 
 /** 발표 등록·수정·삭제와 순서 */
 @Service
@@ -37,22 +39,25 @@ public class PresentationService {
     private final RatingRepository ratings;
     private final RoomGuard roomGuard;
     private final PresentationRemover remover;
+    private final UserRepository users;
 
     public PresentationService(PresentationRepository presentations, PresentationMemberRepository presentationMembers,
-            MembershipRepository memberships, RatingRepository ratings, RoomGuard roomGuard, PresentationRemover remover) {
+            MembershipRepository memberships, RatingRepository ratings, RoomGuard roomGuard, PresentationRemover remover,
+            UserRepository users) {
         this.presentations = presentations;
         this.presentationMembers = presentationMembers;
         this.memberships = memberships;
         this.ratings = ratings;
         this.roomGuard = roomGuard;
         this.remover = remover;
+        this.users = users;
     }
 
     /** 참여자 누구나 등록한다. 만든 사람이 발표를 수정할 수 있다 */
     @Transactional
     public UUID create(UUID actorId, UUID projectId, SavePresentationRequest request) {
         RoomWrite room = roomGuard.lockAsMember(projectId, actorId);
-        Crew crew = validateCrew(room, request);
+        Crew crew = validateCrew(room, request, null);
         ensureTitleUnique(projectId, request.title().trim());
         Presentation presentation = new Presentation(projectId, actorId, presentations.findMaxSortOrder(projectId) + 1);
         describe(presentation, request, crew);
@@ -66,7 +71,7 @@ public class PresentationService {
     public void update(UUID actorId, UUID projectId, UUID presentationId, SavePresentationRequest request) {
         RoomWrite room = roomGuard.lockAsMember(projectId, actorId);
         Presentation presentation = requireEditable(room, presentationId);
-        Crew crew = validateCrew(room, request);
+        Crew crew = validateCrew(room, request, presentationId);
         List<PresentationMember> current = presentationMembers.findByPresentationId(presentationId);
         Set<UUID> before = current.stream().map(PresentationMember::getUserId).collect(Collectors.toSet());
         if (!before.equals(new HashSet<>(crew.everyone())) && ratings.existsByPresentationId(presentationId)) {
@@ -143,7 +148,8 @@ public class PresentationService {
         }
     }
 
-    private Crew validateCrew(RoomWrite room, SavePresentationRequest request) {
+    /** presentationId: 수정 중인 발표 (새 발표면 null) */
+    private Crew validateCrew(RoomWrite room, SavePresentationRequest request, UUID presentationId) {
         Crew crew = Crew.normalize(request.type(), request.leaderId(), request.presenterIds(), request.memberIds());
         Set<UUID> roomMembers = memberships.findByProjectId(room.projectId()).stream()
                 .map(Membership::getUserId).collect(Collectors.toSet());
@@ -155,7 +161,25 @@ public class PresentationService {
         if (!room.membership().isAdmin() && !everyone.contains(actorId)) {
             throw ApiException.badRequest("본인을 구성원에서 뺄 수 없습니다. 대표·발표자·팀원 중 하나를 선택해 주세요.");
         }
+        ensureNotInOtherPresentation(room.projectId(), everyone, presentationId);
         return crew;
+    }
+
+    /**
+     * 한 사람은 평가룸에서 발표 하나에만 참여한다. 팀 발표는 한 명이 등록하면 구성원 전원이 그 발표로 등록되므로,
+     * 다른 발표에 이미 들어 있는 사람은 구성원으로 넣을 수 없다. 룸 잠금 안에서 부르므로 동시에 등록해도 겹치지 않는다.
+     */
+    private void ensureNotInOtherPresentation(UUID projectId, List<UUID> everyone, UUID presentationId) {
+        Set<UUID> crew = new HashSet<>(everyone);
+        List<UUID> taken = presentationMembers.findByProjectId(projectId).stream()
+                .filter(m -> crew.contains(m.getUserId()) && !m.getPresentationId().equals(presentationId))
+                .map(PresentationMember::getUserId)
+                .distinct()
+                .toList();
+        if (!taken.isEmpty()) {
+            String names = users.findAllById(taken).stream().map(User::getName).sorted().collect(Collectors.joining(", "));
+            throw ApiException.conflict("다른 발표에 이미 등록된 사람이 있습니다: " + names + ". 한 사람은 발표 하나에만 참여할 수 있습니다.");
+        }
     }
 
     private static void describe(Presentation presentation, SavePresentationRequest request, Crew crew) {

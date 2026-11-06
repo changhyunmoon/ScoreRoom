@@ -18,6 +18,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.scoreroom.common.security.AuthenticatedUser;
 import com.scoreroom.common.web.IdResponse;
+import com.scoreroom.project.dto.AddMembersRequest;
+import com.scoreroom.project.dto.AddedResponse;
 import com.scoreroom.project.dto.CreateProjectRequest;
 import com.scoreroom.project.dto.RemovedResponse;
 import com.scoreroom.project.dto.SetAdminRequest;
@@ -54,6 +56,13 @@ public class ProjectController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void close(@AuthenticationPrincipal AuthenticatedUser me, @PathVariable UUID projectId) {
         projectService.close(me.userId(), projectId);
+    }
+
+    /** 사람 지정 초대: 고른 사람을 바로 참여자로 추가한다 */
+    @PostMapping("/{projectId}/members")
+    public AddedResponse addMembers(@AuthenticationPrincipal AuthenticatedUser me, @PathVariable UUID projectId,
+            @RequestBody AddMembersRequest request) {
+        return new AddedResponse(membershipService.add(me.userId(), projectId, request.userIds()));
     }
 
     @PutMapping("/{projectId}/members/{userId}/admin")

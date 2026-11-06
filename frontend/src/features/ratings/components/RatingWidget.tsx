@@ -99,17 +99,19 @@ function PersonRating({ project, pres, targetId, role }: { project: Project; pre
   );
 }
 
-/** 발표 구성원 한 명씩 평가하는 상자 */
-export function RatingWidget({ project, pres }: { project: Project; pres: Presentation }) {
+/** 발표 구성원 한 명씩 평가하는 상자. only를 주면 그 사람만 평가한다 */
+export function RatingWidget({ project, pres, only }: { project: Project; pres: Presentation; only?: ID }) {
   const { db, me } = useSession();
   const { min, max, allowEdit } = project.settings;
   const { ratable, rated } = myProgress(db, project, pres, me!.id);
+  const crew = crewOf(pres).filter(c => !only || c.id === only);
   return (
     <div className="rate-box people">
       <div className="rate-label">
-        <Icon name="star" size={15} /> 구성원별 점수 <small className="muted">({min}~{max}점, 정수 · {rated}/{ratable}명 평가)</small>
+        <Icon name="star" size={15} /> {only ? '점수' : '구성원별 점수'}{' '}
+        <small className="muted">({min}~{max}점, 정수{only ? '' : ` · ${rated}/${ratable}명 평가`})</small>
       </div>
-      {crewOf(pres).map(c => <PersonRating key={c.id} project={project} pres={pres} targetId={c.id} role={c.role} />)}
+      {crew.map(c => <PersonRating key={c.id} project={project} pres={pres} targetId={c.id} role={c.role} />)}
       {!allowEdit && project.status === 'OPEN' && <small className="muted">제출하면 수정할 수 없어요.</small>}
     </div>
   );

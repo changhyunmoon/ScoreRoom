@@ -2,6 +2,7 @@ package com.scoreroom.project;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -81,24 +82,57 @@ class RoomAdminApiTest extends IntegrationTest {
 
     @Test
     void 참여자를_제거하면_단독_발표를_지우고_공동_발표의_대표를_다시_정한다() throws Exception {
-        UUID solo = fixtures.personal(room, leader);
+        // 한 사람은 발표 하나에만 참여하므로 단독 발표와 공동 발표는 다른 사람이 맡는다
+        User loner = fixtures.user("loner", null);
+        mvc.perform(json(post("/api/v1/projects/{p}/members", room), "{\"userIds\":[\"" + loner.getId() + "\"]}")
+                .with(as(owner))).andExpect(status().isOk());
+        UUID solo = fixtures.personal(room, loner);
         UUID shared = fixtures.teamPresentation(room, leader, List.of(presenter), List.of(member));
-        rate(owner, solo, leader, 70);
+        rate(owner, solo, loner, 70);
         rate(owner, shared, presenter, 80);
 
-        mvc.perform(delete("/api/v1/projects/{p}/members/{u}", room, leader.getId()).with(as(owner)))
+        mvc.perform(delete("/api/v1/projects/{p}/members/{u}", room, loner.getId()).with(as(owner)))
                 .andExpect(status().isConflict());
+        mvc.perform(delete("/api/v1/projects/{p}/members/{u}", room, loner.getId())
+                .param("expectedVersion", String.valueOf(fixtures.version(room))).with(as(owner)))
+                .andExpect(status().isNoContent());
+        assertThat(count("select count(*) from presentations where id = ?", solo)).isZero();
+
         mvc.perform(delete("/api/v1/projects/{p}/members/{u}", room, leader.getId())
                 .param("expectedVersion", String.valueOf(fixtures.version(room))).with(as(owner)))
                 .andExpect(status().isNoContent());
-
-        assertThat(count("select count(*) from presentations where id = ?", solo)).isZero();
         assertThat(jdbc.queryForObject("select leader_id from presentations where id = ?", UUID.class, shared))
                 .isEqualTo(presenter.getId());
         assertThat(count("select count(*) from presentation_members where presentation_id = ?", shared)).isEqualTo(2);
         assertThat(count("select count(*) from ratings")).isEqualTo(1);
         assertThat(count("select count(*) from memberships where project_id = ? and user_id = ?", room, leader.getId()))
                 .isZero();
+    }
+
+    @Test
+    void 평가_현황은_켜져_있으면_참여자에게_인원_수만_보이고_꺼도_룸_운영자에게는_보인다() throws Exception {
+        UUID pres = fixtures.teamPresentation(room, leader, List.of(presenter), List.of());
+        rate(owner, pres, presenter, 80);
+
+        // 기본은 켜짐: 참여자도 사람별 인원 수를 받지만 평균 점수는 받지 않는다
+        mvc.perform(get("/api/v1/state").with(as(member)))
+                .andExpect(jsonPath("$.projects[0].settings.showRatingStatus").value(true))
+                .andExpect(jsonPath("$.summaries[?(@.targetId == '" + presenter.getId() + "')].scored").value(1))
+                .andExpect(jsonPath("$.summaries[?(@.targetId == '" + presenter.getId() + "')].total").value(4))
+                .andExpect(jsonPath("$.summaries[0].avg").doesNotExist());
+
+        mvc.perform(json(put("/api/v1/projects/{p}/settings", room), "{\"min\":0,\"max\":100,\"showRatingStatus\":false}")
+                .with(as(owner))).andExpect(status().isOk());
+        mvc.perform(get("/api/v1/state").with(as(member)))
+                .andExpect(jsonPath("$.projects[0].settings.showRatingStatus").value(false))
+                .andExpect(jsonPath("$.summaries.length()").value(0));
+        // 룸 운영자는 꺼져 있어도 점수까지 받는다
+        mvc.perform(get("/api/v1/state").with(as(owner)))
+                .andExpect(jsonPath("$.summaries[?(@.targetId == '" + presenter.getId() + "')].avg").value(80.0));
+        // 다른 설정만 바꿀 때 값을 보내지 않으면 그대로 유지한다
+        mvc.perform(json(put("/api/v1/projects/{p}/settings", room), "{\"min\":0,\"max\":100,\"allowEdit\":false}")
+                .with(as(owner))).andExpect(status().isOk());
+        assertThat(jdbc.queryForObject("select show_rating_status from projects where id = ?", Boolean.class, room)).isFalse();
     }
 
     @Test

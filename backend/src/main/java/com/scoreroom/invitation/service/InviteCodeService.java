@@ -30,19 +30,16 @@ public class InviteCodeService {
     private final InviteCodeRepository inviteCodes;
     private final ProjectRepository projects;
     private final MembershipService membershipService;
-    private final InvitationService invitationService;
     private final UserAccessService userAccess;
     private final RoomGuard roomGuard;
     private final Clock clock;
     private final SecureRandom random = new SecureRandom();
 
     public InviteCodeService(InviteCodeRepository inviteCodes, ProjectRepository projects,
-            MembershipService membershipService, InvitationService invitationService, UserAccessService userAccess,
-            RoomGuard roomGuard, Clock clock) {
+            MembershipService membershipService, UserAccessService userAccess, RoomGuard roomGuard, Clock clock) {
         this.inviteCodes = inviteCodes;
         this.projects = projects;
         this.membershipService = membershipService;
-        this.invitationService = invitationService;
         this.userAccess = userAccess;
         this.roomGuard = roomGuard;
         this.clock = clock;
@@ -96,7 +93,6 @@ public class InviteCodeService {
         }
         project.bumpVersion();
         membershipService.join(project, user, false);
-        invitationService.acceptPending(project.getId(), actorId);
         return project.getId();
     }
 

@@ -13,6 +13,7 @@ import com.scoreroom.organization.repository.TeamRepository;
 import com.scoreroom.presentation.domain.PresentationType;
 import com.scoreroom.presentation.dto.SavePresentationRequest;
 import com.scoreroom.presentation.service.PresentationService;
+import com.scoreroom.project.domain.ProjectSettings;
 import com.scoreroom.project.dto.CreateProjectRequest;
 import com.scoreroom.project.repository.ProjectRepository;
 import com.scoreroom.project.service.MembershipService;
@@ -67,16 +68,24 @@ public class TestFixtures {
         return users.findById(user.getId()).orElseThrow();
     }
 
-    /** owner가 만든 평가룸에 나머지를 참여시킨다 */
+    /** owner가 만든 평가룸에 나머지를 참여시킨다. owner에게는 평가룸 생성 권한을 먼저 준다 */
     public UUID room(User owner, User... members) {
+        allowCreateRoom(owner);
         UUID projectId = projectService.create(owner.getId(), new CreateProjectRequest("평가룸", ""));
         tx.executeWithoutResult(s -> {
             var project = projects.findById(projectId).orElseThrow();
+            // 기존 테스트는 본인·같은 팀·같은 발표 팀원 평가를 막는 평가룸 기준이다 (새 평가룸 기본값은 모두 허용)
+            project.applySettings(new ProjectSettings(0, 100, null, null, false, false, false, true, true, true, true, true));
             for (User m : members) {
                 membershipService.join(project, m, false);
             }
         });
         return projectId;
+    }
+
+    /** 시스템 관리자가 평가룸 생성 권한을 준 것처럼 만든다 */
+    public void allowCreateRoom(User user) {
+        tx.executeWithoutResult(s -> users.findById(user.getId()).orElseThrow().setCreateRoom(true));
     }
 
     public UUID personal(UUID projectId, User leader) {

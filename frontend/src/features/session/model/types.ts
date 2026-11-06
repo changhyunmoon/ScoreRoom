@@ -1,4 +1,4 @@
-import type { Invitation } from '../../invitations';
+import type { Notification } from '../../notifications';
 import type { Team, User } from '../../organization';
 import type { Presentation } from '../../presentations';
 import type { Membership, Project } from '../../projects';
@@ -9,7 +9,8 @@ import type { Summary } from '../../results';
 export interface DB {
   teams: Team[]; users: User[]; projects: Project[]; memberships: Membership[];
   presentations: Presentation[]; ratings: Rating[]; summaries: Summary[];
-  invitations: Invitation[];
+  /** 내 알림 (최근 50건) */
+  notifications: Notification[];
 }
 
 /** GET /state 응답 */

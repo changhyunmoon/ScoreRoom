@@ -1,13 +1,17 @@
-// 발표 구성원과 목록 정렬 (화면 표시용)
+// 발표 구성원 (화면 표시용)
 import type { ID } from '../../../shared/lib/types';
-import { teamRank, userName, type Team, type User } from '../../organization';
-import { membership, type Membership, type Project } from '../../projects';
+import { userName, type User } from '../../organization';
 import type { Presentation } from './types';
-
-type RoomData = { teams: Team[]; users: User[]; memberships: Membership[]; presentations: Presentation[] };
 
 /** 발표 구성원 전체 (대표·발표자·팀원, 한 사람은 한 번) */
 export const involvedIds = (p: Presentation): ID[] => Array.from(new Set([p.leaderId, ...p.presenterIds, ...p.memberIds]));
+
+/**
+ * 이 사람이 구성원으로 들어 있는 발표. 한 사람은 평가룸에서 발표 하나에만 참여한다.
+ * 팀 발표는 한 명이 등록하면 구성원 전원이 그 발표로 등록된다.
+ */
+export const presentationOfUser = (d: { presentations: Presentation[] }, pid: ID, userId: ID) =>
+  d.presentations.find(p => p.projectId === pid && involvedIds(p).includes(userId));
 
 /** 발표를 수정·삭제할 수 있는 사람: 룸 운영자, 구성원(대표·발표자·팀원), 발표를 만든 사람 */
 export const canEditPresentation = (p: Presentation, userId: ID, isAdmin: boolean) =>
@@ -37,22 +41,4 @@ export function crewSummary(d: { users: User[] }, p: Presentation) {
   const others = involvedIds(p).length - 1;
   return others > 0 ? `${userName(d, p.leaderId)} 외 ${others}명` : userName(d, p.leaderId);
 }
-/** 검색용: 구성원 전체 이름 */
-export const crewNames = (d: { users: User[] }, p: Presentation) => involvedIds(p).map(id => userName(d, id));
 
-/* ---------- 정렬 ---------- */
-export type PresSort = 'order' | 'created' | 'team';
-export const presSortText: Record<PresSort, string> = { order: '관리자 설정 순', created: '등록순', team: '팀 구조도 순' };
-
-/** 발표 목록 정렬. 팀 구조도 순은 대표의 참여 당시 팀 기준이고, 같은 팀 안에서는 관리자 설정 순 */
-export function sortPresentations(d: RoomData, project: Project, list: Presentation[], mode: PresSort) {
-  if (mode === 'order') return [...list].sort((a, b) => a.order - b.order);
-  if (mode === 'created') return [...list].sort((a, b) => a.createdAt - b.createdAt || a.order - b.order);
-  const rank = teamRank(d);
-  const teamOf = (p: Presentation) => membership(d, project.id, p.leaderId)?.teamIdAtJoin ?? null;
-  const rankOf = (p: Presentation) => {
-    const t = teamOf(p);
-    return t != null && rank.has(t) ? rank.get(t)! : Number.MAX_SAFE_INTEGER;
-  };
-  return [...list].sort((a, b) => rankOf(a) - rankOf(b) || (teamOf(a) ?? '').localeCompare(teamOf(b) ?? '') || a.order - b.order);
-}

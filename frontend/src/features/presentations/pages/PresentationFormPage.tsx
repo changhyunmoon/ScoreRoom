@@ -11,7 +11,7 @@ import { members, membership, ProjectShell, RoomNotFound } from '../../projects'
 import { mutate, refresh, useSession } from '../../session';
 import { deletePresentation, savePresentation } from '../api/presentations.api';
 import { Presenters } from '../components/PresInfo';
-import { canEditPresentation, involvedIds, presTypeText } from '../model/crew';
+import { canEditPresentation, involvedIds, presentationOfUser, presTypeText } from '../model/crew';
 import type { Presentation, PresRole, PresType } from '../model/types';
 
 const TYPE_INFO: Record<PresType, { icon: IconName; desc: string }> = {
@@ -51,7 +51,8 @@ export default function PresentationFormPage() {
     existing?.memberIds.forEach(id => { roles[id] = 'MEMBER'; });
     return {
       title: existing?.title ?? '', intro: existing?.intro ?? '', type: (existing?.type ?? 'PERSONAL') as PresType,
-      leaderId: existing?.leaderId ?? me?.id ?? '', // 새 발표는 만든 사람을 대표로 시작하고, 원하면 바꾼다
+      // 새 발표는 만든 사람을 대표로 시작하고, 원하면 바꾼다. 이미 다른 발표에 있으면 비워 둔다 (한 사람은 발표 하나)
+      leaderId: existing?.leaderId ?? (me && pid && !presentationOfUser(db, pid, me.id) ? me.id : ''),
       roles,
       // 대표가 발표도 하는지 (대표+발표자)
       leaderPresents: !!existing && existing.type !== 'PERSONAL' && existing.presenterIds.includes(existing.leaderId),
@@ -72,6 +73,21 @@ export default function PresentationFormPage() {
   if (prid && !existing) return <Empty>발표를 찾을 수 없습니다. 삭제됐을 수 있어요. <Link to={`/p/${project.id}`}>목록으로</Link></Empty>;
   if (existing && !canEditPresentation(existing, me.id, m.isAdmin)) return <Empty>발표 구성원, 발표를 만든 사람, 룸 운영자만 편집할 수 있습니다.</Empty>;
   if (project.status === 'CLOSED') return <Empty>마감된 평가룸은 편집할 수 없습니다.</Empty>;
+
+  // 한 사람은 평가룸에서 발표 하나에만 참여한다. 다른 발표에 이미 들어 있는 사람의 그 발표
+  const takenBy = (id: ID) => {
+    const p = presentationOfUser(db, project.id, id);
+    return p && p.id !== existing?.id ? p : undefined;
+  };
+  const myOther = takenBy(me.id);
+  if (!existing && myOther && !m.isAdmin) {
+    return (
+      <Empty icon="mic">
+        이미 <b>'{myOther.title}'</b> 발표에 등록돼 있어요. 한 사람은 발표 하나에만 참여할 수 있어요.{' '}
+        <Link to={`/p/${project.id}/pres/${myOther.id}`}>내 발표 편집</Link>
+      </Empty>
+    );
+  }
 
   // 점수를 받은 발표는 평가 가능 여부가 바뀌지 않도록 구성원 추가·제외를 막는다 (역할 변경은 가능)
   const locked = !!existing?.hasRatings;
@@ -139,17 +155,18 @@ export default function PresentationFormPage() {
   };
   // 우리 회사 팀 불러오기: 내 팀 참여자 전원. 조직도에서 가장 위(높은) 사람이 대표, 나머지는 팀원으로 채운다
   const fillMyTeam = (type: PresType = f.type) => {
-    const crew = ms.filter(x => x.teamIdAtJoin === myTeam).map(x => x.userId)
+    // 다른 발표에 이미 등록된 사람은 빼고 불러온다
+    const crew = ms.filter(x => x.teamIdAtJoin === myTeam && !takenBy(x.userId)).map(x => x.userId)
       .sort((a, b) => rankOf(a) - rankOf(b) || byName(a, b));
     const roles: Record<ID, PresRole> = {};
     crew.slice(1).forEach(id => { roles[id] = 'MEMBER'; });
-    setF({ ...f, type, leaderId: crew[0] ?? me.id, roles, leaderPresents: false });
+    setF({ ...f, type, leaderId: crew[0] ?? (myOther ? '' : me.id), roles, leaderPresents: false });
   };
   const changeType = (type: PresType) => {
     if (type === f.type) return;
     if (type === 'PERSONAL') {
       // 개인 발표: 본인이 대표 (구성원 선택 없음)
-      setF({ ...f, type, roles: {}, leaderPresents: false, leaderId: existing?.type === 'PERSONAL' ? existing.leaderId : me.id });
+      setF({ ...f, type, roles: {}, leaderPresents: false, leaderId: existing?.type === 'PERSONAL' ? existing.leaderId : myOther ? '' : me.id });
       return;
     }
     // 팀 발표: 우리 회사 팀으로 시작
@@ -220,6 +237,7 @@ export default function PresentationFormPage() {
   const options: (Role | null)[] = f.type === 'PERSONAL' ? [null, 'LEADER'] : [null, 'LEADER', 'PRESENTER', 'MEMBER'];
   // 비활성 조건: 점수를 받은 발표는 구성원 추가·제외 불가(역할 변경은 가능), 관리자가 아니면 본인은 제외 불가
   const disabledFor = (id: ID) => (v: Role | null) => {
+    if (v !== null && takenBy(id)) return true;
     if (locked && (lockedCrew.includes(id) ? v === null : v !== null)) return true;
     if (v === null && id === me.id && !m.isAdmin) return true;
     return false;
@@ -227,8 +245,10 @@ export default function PresentationFormPage() {
   const titleKey = f.title.trim().toLowerCase();
   const titleTaken = !!titleKey && db.presentations.some(p =>
     p.projectId === project.id && p.id !== existing?.id && p.title.trim().toLowerCase() === titleKey);
+  const takenCrew = [leaderId, ...presenterIds, ...memberIds].filter(id => id && takenBy(id));
   const problems = [
     !f.title.trim() && '발표 제목을 입력해 주세요.',
+    takenCrew.length > 0 && `다른 발표에 이미 등록된 사람이 있어요: ${Array.from(new Set(takenCrew)).map(id => userName(db, id)).join(', ')}. 한 사람은 발표 하나에만 참여할 수 있어요.`,
     titleTaken && '이 평가룸에 같은 제목의 발표가 이미 있습니다.',
     !leaderId && '대표를 1명 선택해 주세요.',
     !m.isAdmin && !meIncluded && '본인의 역할(대표·발표자·팀원)을 선택해 주세요.',
@@ -322,6 +342,7 @@ export default function PresentationFormPage() {
         </div>
         <ul className="role-guide">
           <li><span className="crew-label lead">대표</span>꼭 1명 필요해요. 대표가 발표도 하면 발표자를 함께 눌러 주세요.</li>
+          <li>등록하면 고른 구성원 모두 이 발표로 등록돼요. 한 사람은 발표 하나에만 참여할 수 있어서, 다른 발표에 등록된 사람은 고를 수 없어요.</li>
         </ul>
         {locked && <div className="notice"><Icon name="lock" size={15} />점수를 받은 발표라 역할만 바꿀 수 있어요.</div>}
 
@@ -344,6 +365,7 @@ export default function PresentationFormPage() {
                   {userOf(db, p.userId)?.position && <small className="muted">{userOf(db, p.userId)!.position}</small>}
                   {p.userId === me.id && <small className="muted">(나)</small>}
                   {roles.map(r => <span key={r} className={`crew-label ${ROLE_CLASS[r]}`}>{ROLE_TEXT[r]}</span>)}
+                  {takenBy(p.userId) && <small className="muted">· '{takenBy(p.userId)!.title}' 발표에 등록됨</small>}
                 </span>
                 <span className="cl-team">{p.teamNameAtJoin ?? teamName(db, p.teamIdAtJoin)}</span>
                 <span className="cl-role"><RoleSeg value={roles} options={options} onChange={v => setRole(p.userId, v)} isDisabled={disabledFor(p.userId)} /></span>

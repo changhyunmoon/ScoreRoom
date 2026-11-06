@@ -21,6 +21,7 @@ import com.scoreroom.user.dto.CreateUserRequest;
 import com.scoreroom.user.dto.ResetPasswordRequest;
 import com.scoreroom.user.dto.SetPositionRequest;
 import com.scoreroom.user.dto.SetTeamRequest;
+import com.scoreroom.user.dto.SetCreateRoomRequest;
 import com.scoreroom.user.dto.SetViewAllRequest;
 import com.scoreroom.user.service.UserAdminService;
 
@@ -68,6 +69,13 @@ public class UserAdminController {
     public void setViewAll(@AuthenticationPrincipal AuthenticatedUser me, @PathVariable UUID userId,
             @RequestBody SetViewAllRequest request) {
         userAdminService.setViewAll(me.userId(), userId, request.enabled());
+    }
+
+    @PutMapping("/users/{userId}/create-room")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void setCreateRoom(@AuthenticationPrincipal AuthenticatedUser me, @PathVariable UUID userId,
+            @RequestBody SetCreateRoomRequest request) {
+        userAdminService.setCreateRoom(me.userId(), userId, request.enabled());
     }
 
     @PutMapping("/users/{userId}/password")

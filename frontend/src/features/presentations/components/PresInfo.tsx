@@ -1,4 +1,4 @@
-// 발표 정보 표시: 구성원, 발표 자료, 소개. 평가 화면과 결과 현황 팝업이 함께 쓴다
+// 발표 정보 표시: 구성원, 발표 자료, 소개. 발표 화면과 결과 현황 팝업이 함께 쓴다
 import { Icon } from '../../../shared/icons/Icon';
 import { fileSize } from '../../../shared/lib/format';
 import type { ID } from '../../../shared/lib/types';

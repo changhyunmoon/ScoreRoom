@@ -1,8 +1,9 @@
-// 발표 관리: 발표 순서(드래그·▲▼), 자료 수, 제출/미평가 수, 편집·삭제
+// 발표 관리: 발표 순서(드래그·▲▼), 유형·발표자, 자료 수, 평가함/미평가 수, 편집·삭제. 글꼴·색은 발표 화면과 같다
 import { Link } from 'react-router-dom';
 import { Icon } from '../../../../shared/icons/Icon';
 import { Chip, ConfirmButton, IconText, run } from '../../../../shared/ui';
-import { crewSummary, deletePresentation, movePresentation, presTypeText, presentationsOf, reorderPresentations } from '../../../presentations';
+import { userName } from '../../../organization';
+import { deletePresentation, involvedIds, movePresentation, presTypeText, presentationsOf, reorderPresentations } from '../../../presentations';
 import { computeResults } from '../../../results';
 import { mutate, useSession } from '../../../session';
 import type { Project } from '../../model/types';
@@ -26,8 +27,8 @@ export function RunTab({ project }: { project: Project }) {
         </div>
         <div className="btable admin">
           <div className="bhead">
-            <span className="c-no">순서</span><span className="c-title">발표 제목</span><span className="c-state">발표 자료</span>
-            <span className="c-count">제출 / 미평가</span><span className="c-act">관리</span>
+            <span className="c-no">순서</span><span className="c-title">발표 제목</span><span className="c-type">유형</span><span className="c-who">발표자</span>
+            <span className="c-state">발표 자료</span><span className="c-done">평가함</span><span className="c-todo">미평가</span><span className="c-act">관리</span>
           </div>
           {list.length === 0 && <div className="bempty">등록된 발표가 없습니다. 참여자가 등록하거나 직접 추가할 수 있어요.</div>}
           {list.map((p, i) => {
@@ -35,7 +36,7 @@ export function RunTab({ project }: { project: Project }) {
             const crewRows = results.filter(x => x.pres.id === p.id);
             const count = crewRows.reduce((a, x) => a + x.count, 0);
             const notRated = crewRows.reduce((a, x) => a + x.cells.filter(c => c.kind === 'NOT_RATED').length, 0);
-            const names = crewSummary(db, p);
+            const others = involvedIds(p).length - 1;
             return (
               <div key={p.id} ref={cardRef(p.id)} style={cardStyle(i)}
                 onPointerDown={open ? e => onPointerDown(e, i) : undefined}
@@ -52,12 +53,13 @@ export function RunTab({ project }: { project: Project }) {
                 </span>
                 <span className="c-title">
                   <span className="t">{p.title}</span>
-                  <span className="t-sub">{presTypeText[p.type]} · {names}</span>
+                  <span className="t-sub">{presTypeText[p.type]} · {userName(db, p.leaderId)}{others > 0 ? ` 외 ${others}명` : ''}</span>
                 </span>
+                <span className="c-type">{presTypeText[p.type]}</span>
+                <span className="c-who ellipsis"><b>{userName(db, p.leaderId)}</b>{others > 0 && <small className="muted"> 외 {others}명</small>}</span>
                 <span className="c-state">{p.attachments.length ? <Chip tone="blue" icon="paperclip">{p.attachments.length}개</Chip> : <span className="muted">-</span>}</span>
-                <span className="c-count">
-                  <b className="green-text">{count}</b><span className="muted"> / </span><b className={notRated ? 'red' : 'muted'}>{notRated}</b>
-                </span>
+                <span className="c-done"><b className={count ? 'ok' : 'zero'}>{count}</b></span>
+                <span className="c-todo"><b className={notRated ? 'red' : 'zero'}>{notRated}</b></span>
                 <span className="c-act">
                   {open && <>
                     <Link to={`/p/${project.id}/pres/${p.id}`} className="btn sm" title="편집"><Icon name="pencil" size={15} /></Link>

@@ -1,13 +1,13 @@
 // 결과 표의 줄과 평가자별 칸. 인원·평균·순위는 서버 집계(Summary)를 쓰고,
 // 평가자별 점수·합계는 룸 운영자에게만 내려오는 점수로 계산한다
 import type { ID } from '../../../shared/lib/types';
-import { crewOf, presentationsOf, type CrewRole, type Presentation } from '../../presentations';
-import { members, type Project } from '../../projects';
+import { crewOf, involvedIds, presentationsOf, type CrewRole, type Presentation } from '../../presentations';
+import { members, membership, type Project } from '../../projects';
 import { blockReason, type Block, type Rating } from '../../ratings';
 import type { DB } from '../../session';
 
 export type Cell =
-  | { kind: 'SCORE'; userId: ID; rating: Rating; inRange: boolean | null; outOfInput: boolean }
+  | { kind: 'SCORE'; userId: ID; rating: Rating; inRange: boolean | null; outOfInput: boolean; counted: boolean } // counted: 집계(평균·순위)에 넣는 점수인지
   | { kind: 'NOT_RATED'; userId: ID }   // 평가 안 함 (평균 제외)
   | { kind: 'BLOCKED'; userId: ID; reason: Exclude<Block, null> }; // 평가 불가
 
@@ -22,6 +22,18 @@ export interface ResultRow {
   cells: Cell[]; // 평가자(참여자)별 칸
 }
 
+/**
+ * 이 점수를 집계(평균·순위)에 넣을지. 서버(RoomRoster.counts)와 같은 규칙:
+ * 본인 점수는 본인 설정만 따르고, 그 밖에는 같은 발표 팀원·같은 회사 팀원 설정 중 하나라도 빼라고 하면 뺀다
+ */
+export function isCounted(d: DB, project: Project, pres: Presentation, raterId: ID, targetId: ID) {
+  const s = project.settings;
+  if (raterId === targetId) return s.countSelf;
+  if (!s.countSameCrew && involvedIds(pres).includes(raterId)) return false;
+  const raterTeam = membership(d, project.id, raterId)?.teamIdAtJoin ?? null;
+  return s.countSameTeam || raterTeam === null || raterTeam !== (membership(d, project.id, targetId)?.teamIdAtJoin ?? null);
+}
+
 /** 발표 순서 → 구성원 순서(대표·발표자·팀원)로 결과 줄을 만든다. 점수는 볼 수 있는 것만으로 계산된다 */
 export function computeResults(d: DB, project: Project): ResultRow[] {
   const { aggMin, aggMax, min, max } = project.settings;
@@ -29,7 +41,9 @@ export function computeResults(d: DB, project: Project): ResultRow[] {
   const ms = members(d, project.id);
   return presentationsOf(d, project.id).flatMap(pres => crewOf(pres).map(({ id: targetId, role }) => {
     const ratings = d.ratings.filter(r => r.presentationId === pres.id && r.targetId === targetId);
-    const scores = ratings.map(r => r.score);
+    // 평균·합계에는 집계에 넣는 점수만. count(평가함)는 제출한 사람 모두
+    const counted = new Set(ratings.filter(r => isCounted(d, project, pres, r.raterId, targetId)).map(r => r.raterId));
+    const scores = ratings.filter(r => counted.has(r.raterId)).map(r => r.score);
     const inScores = hasAgg ? scores.filter(s => s >= aggMin! && s <= aggMax!) : [];
     const sum = scores.reduce((a, b) => a + b, 0);
     const inSum = inScores.reduce((a, b) => a + b, 0);
@@ -39,6 +53,7 @@ export function computeResults(d: DB, project: Project): ResultRow[] {
         kind: 'SCORE', userId: m.userId, rating,
         inRange: hasAgg ? rating.score >= aggMin! && rating.score <= aggMax! : null,
         outOfInput: rating.score < min || rating.score > max,
+        counted: counted.has(m.userId),
       };
       const b = blockReason(d, project, pres, m.userId, targetId);
       if (b) return { kind: 'BLOCKED', userId: m.userId, reason: b };
@@ -46,8 +61,9 @@ export function computeResults(d: DB, project: Project): ResultRow[] {
     });
     return {
       key: `${pres.id}:${targetId}`, pres, targetId, role, cells,
-      count: scores.length, sum, avg: scores.length ? sum / scores.length : null,
-      inCount: inScores.length, inSum, inAvg: inScores.length ? inSum / inScores.length : null,
+      count: ratings.length, sum, avg: scores.length ? sum / scores.length : null,
+      // 집계 기준을 쓰는데 점수가 모두 기준 밖이면 합계·평균 0 (점수가 하나도 없으면 평균 없음). 서버와 같은 규칙
+      inCount: inScores.length, inSum, inAvg: !hasAgg || !scores.length ? null : inScores.length ? inSum / inScores.length : 0,
     };
   }));
 }

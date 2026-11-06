@@ -262,28 +262,37 @@ input:disabled, select:disabled { background: var(--gray-soft); color: #a9abb1; 
 .live-tag { display: inline-flex; align-items: center; gap: 2px; font-size: 12px; font-weight: 700; color: var(--red); margin-right: 6px; vertical-align: 1px; }
 
 /* 참여자 발표 목록 */
-.btable > .bhead, .brow { grid-template-columns: 56px minmax(0, 1fr) 84px minmax(0, 180px) 110px 70px 36px; }
+.btable > .bhead, .brow { grid-template-columns: 56px minmax(0, 1fr) 64px minmax(0, 220px) 130px 80px 36px; }
+.brow .c-score .ok { color: var(--green); }
+.brow .c-score b.red, .brow .c-score b.ok { font-size: 13px; }
 .brow .t-sub { display: none; }
+/* 사람별 평가 현황 (전체·평가함·평가 불가·미평가 인원). 룸 운영자는 항상, 참여자는 설정이 켜져 있을 때 */
+.btable.with-stats > .bhead, .btable.with-stats .brow { grid-template-columns: 56px minmax(0, 1fr) 64px minmax(0, 200px) 168px 130px 80px 36px; }
+.c-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); text-align: center; font-variant-numeric: tabular-nums; }
+.c-stats .st { display: flex; flex-direction: column; align-items: center; line-height: 1.25; }
+.c-stats .st b { font-size: 13px; }
+.c-stats .st i { display: none; font-style: normal; font-size: 10.5px; color: var(--muted); }
+.c-stats .st.ok b { color: var(--green); } .c-stats .st.off b { color: var(--muted); } .c-stats .st.red b { color: var(--red); }
+.bhead .c-stats .st { font-size: 11px; }
+/* 발표 등록 전이라 숫자가 없을 때는 색 없이 흐린 '-'만 */
+.c-stats.no-stats .st b { color: #c4c7cd !important; font-weight: 400; }
 .team-sort-hint { margin-top: -10px; }
-.bgroup { display: flex; align-items: center; gap: 10px; min-height: 58px; margin-top: 12px; padding: 9px 16px; border: 1px solid var(--navy-line); border-left: 3px solid var(--navy); border-radius: 4px 4px 0 0; background: #f6f9fc; }
-.bgroup-icon { display: grid; place-items: center; flex: none; width: 30px; height: 30px; border-radius: 6px; background: #e6f0f9; color: var(--navy); }
-.bgroup-label { display: flex; flex-direction: column; min-width: 0; line-height: 1.35; }
-.bgroup-label strong { color: var(--navy); font-size: 14px; }
-.bgroup-label small { color: var(--muted); font-size: 11px; overflow-wrap: anywhere; }
-.bgroup-count { flex: none; margin-left: auto; padding: 3px 9px; border: 1px solid var(--navy-line); border-radius: 99px; background: #fff; color: var(--navy); font-size: 11px; font-weight: 700; }
-.bgroup-cont { flex: none; color: var(--muted); font-size: 11px; }
-.team-sorted .brow-wrap { border-left: 3px solid var(--navy-line); }
-@media (max-width: 560px) {
-  .bgroup { gap: 8px; padding: 9px 10px; }
-  .bgroup-icon { display: none; }
-  .bgroup-cont { flex-basis: 100%; margin-left: 0; }
-}
 .brow-wrap.live .brow { background: #fff8f7; }
 .brow-wrap.open .brow { background: var(--navy-soft); }
 .brow-detail { display: flex; flex-direction: column; gap: 12px; padding: 16px 20px 18px 64px; background: var(--navy-soft); border-bottom: 1px solid var(--navy-line); }
 
 /* 관리: 발표 순서 */
-.btable.admin > .bhead, .arow { grid-template-columns: 112px minmax(0, 1fr) 150px 110px 250px; }
+.btable.admin > .bhead, .arow { grid-template-columns: 112px minmax(0, 1fr) 64px minmax(0, 180px) 100px 72px 72px 120px; }
+/* 발표 관리 글꼴·색을 발표 화면과 맞춘다: 제목 굵게 14px, 숫자 열 가운데·자릿수 맞춤 */
+.arow { font-size: 14px; }
+.arow .c-title .t { font-weight: 700; }
+.arow .t-sub { display: none; }
+.arow .c-type, .btable.admin .bhead .c-type { text-align: center; color: var(--text-2); }
+.arow .c-who small { font-weight: 400; }
+.arow .c-state, .arow .c-done, .arow .c-todo, .btable.admin .bhead .c-state, .btable.admin .bhead .c-done, .btable.admin .bhead .c-todo { text-align: center; }
+.arow .c-done b, .arow .c-todo b { font-size: 14px; font-variant-numeric: tabular-nums; }
+.arow b.ok { color: var(--green); } .arow b.zero { color: #a3a7b0; font-weight: 500; }
+.arow .c-no b { font-size: 14px; }
 .arow.live { background: #fff8f7; }
 .arow .c-no { display: flex; align-items: center; justify-content: center; gap: 6px; }
 .arow .c-act, .mrow .c-act { display: flex; gap: 4px; justify-content: flex-end; flex-wrap: wrap; }
@@ -297,8 +306,11 @@ input:disabled, select:disabled { background: var(--gray-soft); color: #a9abb1; 
 body.dragging, body.dragging * { cursor: grabbing !important; user-select: none; }
 
 /* 관리: 참여자 */
-.btable.members > .bhead, .mrow { grid-template-columns: minmax(0, 1fr) 170px 120px 110px 220px; }
-.mrow .c-name { display: flex; align-items: center; }
+.btable.members > .bhead, .mrow { grid-template-columns: 56px minmax(0, 1fr) 140px 120px 230px; }
+.btable.members .mrow { font-size: 14px; }
+.mrow .c-name small { font-weight: 400; }
+.mrow .c-name { display: flex; align-items: baseline; gap: 5px; }
+.team-box > .mrow:last-child { border-bottom: 0; }
 
 /* 내 프로젝트 */
 .btable.projects > .bhead, .prow { grid-template-columns: 56px minmax(0, 1fr) 110px 80px 80px 100px 100px 90px; }
@@ -414,7 +426,7 @@ body.dragging, body.dragging * { cursor: grabbing !important; user-select: none;
 /* ---------- 결과 ---------- */
 .result-bar { display: flex; flex-direction: column; gap: 12px; }
 .result-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 13.5px; font-weight: 700; color: var(--text-2); padding: 5px 12px; border-radius: 3px; background: var(--gray-2); }
-.rule-row { display: flex; gap: 16px; flex-wrap: wrap; color: var(--muted); }
+.rule-row { display: flex; gap: 16px; flex-wrap: wrap; color: #6b6f78; font-size: 13px; }
 .rule-row span { display: inline-flex; align-items: center; gap: 4px; }
 .rule-row b { color: var(--text); }
 .table-wrap { overflow-x: auto; background: #fff; box-shadow: none; border-top: 1px solid var(--line); }
@@ -425,6 +437,11 @@ body.dragging, body.dragging * { cursor: grabbing !important; user-select: none;
 .tbl tr.dim td { color: var(--muted); }
 .board-tbl th.grp { border-bottom: 1px solid #dfe1e5; font-weight: 700; }
 .board-tbl th.agg, .board-tbl td.agg { background: #f6f4fd; }
+/* 전체 점수 묶음은 연한 파랑 (집계 기준은 연보라) */
+.board-tbl th.col-avg, .board-tbl td.col-avg { background: #edf4fb; }
+.board-tbl th.grp.col-avg { color: var(--navy); }
+.board-tbl tr.click:hover td.col-avg { background: #e8f1fa; }
+.board-tbl tr.open td.col-avg { background: var(--navy-soft); }
 .board-tbl th.grp.agg { color: var(--violet); }
 .board-tbl td.key { font-weight: 700; color: var(--navy); font-size: 15.5px; }
 .board-tbl td.key.agg { color: var(--violet); }
@@ -435,6 +452,22 @@ body.dragging, body.dragging * { cursor: grabbing !important; user-select: none;
 .board-tbl .c-no { width: 50px; }
 .results td:first-child, .results th:first-child { white-space: nowrap; }
 .results td.left { min-width: 200px; }
+.results .c-rno, .results > tbody > tr > td.c-rno { width: 44px; min-width: 44px; padding-left: 8px; padding-right: 8px; text-align: center; color: var(--text-2); font-weight: 600; }
+/* 결과 표 가독성: 머리글은 진하게, 숫자는 크고 자릿수가 맞게, 발표자 열이 남는 폭을 가져가 숫자 열이 퍼지지 않게 */
+.results { font-size: 14px; font-variant-numeric: tabular-nums; }
+.results > thead > tr > th { color: #4b4f57; font-size: 12.5px; font-weight: 600; padding: 9px 12px; white-space: nowrap; }
+.results > thead > tr > th.grp { font-size: 13.5px; font-weight: 700; color: var(--text); padding: 10px 12px; }
+.results > thead > tr > th.grp.agg { color: var(--violet); }
+.results > tbody > tr > td { padding: 9px 12px; border-bottom-color: #e6e8ec; }
+.results > tbody > tr > td:not(.left) { min-width: 64px; }
+.results > tbody > tr > td.left { width: 34%; }
+.results > tbody > tr > td.left > b { font-size: 14.5px; }
+/* 발표 제목(누르면 발표 정보)은 이름 옆 같은 줄에 둬서 줄 높이를 줄인다 */
+.results .result-pres { display: inline-block; vertical-align: middle; max-width: 300px; margin: 0 0 0 8px; font-size: 13px; color: #6b6f78; text-decoration: underline; text-decoration-color: #c9cdd4; text-underline-offset: 3px; }
+.results .result-pres:hover { color: var(--navy); text-decoration-color: currentColor; }
+.results > tbody > tr > td.muted { color: #a3a7b0; }
+.results td.key { font-size: 16.5px; }
+.board-tbl.results td.rank { font-size: 14px; }
 .detail-row > td { background: var(--navy-soft); padding: 12px 20px 18px; text-align: left; }
 .detail-title { font-weight: 700; margin-bottom: 8px; }
 .tbl.inner { background: #fff; border: 1px solid var(--line-2); }
@@ -470,6 +503,17 @@ button.ss-feedback:hover { border-color: var(--primary-line); background: var(--
 .score-sheet tfoot td, .score-sheet tfoot .sticky { background: var(--gray-soft); font-weight: 500; }
 .score-sheet tfoot tr:first-child td { border-top: 1px solid var(--line); }
 .score-sheet tfoot td.agg { background: #f6f4fd; }
+.score-sheet tfoot td.col-avg { background: #edf4fb; }
+/* 평가자별 점수표 가독성 */
+.score-sheet { font-size: 13.5px; font-variant-numeric: tabular-nums; }
+.score-sheet > thead > tr > th { color: #4b4f57; font-size: 13px; font-weight: 600; padding: 10px 12px; }
+.score-sheet > thead > tr > th .result-pres { font-size: 12px; color: #6b6f78; }
+.score-sheet > tbody > tr > td { padding: 10px 12px; border-bottom-color: #e6e8ec; }
+.score-sheet > tbody > tr > td.sticky b { font-size: 14px; }
+.score-sheet .ss-score { font-size: 15px; }
+.score-sheet > tbody > tr:hover > td { background: #f9fafc; }
+.score-sheet > tfoot > tr > td { padding: 10px 12px; font-weight: 600; }
+.score-sheet > tfoot td.key { font-size: 16px; }
 
 /* ---------- 설정 ---------- */
 .range-row { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; }
@@ -686,7 +730,8 @@ button.ss-feedback:hover { border-color: var(--primary-line); background: var(--
 /* ---------- 반응형 ---------- */
 @media (max-width: 1100px) {
   .widgets.four { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .btable > .bhead, .brow { grid-template-columns: 50px minmax(0, 1fr) 76px minmax(0, 140px) 100px 60px 32px; }
+  .btable > .bhead, .brow { grid-template-columns: 44px minmax(0, 1fr) 56px minmax(0, 160px) 124px 72px 32px; }
+  .btable.with-stats > .bhead, .btable.with-stats .brow { grid-template-columns: 44px minmax(0, 1fr) 56px minmax(0, 130px) 152px 124px 72px 32px; }
 }
 @media (max-width: 900px) {
   .portal-footer { position: static; }
@@ -743,18 +788,25 @@ button.ss-feedback:hover { border-color: var(--primary-line); background: var(--
   .brow .t-sub { display: block; }
   .brow .c-title .t { white-space: normal; }
   .brow-detail { padding: 14px 14px 16px; }
+  .btable.with-stats .brow { grid-template-columns: 34px minmax(0, 1fr) auto 24px; grid-template-areas: "no title status chev" "no title score chev" "no stats stats chev"; }
+  .brow .c-stats { grid-area: stats; justify-self: start; display: flex; gap: 12px; padding-top: 2px; }
+  .c-stats .st { flex-direction: row; gap: 3px; align-items: baseline; }
+  .c-stats .st i { display: inline; }
 
-  .arow { grid-template-columns: 76px auto minmax(0, 1fr); grid-template-areas: "no title title" "no state count" "act act act"; padding: 6px 0 10px; }
+  .arow { grid-template-columns: 76px auto auto minmax(0, 1fr); grid-template-areas: "no title title title" "no state done todo" "act act act act"; padding: 6px 0 10px; }
   .arow .c-no { grid-area: no; } .arow .c-title { grid-area: title; } .arow .c-state { grid-area: state; text-align: left; padding-top: 0; }
-  .arow .c-count { grid-area: count; text-align: left; font-size: 13px; padding-top: 0; }
-  .arow .c-count::before { content: '제출 / 미평가 '; color: var(--muted); }
+  .arow .c-done { grid-area: done; text-align: left; padding-top: 0; } .arow .c-todo { grid-area: todo; text-align: left; padding-top: 0; }
+  .arow .c-done::before { content: '평가함 '; color: var(--muted); font-size: 12.5px; } .arow .c-todo::before { content: '미평가 '; color: var(--muted); font-size: 12.5px; }
+  .arow .c-type, .arow .c-who { display: none; }
+  .arow .t-sub { display: block; }
   .arow .c-act { grid-area: act; justify-content: flex-start; padding-left: 16px; }
   .arow .c-title .t { white-space: normal; }
 
-  .mrow { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "name role" "team date" "act act"; padding: 6px 0 10px; }
+  .mrow { grid-template-columns: 34px minmax(0, 1fr) auto; grid-template-areas: "no name role" "no date date" "no act act"; padding: 6px 0 10px; }
+  .mrow .c-no { grid-area: no; }
   .mrow .c-name { grid-area: name; } .mrow .c-role { grid-area: role; text-align: right; }
-  .mrow .c-team { grid-area: team; font-size: 13px; color: var(--muted); padding-left: 42px; padding-top: 0; } .mrow .c-date { grid-area: date; text-align: right; font-size: 12.5px; padding-top: 0; }
-  .mrow .c-act { grid-area: act; justify-content: flex-start; padding-left: 42px; }
+  .mrow .c-date { grid-area: date; font-size: 12.5px; padding-top: 0; }
+  .mrow .c-act { grid-area: act; justify-content: flex-start; }
 
   .prow { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "title state" "title todo" "title date"; padding: 6px 0; }
   .prow .c-date { grid-area: date; text-align: right; font-size: 12px; color: var(--muted); padding-top: 0; }
@@ -835,6 +887,21 @@ button.ss-feedback:hover { border-color: var(--primary-line); background: var(--
 .board-tbl td.rank { font-weight: 500; color: var(--text-2); white-space: nowrap; }
 .board-tbl td.rank.on { font-weight: 700; color: var(--navy); }
 .board-tbl td.rank.agg.on { color: var(--violet); }
+/* 결과 현황: 고른 정렬 기준에 해당하는 열 묶음을 강조한다 (전체 점수 순위 → 전체 점수, 집계 기준 순위 → 집계 기준. 발표 순서는 강조하지 않는다) */
+.results.sort-avg .col-avg { --hl: var(--navy); --hl-bg: #e2edf9; }
+.results.sort-inAvg .agg { --hl: var(--violet); --hl-bg: #ece6fb; }
+/* 인원 · 전체 점수 · 집계 기준 묶음 사이를 조금 진한 선으로 나눈다 */
+.results > thead > tr > th.edge-l, .results > tbody > tr > td.edge-l { border-left: 1px solid #b4b9c3; }
+.results .edge-l { --sl: inset 2px 0 0 var(--hl, transparent); }
+.results .edge-r { --sr: inset -2px 0 0 var(--hl, transparent); }
+.results > thead > tr:first-child > th { --st: inset 0 2px 0 var(--hl, transparent); }
+.results > tbody > tr:last-child > td { --sb: inset 0 -2px 0 var(--hl, transparent); }
+.results.sort-avg .col-avg, .results.sort-inAvg .agg {
+  background: var(--hl-bg); font-weight: 600;
+  box-shadow: var(--sl, 0 0 transparent), var(--sr, 0 0 transparent), var(--st, 0 0 transparent), var(--sb, 0 0 transparent);
+}
+.results.sort-avg td.key.col-avg, .results.sort-inAvg td.key.agg { font-weight: 800; }
+.results.sort-avg tr.click:hover td.col-avg, .results.sort-inAvg tr.click:hover td.agg { background: var(--hl-bg); filter: brightness(.97); }
 
 /* 앱 시작 시 로그인 확인 중 */
 .boot-loading { min-height: 100vh; display: grid; place-items: center; color: var(--muted); background: var(--bg); }
@@ -922,6 +989,8 @@ textarea.invalid { border-color: var(--red); }
 .theme-mini { display: flex; flex-direction: column; gap: 4px; padding-bottom: 6px; border-radius: 5px; overflow: hidden; border: 1px solid rgba(0,0,0,.08); }
 .theme-mini-head { display: flex; align-items: center; height: 34px; padding: 0 8px; }
 .theme-mini-head i { display: block; width: 55%; height: 6px; border-radius: 3px; opacity: .9; }
+.theme-mini-head { position: relative; }
+.theme-emoji { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); font-size: 16px; line-height: 1; }
 .theme-mini-row { display: flex; align-items: center; gap: 6px; height: 18px; margin: 0 6px; padding: 0 6px; border-radius: 4px; }
 .theme-mini-row b { width: 9px; height: 9px; border-radius: 50%; flex: none; }
 .theme-mini-row i { flex: 1; height: 4px; border-radius: 2px; opacity: .55; }
@@ -938,17 +1007,18 @@ textarea.invalid { border-color: var(--red); }
 .tbl td.nowrap { white-space: nowrap; }
 .org-table td.right { text-align: right; }
 
-/* 우측 상단 알림 */
+/* 상단 메뉴 */
 .gnb-right { display: flex; align-items: center; gap: 14px; }
 .bell-btn { position: relative; display: inline-grid; place-items: center; width: 30px; height: 28px; border: 0; background: none; color: var(--text-2); cursor: pointer; }
 .bell-btn:hover { color: var(--navy); }
 .bell-badge { position: absolute; top: -2px; right: -4px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: var(--red); color: #fff; font-size: 10.5px; font-weight: 700; line-height: 16px; text-align: center; }
 .notice-menu { width: 320px; max-height: 70vh; overflow-y: auto; }
 .notice-menu .menu-head { flex-direction: row; justify-content: space-between; align-items: baseline; }
-.notice-item { display: flex; flex-direction: column; gap: 6px; padding: 12px 16px; border-top: 1px solid var(--line-2); font-size: 13px; }
-.notice-item .btn { width: auto; padding: 0 12px; height: 30px; }
-.notice-menu .notice-item button.btn { display: inline-flex; }
+.notice-menu button.notice-item { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; width: 100%; padding: 12px 16px; border: 0; border-top: 1px solid var(--line-2); background: #fff; font: inherit; font-size: 13px; line-height: 1.5; text-align: left; white-space: normal; cursor: pointer; }
+.notice-menu button.notice-item:hover { background: #f9fafc; }
+.notice-menu button.notice-item.unread { background: var(--navy-soft); }
 .notice-empty { padding: 14px 16px; margin: 0; }
+@media (max-width: 760px) { .notice-menu { position: fixed; top: 36px; left: 12px; right: 12px; width: auto; max-height: calc(100dvh - 56px); } }
 
 /* 초대: 조직도에서 고르기 */
 .org-modal.picking { width: min(1180px, 100%); height: min(760px, calc(100dvh - 48px)); }
@@ -965,9 +1035,6 @@ textarea.invalid { border-color: var(--red); }
 .org-pick-remove:hover { color: var(--red); }
 .org-picks-foot { flex: none; display: flex; justify-content: flex-end; padding: 12px 16px; border-top: 1px solid var(--line); background: #fff; }
 .org-picks-foot .btn { min-width: 180px; }
-.invite-list { display: flex; flex-direction: column; max-height: 320px; overflow-y: auto; border-top: 1px solid var(--line-2); border-bottom: 1px solid var(--line-2); }
-.invite-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 12px; align-items: center; padding: 8px 4px; border-bottom: 1px solid var(--line-2); }
-.invite-list .invite-row:last-child { border-bottom: 0; }
 
 /* 전체 열람 권한 (시스템 관리자) */
 .viewer-search { max-width: 520px; }
@@ -980,7 +1047,6 @@ textarea.invalid { border-color: var(--red); }
   .org-modal.picking { height: calc(100dvh - 20px); max-height: calc(100dvh - 20px); }
   .org-modal.picking .org-directory { overflow-y: auto; }
   .org-picks-foot .btn { flex: 1; }
-  .notice-menu { width: min(320px, calc(100vw - 24px)); }
 }
 
 /* 조직도 관리: 팀 안 순서와 직위 */
@@ -1014,7 +1080,6 @@ textarea.invalid { border-color: var(--red); }
 .crew-search { width: 100%; }
 @media (max-width: 760px) {
   /* 알림 메뉴는 벨 위치와 상관없이 화면 폭에 맞춰 띄운다 (왼쪽으로 잘리지 않게) */
-  .notice-menu { position: fixed; top: 36px; left: 12px; right: 12px; width: auto; max-height: calc(100dvh - 56px); }
 }
 @media (max-width: 560px) {
   /* 이름표 | 내용 2칸 표는 위아래로 쌓아 내용 칸을 넓힌다 (발표 정보, 공유 설정 등) */
@@ -1040,8 +1105,6 @@ textarea.invalid { border-color: var(--red); }
   .board-tools > .muted.small.grow { order: 3; flex-basis: 100%; }
 
   /* 팀 묶음 머리글: "이전 페이지에서 계속"이 다음 줄로 내려가도록 */
-  .bgroup { flex-wrap: wrap; }
-  .bgroup-label { flex: 1 1 0; }
 
   /* 발표 목록 위 평가 규칙: 2칸으로 놓고 이름·값을 위아래로 */
   .rules { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; padding: 10px; }
@@ -1062,9 +1125,10 @@ textarea.invalid { border-color: var(--red); }
   .results th { white-space: nowrap; }
   .results > thead > tr > th, .results > tbody > tr > td { padding: 8px 6px; }
   .results > tbody > tr > td.left { min-width: 0; max-width: 150px; }
-  .results > tbody > tr > td:first-child, .results > thead > tr:first-child > th:first-child { position: sticky; left: 0; z-index: 1; background: #fff; box-shadow: 1px 0 0 var(--line-2); }
-  .results > thead > tr:first-child > th:first-child { background: #f0f1f2; }
-  .results > tbody > tr.open > td:first-child { background: var(--navy-soft); }
+  .results .c-rno { display: none; }
+  .results > tbody > tr > td.left, .results > thead > tr:first-child > th.left { position: sticky; left: 0; z-index: 1; background: #fff; box-shadow: 1px 0 0 var(--line-2); }
+  .results > thead > tr:first-child > th.left { background: #f0f1f2; }
+  .results > tbody > tr.open > td.left { background: var(--navy-soft); }
   .results > tbody > tr.detail-row > td:first-child { position: static; box-shadow: none; background: var(--navy-soft); }
   .results .result-pres { max-width: 136px; }
   /* 평가자별 점수표: 평가자 칸을 좁히고 팀 이름은 아래 줄로 */
@@ -1100,4 +1164,149 @@ textarea.invalid { border-color: var(--red); }
   .sys-admin-page .org-table:has(.org-name) { min-width: 560px; }
   .org-table .org-name { position: sticky; left: 0; z-index: 1; background: #fff; box-shadow: 1px 0 0 var(--line-2); }
   .org-table th.org-name { background: #f0f1f2; }
+}
+
+.switch.sm span { width: 34px; height: 20px; }
+.switch.sm span::after { width: 14px; height: 14px; }
+.switch.sm input:checked + span::after { left: 17px; }
+/* 결과 현황 팀별 순서: 팀마다 조금 진한 테두리로 묶고, 팀 이름 줄로 구분한다 */
+.results > tbody.team-group { border: 1px solid #aab0bb; }
+/* 평가자별 점수표를 구성원별 집계와 같은 모양으로: No 열, 팀 묶음 구분선, 집계 줄 색, 고른 정렬의 줄 강조 */
+.score-sheet .c-rno, .score-sheet > tbody > tr > td.c-rno { width: 44px; min-width: 44px; padding-left: 8px; padding-right: 8px; text-align: center; color: var(--text-2); font-weight: 600; }
+.score-sheet .ss-no { font-size: 11.5px; font-weight: 600; color: var(--muted); margin-bottom: 2px; }
+.score-sheet > thead > tr > th.grp { font-size: 13.5px; font-weight: 700; color: var(--text); border-bottom: 1px solid #dfe1e5; }
+.score-sheet > thead > tr > th.edge-l, .score-sheet > tbody > tr > td.edge-l, .score-sheet > tfoot > tr > td.edge-l { border-left: 1px solid #b4b9c3; }
+.score-sheet > tbody > tr.team-start > td { border-top: 1px solid #aab0bb; }
+.score-sheet > tfoot > tr.sum-start > td { border-top: 1px solid #aab0bb; }
+.score-sheet > tfoot > tr.agg-start > td { border-top: 1px solid #d9d1f5; }
+.score-sheet > tfoot td.rank { font-size: 14px; }
+.score-sheet.sort-avg > tfoot > tr.hl > td.col-avg { background: #e2edf9; font-weight: 700; }
+.score-sheet.sort-inAvg > tfoot > tr.hl > td.agg { background: #ece6fb; font-weight: 700; }
+.score-sheet.sort-avg > tfoot > tr.hl > td.left { box-shadow: inset 3px 0 0 var(--navy); }
+.score-sheet.sort-inAvg > tfoot > tr.hl > td.left { box-shadow: inset 3px 0 0 var(--violet); }
+.score-sheet > tfoot > tr.hl > td.rank { color: var(--navy); }
+.score-sheet > tfoot > tr.hl > td.rank.agg { color: var(--violet); }
+@media (max-width: 900px) { .score-sheet .c-rno { display: none; } }
+
+/* ===== 팀 묶음: 발표 화면과 결과 현황이 같은 모양을 쓴다 =====
+   팀 이름 줄(연한 파랑 + 왼쪽 남색 막대, 남색 팀 이름, 흐린 경로, 오른쪽 인원 배지) + 팀마다 조금 진한 테두리 */
+.team-head { display: flex; align-items: center; gap: 8px; min-height: 38px; padding: 7px 14px; background: #f3f6fa; box-shadow: inset 3px 0 0 var(--navy); font-size: 13px; text-align: left; }
+.team-head > svg { flex: none; color: var(--navy); }
+.team-head > b { flex: none; color: var(--navy); font-size: 13.5px; font-weight: 700; }
+.team-path { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 12px; }
+.team-cont { flex: none; color: var(--muted); font-size: 11.5px; }
+.team-count { flex: none; margin-left: auto; padding: 1px 9px; border: 1px solid var(--navy-line); border-radius: 99px; background: #fff; color: var(--navy); font-size: 11.5px; font-weight: 700; }
+/* 발표 화면: 팀마다 상자 */
+.team-box { border: 1px solid #aab0bb; background: #fff; }
+.team-box + .team-box { border-top: 0; }
+.team-box > .team-head { border-bottom: 1px solid #d5d9e0; }
+.team-box .brow-wrap:last-child .brow, .team-box .brow-wrap:last-child .brow-detail { border-bottom: 0; }
+/* 결과 현황: 팀마다 tbody */
+.results > tbody > tr.team-row > td { padding: 0; border-top: 1px solid #aab0bb; border-bottom: 1px solid #d5d9e0; background: #f3f6fa; }
+
+/* 발표 화면 표 글꼴을 결과 현황과 맞춘다: 머리글 진하게, 이름 굵게, 숫자 14px */
+.btable > .bhead { font-size: 12.5px; font-weight: 600; color: #4b4f57; }
+.brow { font-size: 14px; }
+.brow .c-title .t { font-weight: 700; }
+.brow .c-title .t small { font-weight: 400; }
+.c-stats .st b { font-size: 14px; }
+.brow .c-score b.muted { color: var(--muted); font-weight: 500; }
+/* 평가자별 점수표: 누른 칸은 진하게, 같은 줄(평가자)·같은 열(발표자)은 연하게. 바탕색(집계 줄 파랑·보라)은 살리고 위에 덧칠한다 */
+.score-sheet > tbody > tr > td:not(.left):not(.c-rno) { cursor: pointer; }
+.score-sheet > tbody > tr.x-row > td, .score-sheet .x-col { box-shadow: inset 0 0 0 9999px rgba(0, 61, 130, .07); }
+.score-sheet > tbody > tr.x-row > td.left { font-weight: 700; }
+.score-sheet > thead > tr > th.x-col { color: var(--navy); }
+.score-sheet > tbody > tr > td.x-cell { box-shadow: inset 0 0 0 2px var(--navy), inset 0 0 0 9999px rgba(0, 61, 130, .18); }
+/* 구성원별 집계: 누른 칸은 진하게, 같은 줄·같은 열은 연하게 (정렬 강조 테두리와 겹치지 않게 배경 덧칠 + outline). 상세는 펼치기 버튼으로만 */
+.results > tbody > tr:not(.team-row):not(.detail-row) > td:not(.c-expand) { cursor: pointer; }
+/* 파랑·보라 바탕(background 규칙)이 덧칠을 지우지 않도록 important로 둔다 */
+.results > tbody > tr.x-row > td:not(.c-expand), .results .x-col { background-image: linear-gradient(rgba(0, 61, 130, .08), rgba(0, 61, 130, .08)) !important; }
+.results > tbody > tr.x-row > td.left { font-weight: 700; }
+.results > thead > tr > th.x-col { color: var(--navy); }
+.results > tbody > tr > td.x-cell:not(.c-expand) { background-image: linear-gradient(rgba(0, 61, 130, .2), rgba(0, 61, 130, .2)) !important; outline: 2px solid var(--navy); outline-offset: -2px; }
+.results td.c-expand { width: 44px; padding: 4px 6px; }
+.expand-btn { display: inline-grid; place-items: center; width: 30px; height: 30px; border: 1px solid var(--line); border-radius: 6px; background: #fff; color: var(--text-2); cursor: pointer; }
+.expand-btn:hover { border-color: var(--navy-line); color: var(--navy); background: var(--navy-soft); }
+.expand-btn[aria-expanded="true"] { border-color: var(--navy); color: #fff; background: var(--navy); }
+
+/* ===== 모바일 정리 (참여자가 많을 때도 깨지지 않게) ===== */
+@media (max-width: 900px) {
+  /* 결과 현황 정렬: 옆으로 스크롤되는 대신 2×2 버튼 */
+  .sort-bar .segmented { display: grid; grid-template-columns: 1fr 1fr; width: 100%; overflow: visible; }
+  .sort-bar .segmented button { border-bottom: 1px solid #e5e5e5; }
+  .sort-bar .segmented button:nth-child(2n) { border-right: 0; }
+  .sort-bar .segmented button:nth-last-child(-n + 2):nth-child(2n + 1), .sort-bar .segmented button:last-child { border-bottom: 0; }
+  .sort-bar .share-btn { margin-left: 0; }
+  /* 결과 표가 옆으로 넓어도 팀 이름 줄과 상세(평가자별 점수)는 화면 폭 안에 붙어 있게 */
+  .results tr.team-row .team-head, .results tr.detail-row .detail-inner { position: sticky; left: 0; width: calc(100vw - 40px); max-width: 100%; box-sizing: border-box; }
+  .results tr.team-row .team-path { display: none; }
+  .results tr.detail-row > td { padding: 10px 8px 14px; }
+  .results .detail-inner .tbl.inner th, .results .detail-inner .tbl.inner td { padding: 6px; }
+  .results .detail-inner .tbl.inner { width: 100%; }
+  .results .detail-inner .tbl.inner td.nowrap { white-space: normal; }
+  .results .detail-inner .tbl.inner td.left { min-width: 0; }
+  .results .detail-inner .tbl.inner th:nth-child(4), .results .detail-inner .tbl.inner td:nth-child(4) { display: none; }
+  .results .detail-inner .feedback-cell { white-space: normal; min-width: 0; word-break: keep-all; }
+  /* 평가자별 점수표: 평가자 칸의 팀 이름은 한 줄로 작게 */
+  .score-sheet > tbody > tr > td.sticky .muted { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+  /* 발표 화면: 발표 등록 전이라 모두 '-'인 평가 현황 줄은 숨긴다. 펼친 발표 정보 머리의 역할 안내도 줄바꿈이 어색해 숨긴다 */
+  .brow .c-stats.no-stats { display: none; }
+  .detail-block-head .role-note { display: none; }
+  .detail-block-head > span { white-space: nowrap; }
+  /* 참여자: 참여일은 이름 아래 왼쪽에 */
+  .mrow .c-date { text-align: left; }
+  /* 발표 관리: 자료가 없으면 '-'를 보이지 않는다 */
+  .arow .c-state:has(> .muted) { display: none; }
+}
+.ss-excluded { color: #a3a7b0 !important; text-decoration: line-through; text-decoration-color: #b8bcc4; }
+
+/* ===== 결과 현황 · 집계 설정 카드 (룸 운영자) =====
+   다른 화면과 같은 틀: 제목 줄(아이콘·제목 / 오른쪽 상태 배지·버튼) + 항목 이름 | 값 표. 바탕은 차분한 회청색 */
+.agg-card { border: 1px solid #dfe4ec; border-radius: var(--radius-sm); background: #f6f8fb; overflow: hidden; }
+.agg-card.dirty { border-color: var(--amber-line); }
+.agg-card-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 14px; border-bottom: 1px solid #e3e7ee; background: #fff; }
+.agg-card-title { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 700; color: var(--text); }
+.agg-card-title svg { color: var(--navy); }
+.agg-card-desc { font-size: 12.5px; color: var(--muted); }
+.agg-card-head .grow { flex: 1; }
+.agg-card-body { display: flex; flex-direction: column; }
+.agg-item { display: grid; grid-template-columns: 140px minmax(0, 1fr); align-items: center; gap: 12px; padding: 10px 14px; }
+.agg-item + .agg-item { border-top: 1px solid #e3e7ee; }
+.agg-label { font-size: 13px; font-weight: 600; color: var(--text-2); }
+.agg-value { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-width: 0; }
+.agg-inputs { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-2); }
+.agg-inputs input { width: 72px; height: 32px; padding: 0 8px; font-size: 14px; font-weight: 700; text-align: center; background: #fff; }
+.agg-includes { gap: 8px 16px; }
+.agg-include { display: inline-flex; align-items: center; gap: 8px; }
+.agg-include-name { font-size: 13px; color: var(--text); }
+.segmented.sm button { padding: 4px 10px; font-size: 12.5px; }
+@media (max-width: 560px) {
+  .agg-item { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .agg-card-desc { display: none; }
+  .agg-includes { flex-direction: column; align-items: stretch; }
+  .agg-include { justify-content: space-between; }
+}
+
+/* 발표 화면 무한 스크롤: 목록 끝 안내 */
+.load-more { padding: 16px; text-align: center; }
+
+/* ===== 모바일 목차 버튼: 내려도 상단 메뉴 바로 아래에 붙어 있고, 눈에 잘 띄게 ===== */
+.lnb-toggle-hint, .lnb-toggle-sep { display: none; }
+@media (max-width: 900px) {
+  .lnb-toggle {
+    position: sticky; top: 86px; z-index: 25;
+    height: 46px; gap: 10px; padding: 0 12px 0 14px;
+    border: 1px solid var(--navy-line); border-left: 4px solid var(--navy); border-radius: var(--radius-sm);
+    background: var(--navy-soft); color: var(--navy);
+    box-shadow: 0 4px 12px rgba(0, 41, 92, .12);
+  }
+  .lnb-toggle > svg { flex: none; color: var(--navy); }
+  .lnb-toggle-label { flex: 1; min-width: 0; color: var(--text-2); font-size: 14px; }
+  .lnb-toggle-label b { color: var(--navy); }
+  .lnb-toggle-sep { display: inline; margin: 0 6px; color: var(--muted); }
+  .lnb-toggle-hint { display: inline-flex; flex: none; align-items: center; padding: 3px 9px; border-radius: 99px; background: var(--navy); color: #fff; font-size: 12px; font-weight: 600; }
+  .lnb-toggle[aria-expanded="true"] .lnb-toggle-hint { background: #fff; color: var(--navy); border: 1px solid var(--navy-line); }
+}
+@media (max-width: 560px) {
+  .lnb-toggle { top: 80px; }
 }

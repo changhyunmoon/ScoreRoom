@@ -18,5 +18,7 @@ export const moveUserInTeam = (userId: ID, dir: -1 | 1) => http.post(`/admin/use
 export const setUserPosition = (userId: ID, position: string) => http.put(`/admin/users/${userId}/position`, { position });
 /** 전체 열람 권한 주기·회수 */
 export const setViewAll = (userId: ID, enabled: boolean) => http.put(`/admin/users/${userId}/view-all`, { enabled });
+/** 평가룸 생성 권한 주기·회수 */
+export const setCreateRoom = (userId: ID, enabled: boolean) => http.put(`/admin/users/${userId}/create-room`, { enabled });
 /** 비밀번호를 잊은 사용자의 비밀번호를 새로 정한다. 그 사용자의 로그인은 모두 끊긴다 */
 export const resetUserPassword = (userId: ID, password: string) => http.put(`/admin/users/${userId}/password`, { password });

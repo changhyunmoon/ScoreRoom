@@ -40,12 +40,15 @@ class StateApiTest extends IntegrationTest {
     }
 
     @Test
-    void 일반_참여자는_자기_점수만_보고_다른_사람의_연락처와_집계는_받지_않는다() throws Exception {
+    void 일반_참여자는_자기_점수만_보고_다른_사람의_연락처와_평균_점수는_받지_않는다() throws Exception {
         mvc.perform(get("/api/v1/state").with(as(rater)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.ratings", hasSize(1)))
                 .andExpect(jsonPath("$.ratings[0].raterId").value(rater.getId().toString()))
-                .andExpect(jsonPath("$.summaries", hasSize(0)))
+                // 평가 현황(기본 켜짐)은 인원 수만 받는다
+                .andExpect(jsonPath("$.summaries", hasSize(1)))
+                .andExpect(jsonPath("$.summaries[0].scored").value(2))
+                .andExpect(jsonPath("$.summaries[0].avg").doesNotExist())
                 .andExpect(jsonPath("$.projects[0].invite").doesNotExist())
                 .andExpect(jsonPath("$.users[?(@.id == '" + owner.getId() + "')].phone").value(""))
                 .andExpect(jsonPath("$.me.phone").value("010-0000-0000"));

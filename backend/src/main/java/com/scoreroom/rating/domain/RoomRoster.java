@@ -42,6 +42,21 @@ public final class RoomRoster {
         return crewByPresentation.getOrDefault(presentationId, Set.of());
     }
 
+    /**
+     * 이 점수를 집계(평균·순위)에 넣을지. 본인 점수는 본인 설정만 따르고,
+     * 그 밖에는 같은 발표 팀원·같은 회사 팀원 설정 중 하나라도 빼라고 하면 뺀다
+     */
+    public boolean counts(ProjectSettings settings, UUID presentationId, UUID raterId, UUID targetId) {
+        if (raterId.equals(targetId)) {
+            return settings.countSelf();
+        }
+        if (!settings.countSameCrew() && crewOf(presentationId).contains(raterId)) {
+            return false;
+        }
+        UUID raterTeam = teamByUser.get(raterId);
+        return settings.countSameTeam() || raterTeam == null || !raterTeam.equals(teamByUser.get(targetId));
+    }
+
     public Optional<BlockReason> check(ProjectSettings settings, UUID presentationId, UUID raterId, UUID targetId) {
         return RatingEligibilityPolicy.check(settings, raterId, targetId, crewOf(presentationId),
                 teamByUser.get(raterId), teamByUser.get(targetId));

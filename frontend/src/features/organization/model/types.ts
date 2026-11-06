@@ -14,4 +14,6 @@ export interface User {
   rank: number;
   /** 전체 열람 권한: 모든 평가룸의 발표와 결과 집계를 볼 수 있다. 평가·등록·편집은 못 한다 */
   canViewAll: boolean;
+  /** 평가룸 생성 권한: 시스템 관리자가 준다. 있어야 평가룸을 만들 수 있다 */
+  canCreateRoom: boolean;
 }

@@ -8,6 +8,8 @@ import com.scoreroom.common.error.ApiException;
  * - aggMin~aggMax: 집계 기준 범위. 둘 다 null이면 사용 안 함
  * - allowSelf / allowSameTeam / allowSameCrew: 본인 / 같은 회사 팀 / 같은 발표 구성원 평가 허용
  * - allowEdit: 제출한 점수 수정 허용
+ * - showRatingStatus: 참여자에게도 사람별 평가 현황(전체·평가함·평가 불가·미평가 인원)을 보여 줌. 룸 운영자는 항상 본다
+ * - countSelf / countSameCrew / countSameTeam: 본인 점수 / 같은 발표 팀원이 준 점수 / 같은 회사 팀원이 준 점수를 집계(평균·순위)에 넣을지
  */
 public record ProjectSettings(
         int min,
@@ -17,10 +19,14 @@ public record ProjectSettings(
         boolean allowSelf,
         boolean allowSameTeam,
         boolean allowSameCrew,
-        boolean allowEdit) {
+        boolean allowEdit,
+        boolean showRatingStatus,
+        boolean countSelf,
+        boolean countSameCrew,
+        boolean countSameTeam) {
 
     public static ProjectSettings defaults() {
-        return new ProjectSettings(0, 100, null, null, false, false, false, true);
+        return new ProjectSettings(0, 100, null, null, true, true, true, true, true, true, true, true);
     }
 
     public boolean hasAggregationRange() {
@@ -33,7 +39,8 @@ public record ProjectSettings(
     }
 
     public ProjectSettings withoutAggregation() {
-        return new ProjectSettings(min, max, null, null, allowSelf, allowSameTeam, allowSameCrew, allowEdit);
+        return new ProjectSettings(min, max, null, null, allowSelf, allowSameTeam, allowSameCrew, allowEdit, showRatingStatus,
+                countSelf, countSameCrew, countSameTeam);
     }
 
     /** 화면(validateSettings)과 같은 순서로 검사한다 */

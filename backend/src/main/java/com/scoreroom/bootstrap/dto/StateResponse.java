@@ -2,7 +2,7 @@ package com.scoreroom.bootstrap.dto;
 
 import java.util.List;
 
-import com.scoreroom.invitation.dto.InvitationResponse;
+import com.scoreroom.notification.dto.NotificationResponse;
 import com.scoreroom.organization.dto.TeamResponse;
 import com.scoreroom.presentation.dto.PresentationResponse;
 import com.scoreroom.project.dto.MembershipResponse;
@@ -21,5 +21,5 @@ public record StateResponse(
         List<PresentationResponse> presentations,
         List<RatingResponse> ratings,
         List<SummaryResponse> summaries,
-        List<InvitationResponse> invitations) {
+        List<NotificationResponse> notifications) {
 }

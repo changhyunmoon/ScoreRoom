@@ -115,9 +115,10 @@ export default function ProjectListPage() {
           right={<>
             <RoomOrderButton order={order} onChange={o => { setOrder(o); setPage(1); }} />
             <label className="board-search"><input placeholder="평가룸 이름 검색" value={q} onChange={e => { setQ(e.target.value); setPage(1); }} aria-label="평가룸 검색" /><Icon name="search" size={16} /></label>
-            <button className="btn primary solid" onClick={() => setCreating(c => !c)}>{creating ? '닫기' : <IconText icon="plus">평가룸 만들기</IconText>}</button>
+            {/* 시스템 관리자에게 평가룸 생성 권한을 받은 사람만 보인다 (서버도 막는다) */}
+            {me.canCreateRoom && <button className="btn primary solid" onClick={() => setCreating(c => !c)}>{creating ? '닫기' : <IconText icon="plus">평가룸 만들기</IconText>}</button>}
           </>} />
-        {creating && (
+        {creating && me.canCreateRoom && (
           <div className="create-box stack">
             <div className="row gap wrap">
               <Field label="평가룸 이름"><input value={name} maxLength={200} onChange={e => setName(e.target.value)} placeholder="예: AI 공모전" /></Field>

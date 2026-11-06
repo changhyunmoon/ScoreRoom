@@ -66,6 +66,18 @@ public class Project extends TimestampedEntity<UUID> {
     @Column(name = "allow_edit", nullable = false)
     private boolean allowEdit;
 
+    @Column(name = "show_rating_status", nullable = false)
+    private boolean showRatingStatus;
+
+    @Column(name = "count_self", nullable = false)
+    private boolean countSelf;
+
+    @Column(name = "count_same_crew", nullable = false)
+    private boolean countSameCrew;
+
+    @Column(name = "count_same_team", nullable = false)
+    private boolean countSameTeam;
+
     protected Project() {
     }
 
@@ -78,7 +90,8 @@ public class Project extends TimestampedEntity<UUID> {
     }
 
     public ProjectSettings settings() {
-        return new ProjectSettings(scoreMin, scoreMax, aggMin, aggMax, allowSelf, allowSameTeam, allowSameCrew, allowEdit);
+        return new ProjectSettings(scoreMin, scoreMax, aggMin, aggMax, allowSelf, allowSameTeam, allowSameCrew, allowEdit,
+                showRatingStatus, countSelf, countSameCrew, countSameTeam);
     }
 
     public void applySettings(ProjectSettings settings) {
@@ -90,6 +103,10 @@ public class Project extends TimestampedEntity<UUID> {
         this.allowSameTeam = settings.allowSameTeam();
         this.allowSameCrew = settings.allowSameCrew();
         this.allowEdit = settings.allowEdit();
+        this.showRatingStatus = settings.showRatingStatus();
+        this.countSelf = settings.countSelf();
+        this.countSameCrew = settings.countSameCrew();
+        this.countSameTeam = settings.countSameTeam();
     }
 
     public boolean isOpen() {

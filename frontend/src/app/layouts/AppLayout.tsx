@@ -5,7 +5,7 @@ import { useDismiss } from '../../shared/hooks/useDismiss';
 import { Icon } from '../../shared/icons/Icon';
 import { run } from '../../shared/ui';
 import { logout } from '../../features/auth';
-import { InvitationBell } from '../../features/invitations';
+import { NotificationBell } from '../../features/notifications';
 import { OrgDirectory, teamName } from '../../features/organization';
 import { ProfilePopup } from '../../features/profile';
 import { useSession } from '../../features/session';
@@ -30,7 +30,7 @@ export function AppLayout() {
         <div className="gnb-top">
           <Link to={home} className="brand"><span className="brand-mark" aria-hidden="true" />Score<b>Room</b></Link>
           <div className="gnb-right">
-            {!me.isSysAdmin && <InvitationBell />}
+            {!me.isSysAdmin && <NotificationBell />}
             <div className="menu-wrap" ref={menuRef}>
               <button className="avatar-btn" onClick={() => setOpen(o => !o)} aria-label="계정 메뉴" aria-expanded={open}>
                 <span className="avatar">{me.name.slice(0, 1)}</span>
@@ -51,7 +51,7 @@ export function AppLayout() {
         <nav className="gnb-menu">
           <Link to={home} className="portal-home-link" aria-label="메인 화면"><span className="app-grid" aria-hidden="true"><i /><i /><i /><i /></span></Link>
           {me.isSysAdmin
-            ? <><NavLink to="/sys" end>회사 팀 구조도</NavLink><NavLink to="/sys/viewers">전체 열람 권한</NavLink></>
+            ? <><NavLink to="/sys" end>회사 팀 구조도</NavLink><NavLink to="/sys/viewers">전체 열람 권한</NavLink><NavLink to="/sys/creators">평가룸 생성 권한</NavLink></>
             : <NavLink to="/" className={() => (pathname === '/' || inProject ? 'active' : '')}>발표 평가</NavLink>}
           <span className="gnb-caption">사내 발표 평가</span>
         </nav>

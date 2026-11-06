@@ -12,7 +12,7 @@ import type { DB, StateResponse } from './model/types';
 /** loading: 로그인 정보 확인 중, ready: 로그인됨, anon: 로그인 안 됨 */
 export type SessionStatus = 'loading' | 'ready' | 'anon';
 
-const EMPTY: DB = { teams: [], users: [], projects: [], memberships: [], presentations: [], ratings: [], summaries: [], invitations: [] };
+const EMPTY: DB = { teams: [], users: [], projects: [], memberships: [], presentations: [], ratings: [], summaries: [], notifications: [] };
 const POLL_MS = 15_000;
 
 /** loadedAt: 마지막으로 서버 데이터를 받은 시각 */

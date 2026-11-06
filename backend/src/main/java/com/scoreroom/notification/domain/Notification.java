@@ -1,0 +1,84 @@
+package com.scoreroom.notification.domain;
+
+import java.time.Instant;
+import java.util.UUID;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+
+import com.scoreroom.common.persistence.PersistableEntity;
+
+/** 사용자 한 명에게 보여 줄 알림. 수락·거절 같은 응답 없이 읽음 여부만 남긴다 */
+@Entity
+@Table(name = "notifications")
+public class Notification extends PersistableEntity<UUID> {
+
+    /** 룸 운영자가 평가룸에 바로 추가함 */
+    public static final String ROOM_INVITED = "ROOM_INVITED";
+
+    @Id
+    private UUID id;
+
+    @Column(name = "user_id", nullable = false)
+    private UUID userId;
+
+    @Column(nullable = false)
+    private String type;
+
+    @Column(name = "project_id", nullable = false)
+    private UUID projectId;
+
+    @Column(name = "actor_id", nullable = false)
+    private UUID actorId;
+
+    @Column(name = "created_at", nullable = false)
+    private Instant createdAt;
+
+    @Column(name = "read_at")
+    private Instant readAt;
+
+    protected Notification() {
+    }
+
+    public static Notification roomInvited(UUID userId, UUID projectId, UUID actorId, Instant now) {
+        Notification n = new Notification();
+        n.id = UUID.randomUUID();
+        n.userId = userId;
+        n.type = ROOM_INVITED;
+        n.projectId = projectId;
+        n.actorId = actorId;
+        n.createdAt = now;
+        return n;
+    }
+
+    @Override
+    public UUID getId() {
+        return id;
+    }
+
+    public UUID getUserId() {
+        return userId;
+    }
+
+    public String getType() {
+        return type;
+    }
+
+    public UUID getProjectId() {
+        return projectId;
+    }
+
+    public UUID getActorId() {
+        return actorId;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public Instant getReadAt() {
+        return readAt;
+    }
+}

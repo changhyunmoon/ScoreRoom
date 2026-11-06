@@ -97,6 +97,14 @@ public class UserAdminService {
         audit.record(actorId, null, enabled ? "VIEW_ALL_GRANTED" : "VIEW_ALL_REVOKED", 1);
     }
 
+    /** 평가룸 생성 권한을 주거나 회수한다. 회수해도 이미 만든 평가룸은 그대로다 */
+    @Transactional
+    public void setCreateRoom(UUID actorId, UUID userId, boolean enabled) {
+        sysAdminGuard.require(actorId);
+        userAccess.requireOther(userId).setCreateRoom(enabled);
+        audit.record(actorId, null, enabled ? "CREATE_ROOM_GRANTED" : "CREATE_ROOM_REVOKED", 1);
+    }
+
     /** 비밀번호를 잊은 사용자를 위한 관리자 재설정. 그 사용자의 모든 세션을 끊는다 */
     @Transactional
     public void resetPassword(UUID actorId, UUID userId, String password) {

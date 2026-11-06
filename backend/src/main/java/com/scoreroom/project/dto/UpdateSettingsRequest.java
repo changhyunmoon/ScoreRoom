@@ -17,6 +17,10 @@ public record UpdateSettingsRequest(
         Boolean allowSameTeam,
         Boolean allowSameCrew,
         Boolean allowEdit,
+        Boolean showRatingStatus,
+        Boolean countSelf,
+        Boolean countSameCrew,
+        Boolean countSameTeam,
         Long expectedVersion) {
 
     public ProjectSettings toSettings(ProjectSettings current) {
@@ -24,6 +28,10 @@ public record UpdateSettingsRequest(
                 allowSelf != null ? allowSelf : current.allowSelf(),
                 allowSameTeam != null ? allowSameTeam : current.allowSameTeam(),
                 allowSameCrew != null ? allowSameCrew : current.allowSameCrew(),
-                allowEdit != null ? allowEdit : current.allowEdit());
+                allowEdit != null ? allowEdit : current.allowEdit(),
+                showRatingStatus != null ? showRatingStatus : current.showRatingStatus(),
+                countSelf != null ? countSelf : current.countSelf(),
+                countSameCrew != null ? countSameCrew : current.countSameCrew(),
+                countSameTeam != null ? countSameTeam : current.countSameTeam());
     }
 }

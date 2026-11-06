@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Icon } from '../../../shared/icons/Icon';
 import { saveFile } from '../../../shared/lib/download';
+import { roundAvg } from '../../../shared/lib/format';
 import { Popup, toast } from '../../../shared/ui';
 import { userName } from '../../organization';
 import type { Project } from '../../projects';
@@ -32,7 +33,8 @@ export function ResultSharePopup({ db, project, rows, avgOf, inAvgOf, decimals, 
 
   const valueOf = (r: ResultRow) => (opt.basis === 'inAvg' ? inAvgOf(r) : avgOf(r));
   const scored = rows.filter(r => valueOf(r) !== null);
-  const rank = rankBy(scored, valueOf);
+  // 결과 표와 같이, 보이는 평균(소수점 설정에 맞춘 반올림)으로 순위를 매긴다
+  const rank = rankBy(scored, r => roundAvg(valueOf(r), decimals));
   const entries: Entry[] = scored
     .map(r => ({
       key: r.key,
@@ -123,6 +125,7 @@ export function ResultSharePopup({ db, project, rows, avgOf, inAvgOf, decimals, 
               <span className="theme-mini" style={{ background: t.bg }}>
                 <span className="theme-mini-head" style={{ background: `linear-gradient(135deg, ${t.headFrom}, ${t.headTo})` }}>
                   <i style={{ background: t.headText }} />
+                  {t.emoji && <span className="theme-emoji" aria-hidden="true">{t.emoji}</span>}
                 </span>
                 {[0, 1, 2].map(i => (
                   <span key={i} className="theme-mini-row" style={{ background: t.card, boxShadow: i === 0 ? `inset 0 0 0 1.5px ${t.first}` : undefined }}>

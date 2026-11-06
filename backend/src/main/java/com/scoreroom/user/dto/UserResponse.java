@@ -18,11 +18,12 @@ public record UserResponse(
         @JsonProperty("isSysAdmin") boolean isSysAdmin,
         String position,
         int rank,
-        boolean canViewAll) {
+        boolean canViewAll,
+        boolean canCreateRoom) {
 
     public static UserResponse of(User user, boolean includeContact) {
         return new UserResponse(user.getId(), includeContact ? user.getLoginId() : "", user.getName(),
                 includeContact ? user.getPhone() : "", user.getTeamId(), user.isSysAdmin(), user.getPosition(),
-                user.getSortOrder(), user.canViewAll());
+                user.getSortOrder(), user.canViewAll(), user.canCreateRoom());
     }
 }

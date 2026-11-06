@@ -2,6 +2,7 @@ package com.scoreroom.project.service;
 
 import java.time.Clock;
 import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.UUID;
 
@@ -11,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.scoreroom.audit.service.AuditService;
 import com.scoreroom.common.error.ApiException;
+import com.scoreroom.notification.service.NotificationService;
 import com.scoreroom.organization.repository.TeamRepository;
 import com.scoreroom.presentation.domain.Presentation;
 import com.scoreroom.presentation.domain.PresentationMember;
@@ -23,8 +25,9 @@ import com.scoreroom.project.repository.MembershipRepository;
 import com.scoreroom.project.service.RoomGuard.RoomWrite;
 import com.scoreroom.rating.repository.RatingRepository;
 import com.scoreroom.user.domain.User;
+import com.scoreroom.user.service.UserAccessService;
 
-/** 평가룸 참여자: 참여, 룸 운영자 지정·해제, 제거 */
+/** 평가룸 참여자: 참여, 사람 지정 추가, 룸 운영자 지정·해제, 제거 */
 @Service
 public class MembershipService {
 
@@ -35,13 +38,15 @@ public class MembershipService {
     private final RatingRepository ratings;
     private final PresentationRemover presentationRemover;
     private final RoomGuard roomGuard;
+    private final UserAccessService userAccess;
+    private final NotificationService notifications;
     private final AuditService audit;
     private final Clock clock;
 
     public MembershipService(MembershipRepository memberships, TeamRepository teams,
             PresentationRepository presentations, PresentationMemberRepository presentationMembers,
-            RatingRepository ratings, PresentationRemover presentationRemover, RoomGuard roomGuard, AuditService audit,
-            Clock clock) {
+            RatingRepository ratings, PresentationRemover presentationRemover, RoomGuard roomGuard,
+            UserAccessService userAccess, NotificationService notifications, AuditService audit, Clock clock) {
         this.memberships = memberships;
         this.teams = teams;
         this.presentations = presentations;
@@ -49,6 +54,8 @@ public class MembershipService {
         this.ratings = ratings;
         this.presentationRemover = presentationRemover;
         this.roomGuard = roomGuard;
+        this.userAccess = userAccess;
+        this.notifications = notifications;
         this.audit = audit;
         this.clock = clock;
     }
@@ -68,6 +75,36 @@ public class MembershipService {
         String teamName = user.getTeamId() == null ? null
                 : teams.findById(user.getTeamId()).map(t -> t.getName()).orElse(null);
         memberships.save(new Membership(project.getId(), user.getId(), user.getTeamId(), teamName, admin, clock.instant()));
+    }
+
+    /**
+     * 룸 운영자가 사람을 골라 바로 참여시킨다 (받는 사람의 수락 절차 없음). 추가된 사람에게는 초대 알림을 남긴다.
+     * 이미 참여 중이거나 비활성 계정은 건너뛰고, 새로 추가한 인원을 돌려준다.
+     */
+    @Transactional
+    public int add(UUID actorId, UUID projectId, List<UUID> userIds) {
+        RoomWrite room = roomGuard.lockAsAdmin(projectId, actorId);
+        LinkedHashSet<UUID> ids = new LinkedHashSet<>(userIds == null ? List.of() : userIds);
+        if (ids.isEmpty()) {
+            throw ApiException.badRequest("초대할 사람을 선택해 주세요.");
+        }
+        int added = 0;
+        for (UUID userId : ids) {
+            User user = userAccess.requireOther(userId);
+            if (user.isSysAdmin()) {
+                throw ApiException.badRequest("시스템 관리자는 초대할 수 없습니다.");
+            }
+            if (!user.isEnabled() || memberships.existsByProjectIdAndUserId(projectId, userId)) {
+                continue;
+            }
+            join(room.project(), user, false);
+            notifications.roomInvited(userId, projectId, actorId);
+            added++;
+        }
+        if (added > 0) {
+            audit.record(actorId, projectId, "MEMBERS_ADDED", added);
+        }
+        return added;
     }
 
     /** 룸 운영자는 최소 1명이어야 한다 */

@@ -6,6 +6,7 @@ import FindPasswordPage from '../features/auth/pages/FindPasswordPage';
 import LoginPage from '../features/auth/pages/LoginPage';
 import SignupPage from '../features/auth/pages/SignupPage';
 import SysOrgPage from '../features/organization/pages/SysOrgPage';
+import SysCreatorsPage from '../features/organization/pages/SysCreatorsPage';
 import SysViewersPage from '../features/organization/pages/SysViewersPage';
 import PresentationFormPage from '../features/presentations/pages/PresentationFormPage';
 import PresentationListPage from '../features/presentations/pages/PresentationListPage';
@@ -28,6 +29,7 @@ export function AppRoutes() {
           <Route element={<RequireSysAdmin />}>
             <Route path="/sys" element={<SysOrgPage />} />
             <Route path="/sys/viewers" element={<SysViewersPage />} />
+            <Route path="/sys/creators" element={<SysCreatorsPage />} />
           </Route>
           <Route path="/p/:pid" element={<PresentationListPage />} />
           <Route path="/p/:pid/pres/new" element={<PresentationFormPage />} />
