@@ -1310,3 +1310,12 @@ textarea.invalid { border-color: var(--red); }
 @media (max-width: 560px) {
   .lnb-toggle { top: 80px; }
 }
+
+/* 초대·입장 코드: 사람 지정 초대 아래 참여 중인 사람 목록 (팀별 묶음, 많으면 칸 안에서 스크롤) */
+.invited-list { max-height: 420px; overflow-y: auto; border-radius: var(--radius-sm); }
+.invited-row { display: flex; align-items: center; gap: 8px; min-height: 38px; padding: 6px 14px; border-bottom: 1px solid var(--line-2); background: #fff; font-size: 14px; }
+.team-box > .invited-row:last-child { border-bottom: 0; }
+.invited-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.invited-name small { font-weight: 400; }
+.invited-date { flex: none; font-size: 12px; }
+@media (max-width: 560px) { .invited-date { display: none; } }

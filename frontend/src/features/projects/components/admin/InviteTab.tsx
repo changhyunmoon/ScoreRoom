@@ -5,10 +5,11 @@ import { useNow } from '../../../../shared/hooks/useNow';
 import { mmss, timeText } from '../../../../shared/lib/format';
 import { Chip, IconText, SectionTitle, run, toast } from '../../../../shared/ui';
 import { Link } from 'react-router-dom';
-import { OrgDirectory } from '../../../organization';
+import { OrgDirectory, teamName, userName, userOf } from '../../../organization';
 import { mutate, useSession } from '../../../session';
 import { addMembers, issueInvite, revokeInvite } from '../../api/projects.api';
 import { members, membership } from '../../model/access';
+import { groupByTeam, sortByTeamStructure } from '../../model/teamOrder';
 import type { Project } from '../../model/types';
 
 export type InviteState = 'NONE' | 'ACTIVE' | 'REVOKED' | 'EXPIRED';
@@ -86,19 +87,43 @@ export function InviteTab({ project }: { project: Project }) {
   );
 }
 
-/** 조직도에서 사람을 골라 초대한다. 수락 절차 없이 바로 참여자로 추가된다 */
+/** 조직도에서 사람을 골라 초대한다. 수락 절차 없이 바로 참여자로 추가되고, 아래에 참여 중인 사람이 팀별로 보인다 */
 function InvitePeople({ project }: { project: Project }) {
   const { db } = useSession();
   const [picking, setPicking] = useState(false);
   const isMember = (id: string) => !!membership(db, project.id, id);
+  const all = members(db, project.id);
+  const groups = groupByTeam(sortByTeamStructure(db, all));
   return (
     <section className="card stack">
       <SectionTitle icon="users" title={<><span className="method-no">방법 1</span>사람 지정해서 초대</>}
         desc={<>회사 팀 구조도에서 사람을 골라요. 초대한 사람은 <b>바로 이 평가룸에 참여</b>되고, 우측 상단 <b>알림</b>으로 초대 소식을 받아요.</>}
         right={<button className="btn primary solid" onClick={() => setPicking(true)}><IconText icon="plus">초대하기</IconText></button>} />
       <p className="muted small">
-        현재 참여자 <b>{members(db, project.id).length}명</b> · 확인과 제거는 <Link to={`/p/${project.id}/admin?tab=members`}>참여자</Link> 탭에서 할 수 있어요.
+        현재 참여자 <b>{all.length}명</b> · 운영자 지정과 제거는 <Link to={`/p/${project.id}/admin?tab=members`}>참여자</Link> 탭에서 할 수 있어요.
       </p>
+      {/* 초대된(참여 중인) 사람: 팀 구조도 순으로 팀별로 묶어 항상 보여 준다. 많으면 이 칸 안에서 스크롤 */}
+      <div className="invited-list">
+        {groups.map(g => {
+          const first = g.rows[0].item;
+          return (
+            <div key={`${g.teamId ?? 'none'}-${g.rows[0].index}`} className="team-box">
+              <div className="team-head">
+                <Icon name="building" size={14} />
+                <b>{first.teamNameAtJoin ?? teamName(db, first.teamIdAtJoin)}</b>
+                <span className="team-count">{g.rows.length}명</span>
+              </div>
+              {g.rows.map(({ item: m }) => (
+                <div key={m.userId} className="invited-row">
+                  <span className="invited-name"><b>{userName(db, m.userId)}</b>{userOf(db, m.userId)?.position && <small className="muted"> {userOf(db, m.userId)!.position}</small>}</span>
+                  {m.isAdmin && <Chip tone="violet" icon="shield">룸 운영자</Chip>}
+                  <small className="muted invited-date">{timeText(m.joinedAt)} 참여</small>
+                </div>
+              ))}
+            </div>
+          );
+        })}
+      </div>
       {picking && (
         <OrgDirectory onClose={() => setPicking(false)} picker={{
           title: `'${project.name}'에 초대`,
