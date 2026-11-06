@@ -21,6 +21,7 @@ public record UpdateSettingsRequest(
         Boolean countSelf,
         Boolean countSameCrew,
         Boolean countSameTeam,
+        Boolean allowAdminRating,
         Long expectedVersion) {
 
     public ProjectSettings toSettings(ProjectSettings current) {
@@ -32,6 +33,7 @@ public record UpdateSettingsRequest(
                 showRatingStatus != null ? showRatingStatus : current.showRatingStatus(),
                 countSelf != null ? countSelf : current.countSelf(),
                 countSameCrew != null ? countSameCrew : current.countSameCrew(),
-                countSameTeam != null ? countSameTeam : current.countSameTeam());
+                countSameTeam != null ? countSameTeam : current.countSameTeam(),
+                allowAdminRating != null ? allowAdminRating : current.allowAdminRating());
     }
 }

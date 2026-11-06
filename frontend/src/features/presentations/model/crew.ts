@@ -13,6 +13,12 @@ export const involvedIds = (p: Presentation): ID[] => Array.from(new Set([p.lead
 export const presentationOfUser = (d: { presentations: Presentation[] }, pid: ID, userId: ID) =>
   d.presentations.find(p => p.projectId === pid && involvedIds(p).includes(userId));
 
+/**
+ * 발표하는 사람 목록. 룸 관리자는 발표하지 않으므로 뺀다 (예전 데이터로 이미 발표 구성원인 관리자는 남긴다)
+ */
+export const presenterRoster = <M extends { userId: ID; isAdmin: boolean }>(d: { presentations: Presentation[] }, pid: ID, ms: M[]) =>
+  ms.filter(m => !m.isAdmin || !!presentationOfUser(d, pid, m.userId));
+
 /** 발표를 수정·삭제할 수 있는 사람: 룸 관리자, 구성원(대표·팀원), 발표를 만든 사람 */
 export const canEditPresentation = (p: Presentation, userId: ID, isAdmin: boolean) =>
   isAdmin || p.createdBy === userId || involvedIds(p).includes(userId);

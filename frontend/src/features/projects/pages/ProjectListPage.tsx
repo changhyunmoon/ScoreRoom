@@ -71,9 +71,9 @@ export default function ProjectListPage() {
     if (busy) return;
     setBusy(true);
     let pid = '';
-    const ok = await run(async () => { pid = await mutate(createProject(name, desc)); }, '평가룸을 만들었습니다. 룸 관리자로 지정되었어요.');
+    const ok = await run(async () => { pid = await mutate(createProject(name, desc)); }, '평가룸을 만들었습니다. 평가 규칙을 확인해 주세요.');
     setBusy(false);
-    if (ok) nav(`/p/${pid}/admin`);
+    if (ok) nav(`/p/${pid}/admin?tab=settings`);
   };
 
   return (

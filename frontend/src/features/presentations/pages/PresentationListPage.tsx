@@ -7,13 +7,13 @@ import type { ID } from '../../../shared/lib/types';
 import { BoardHead, Chip, ConfirmButton, IconText, run } from '../../../shared/ui';
 import { teamName, teamPath, userName, userOf } from '../../organization';
 import { members, membership, ProjectShell, RoomNotFound, roomAccess, sortByTeamStructure, type Membership, type Project } from '../../projects';
-import { myProgress, personStatus, RatingWidget, type MyStatus } from '../../ratings';
+import { myProgress, ratesInRoom, personStatus, RatingWidget, type MyStatus } from '../../ratings';
 import type { Summary } from '../../results';
 import { mutate, useSession } from '../../session';
 import { deletePresentation } from '../api/presentations.api';
 import { PresInfo } from '../components/PresInfo';
 import { RosterSummary } from '../components/RosterSummary';
-import { canEditPresentation, crewOf, involvedIds, presentationOfUser, presTypeText, roleText } from '../model/crew';
+import { canEditPresentation, crewOf, involvedIds, presentationOfUser, presenterRoster, presTypeText, roleText } from '../model/crew';
 import type { Presentation } from '../model/types';
 
 /** 회색 정보 행: 왼쪽 라벨, 오른쪽 값 */
@@ -191,7 +191,9 @@ export default function PresentationListPage() {
   const showStats = !!m?.isAdmin || viewer || s.showRatingStatus;
 
   // 팀 구조도 순: 참여 당시 팀(상위 팀 → 하위 팀), 같은 팀은 조직도 순서(위 = 높은 사람), 소속 없음은 맨 뒤
-  const everyone = sortByTeamStructure(db, members(db, project.id));
+  // 룸 관리자는 발표하지 않으므로 목록·등록 인원에서 뺀다
+  const everyone = sortByTeamStructure(db, presenterRoster(db, project.id, members(db, project.id)));
+  const rates = ratesInRoom(project, m);
   const registered = everyone.filter(x => presOf(x.userId)).length;
 
   const kw = q.trim();
@@ -224,9 +226,14 @@ export default function PresentationListPage() {
       {!viewer && f === 'all' && (
         <div className="widgets">
           <div className="widget">
-            <div className="widget-title">남은 평가 <span className="red">{remaining}</span>명</div>
-            <p className="muted">평가할 구성원 {total}명 중 {doneCount}명 완료 · 발표 등록 {registered}/{everyone.length}명</p>
-            <div className="bar"><span style={{ width: `${total ? (doneCount / total) * 100 : 0}%` }} /></div>
+            {rates ? <>
+              <div className="widget-title">남은 평가 <span className="red">{remaining}</span>명</div>
+              <p className="muted">평가할 구성원 {total}명 중 {doneCount}명 완료 · 발표 등록 {registered}/{everyone.length}명</p>
+              <div className="bar"><span style={{ width: `${total ? (doneCount / total) * 100 : 0}%` }} /></div>
+            </> : <>
+              <div className="widget-title">평가하지 않는 룸 관리자</div>
+              <p className="muted">이 평가룸은 룸 관리자가 평가하지 않아요. 설정에서 바꿀 수 있어요. · 발표 등록 {registered}/{everyone.length}명</p>
+            </>}
           </div>
           <div className="widget rules">
             <Rule icon="star" label="점수 범위" value={`${s.min} ~ ${s.max}점`} />
@@ -234,6 +241,7 @@ export default function PresentationListPage() {
             <Rule icon="user" label="본인 평가" value={s.allowSelf ? '가능' : '불가'} tone={s.allowSelf ? 'ok' : 'no'} />
             <Rule icon="mic" label="같은 발표 팀원 평가" value={s.allowSameCrew ? '가능' : '불가'} tone={s.allowSameCrew ? 'ok' : 'no'} />
             <Rule icon="users" label="같은 팀 평가" value={s.allowSameTeam ? '가능' : '불가'} tone={s.allowSameTeam ? 'ok' : 'no'} />
+            <Rule icon="shield" label="관리자 평가" value={s.allowAdminRating ? '함' : '안 함'} tone={s.allowAdminRating ? 'ok' : 'no'} />
             <Rule icon="building" label="내 팀" value={m?.teamNameAtJoin ?? teamName(db, m?.teamIdAtJoin ?? null)} />
           </div>
         </div>
@@ -255,7 +263,7 @@ export default function PresentationListPage() {
               <Link to={`/p/${project.id}/pres/${myPres.id}`} className="btn"><IconText icon="pencil">내 발표 편집</IconText></Link>
               <DeletePresentation project={project} pres={myPres} isAdmin={!!m?.isAdmin} size="md" />
             </span>
-          : <Link to={`/p/${project.id}/pres/new`} className="btn primary solid"><IconText icon="plus">발표 등록</IconText></Link>)}
+          : !m?.isAdmin && <Link to={`/p/${project.id}/pres/new`} className="btn primary solid"><IconText icon="plus">발표 등록</IconText></Link>)}
       </div>
       <p className="muted small team-sort-hint">팀 구조도 순 · 팀 발표는 한 명이 등록하면 구성원 모두 발표 등록 완료로 바뀌어요.</p>
 

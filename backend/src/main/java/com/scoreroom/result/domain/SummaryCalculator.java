@@ -26,7 +26,8 @@ public final class SummaryCalculator {
             List<Presentation> presentations, Map<UUID, Crew> crews, List<Rating> ratings) {
         Map<String, List<Rating>> byTarget = ratings.stream()
                 .collect(Collectors.groupingBy(r -> key(r.getPresentationId(), r.getTargetId())));
-        List<Membership> members = roster.members();
+        // 관리자 평가를 끈 평가룸이면 관리자는 평가자 인원에서 아예 빠진다 (평가 불가로 세지 않음)
+        List<Membership> members = roster.raters(settings);
         List<SummaryResponse> rows = new ArrayList<>();
         for (Presentation p : presentations) {
             Crew crew = crews.get(p.getId());

@@ -18,7 +18,7 @@ class RatingEligibilityPolicyTest {
     private final UUID teamB = UUID.randomUUID();
 
     private static ProjectSettings rules(boolean self, boolean sameTeam, boolean sameCrew) {
-        return new ProjectSettings(0, 100, null, null, self, sameTeam, sameCrew, true, true, true, true, true);
+        return new ProjectSettings(0, 100, null, null, self, sameTeam, sameCrew, true, true, true, true, true, true);
     }
 
     @Test

@@ -31,7 +31,8 @@ class AttachmentApiTest extends IntegrationTest {
     void setUp() {
         leader = fixtures.user("leader", null);
         viewer = fixtures.user("viewer", null);
-        room = fixtures.room(leader, viewer);
+        // 룸 관리자는 발표하지 않으므로 방은 따로 만든 관리자가 연다
+        room = fixtures.room(fixtures.user("owner", null), leader, viewer);
         pres = fixtures.personal(room, leader);
     }
 

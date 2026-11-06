@@ -49,11 +49,11 @@ class RatingApiTest extends IntegrationTest {
 
     @Test
     void 본인과_같은_팀은_평가할_수_없다() throws Exception {
-        UUID mine = fixtures.personal(room, owner);
-        rate(owner, mine, owner, "{\"score\":70}")
+        UUID mine = fixtures.personal(room, sameTeam);
+        rate(sameTeam, mine, sameTeam, "{\"score\":70}")
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("본인은 평가할 수 없습니다."));
-        rate(sameTeam, mine, owner, "{\"score\":70}")
+        rate(owner, mine, sameTeam, "{\"score\":70}")
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("같은 회사 팀이라 평가할 수 없습니다."));
     }

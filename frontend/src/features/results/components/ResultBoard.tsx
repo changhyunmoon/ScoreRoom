@@ -152,7 +152,7 @@ export function ResultBoard({ project, detail = true }: { project: Project; deta
   const colCount = 1 + 1 + 5 + (detail ? 3 : 2) + (hasAgg ? (detail ? 3 : 2) : 0) + (detail ? 1 : 0);
   // 평가자는 팀 구조도 순 (팀 위 → 아래, 같은 팀은 조직도 순서)
   const raterTeamRank = (t: string | null) => (t !== null && tRank.has(t) ? tRank.get(t)! : Number.MAX_SAFE_INTEGER);
-  const raters = [...members(db, project.id)].sort((a, b) => raterTeamRank(a.teamIdAtJoin) - raterTeamRank(b.teamIdAtJoin)
+  const raters = members(db, project.id).filter(m => project.settings.allowAdminRating || !m.isAdmin).sort((a, b) => raterTeamRank(a.teamIdAtJoin) - raterTeamRank(b.teamIdAtJoin)
     || (a.teamIdAtJoin ?? '').localeCompare(b.teamIdAtJoin ?? '')
     || (userOf(db, a.userId)?.rank ?? Number.MAX_SAFE_INTEGER) - (userOf(db, b.userId)?.rank ?? Number.MAX_SAFE_INTEGER)
     || userName(db, a.userId).localeCompare(userName(db, b.userId)));

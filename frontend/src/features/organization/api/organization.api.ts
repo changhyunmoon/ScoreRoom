@@ -18,6 +18,13 @@ export const moveUserInTeam = (userId: ID, dir: -1 | 1) => http.post(`/admin/use
 export const setUserPosition = (userId: ID, position: string) => http.put(`/admin/users/${userId}/position`, { position });
 /** 전체 열람 권한 주기·회수 */
 export const setViewAll = (userId: ID, enabled: boolean) => http.put(`/admin/users/${userId}/view-all`, { enabled });
+/** 시스템 관리자 화면의 평가룸 한 줄 */
+export interface RoomOverview {
+  id: ID; name: string; description: string | null; status: 'OPEN' | 'CLOSED'; createdAt: number;
+  creatorName: string | null; adminNames: string | null; memberCount: number; presentationCount: number; ratingCount: number;
+}
+/** 시스템 관리자: 전체 평가룸 (최근 만든 순) */
+export const fetchAllRooms = () => http.get<RoomOverview[]>('/admin/projects');
 /** 평가룸 생성 권한 주기·회수 */
 export const setCreateRoom = (userId: ID, enabled: boolean) => http.put(`/admin/users/${userId}/create-room`, { enabled });
 /** 비밀번호를 잊은 사용자의 비밀번호를 새로 정한다. 그 사용자의 로그인은 모두 끊긴다 */

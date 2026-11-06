@@ -8,7 +8,7 @@ import { teamName, teamPath, userName, userOf } from '../../organization';
 import { groupByTeam, members, sortByTeamStructure, type Membership, type Project } from '../../projects';
 import { mutate, useSession } from '../../session';
 import { requestPresentations } from '../api/presentations.api';
-import { presentationOfUser, presTypeText } from '../model/crew';
+import { presentationOfUser, presenterRoster, presTypeText } from '../model/crew';
 
 type Kind = 'all' | 'done' | 'todo';
 const KINDS: { key: Kind; label: string; icon: IconName; tone: string }[] = [
@@ -20,7 +20,8 @@ const KINDS: { key: Kind; label: string; icon: IconName; tone: string }[] = [
 export function RosterSummary({ project }: { project: Project }) {
   const { db } = useSession();
   const [popup, setPopup] = useState<Kind | null>(null);
-  const everyone = sortByTeamStructure(db, members(db, project.id));
+  // 룸 관리자는 발표하지 않으므로 인원·요청 대상에서 뺀다
+  const everyone = sortByTeamStructure(db, presenterRoster(db, project.id, members(db, project.id)));
   const isDone = (m: Membership) => !!presentationOfUser(db, project.id, m.userId);
   const lists: Record<Kind, Membership[]> = {
     all: everyone,

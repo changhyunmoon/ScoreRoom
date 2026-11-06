@@ -151,11 +151,20 @@ public class PresentationService {
     /** presentationId: 수정 중인 발표 (새 발표면 null) */
     private Crew validateCrew(RoomWrite room, SavePresentationRequest request, UUID presentationId) {
         Crew crew = Crew.normalize(request.type(), request.leaderId(), request.presenterIds(), request.memberIds());
-        Set<UUID> roomMembers = memberships.findByProjectId(room.projectId()).stream()
-                .map(Membership::getUserId).collect(Collectors.toSet());
+        List<Membership> roomMemberships = memberships.findByProjectId(room.projectId());
+        Set<UUID> roomMembers = roomMemberships.stream().map(Membership::getUserId).collect(Collectors.toSet());
         List<UUID> everyone = crew.everyone();
         if (!roomMembers.containsAll(everyone)) {
             throw ApiException.badRequest("평가룸 참여자만 구성원으로 등록할 수 있습니다.");
+        }
+        // 룸 관리자는 발표하지 않는다. 예전에 이미 구성원이던 관리자는 이 발표를 고칠 때 그대로 둘 수 있다
+        Set<UUID> already = presentationId == null ? Set.of() : presentationMembers.findByProjectId(room.projectId()).stream()
+                .filter(m -> m.getPresentationId().equals(presentationId))
+                .map(PresentationMember::getUserId).collect(Collectors.toSet());
+        boolean adminAdded = roomMemberships.stream()
+                .anyMatch(m -> m.isAdmin() && everyone.contains(m.getUserId()) && !already.contains(m.getUserId()));
+        if (adminAdded) {
+            throw ApiException.badRequest("룸 관리자는 발표 구성원이 될 수 없습니다.");
         }
         UUID actorId = room.membership().getUserId();
         if (!room.membership().isAdmin() && !everyone.contains(actorId)) {

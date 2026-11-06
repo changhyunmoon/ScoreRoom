@@ -1,10 +1,11 @@
 // 설정: 점수 입력 범위, 평가 규칙, 표시, 평가 마감. 집계 기준 범위·집계에 넣을 점수는 결과 현황에서 순위를 보면서 정한다
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Icon } from '../../../../shared/icons/Icon';
 import { ConfirmButton, IconText, SectionTitle, run, toast } from '../../../../shared/ui';
 import { ratingsBlockedBy } from '../../../ratings';
-import { mutate, useSession } from '../../../session';
-import { closeProject, updateSettings } from '../../api/projects.api';
+import { mutate, refresh, useSession } from '../../../session';
+import { closeProject, deleteProject, updateSettings } from '../../api/projects.api';
 import { rangeChanged, validateSettings } from '../../model/settings';
 import type { Project, Settings } from '../../model/types';
 
@@ -22,7 +23,7 @@ export function SettingsTab({ project }: { project: Project }) {
   const s = project.settings;
   const [f, setF] = useState({
     min: String(s.min), max: String(s.max), allowSelf: s.allowSelf, allowSameTeam: s.allowSameTeam, allowSameCrew: s.allowSameCrew, allowEdit: s.allowEdit,
-    showRatingStatus: s.showRatingStatus,
+    showRatingStatus: s.showRatingStatus, allowAdminRating: s.allowAdminRating,
   });
   const open = project.status === 'OPEN';
   // 점수 입력 범위를 바꾸면 기존 평가가 모두 지워지고 집계 기준도 '사용 안 함'으로 초기화된다
@@ -34,6 +35,7 @@ export function SettingsTab({ project }: { project: Project }) {
     showRatingStatus: f.showRatingStatus,
     // 집계에 넣을 점수는 결과 현황에서 정한 값을 그대로 보낸다
     countSelf: s.countSelf, countSameCrew: s.countSameCrew, countSameTeam: s.countSameTeam,
+    allowAdminRating: f.allowAdminRating,
   };
   const blank = [f.min, f.max].some(v => v.trim() === '');
   const err = blank ? '빈 값이 있습니다.' : validateSettings(next);
@@ -73,6 +75,8 @@ export function SettingsTab({ project }: { project: Project }) {
         <Toggle disabled={!open} checked={f.allowSameCrew} onChange={v => setF({ ...f, allowSameCrew: v })}
           title="같은 발표 팀원 평가 허용" desc="끄면 내가 참여한 발표의 다른 구성원을 평가할 수 없어요." />
         <Toggle disabled={!open} checked={f.allowEdit} onChange={v => setF({ ...f, allowEdit: v })} title="제출한 점수 수정 허용" />
+        <Toggle disabled={!open} checked={f.allowAdminRating} onChange={v => setF({ ...f, allowAdminRating: v })}
+          title="룸 관리자도 평가하기" desc="끄면 룸 관리자는 평가하지 않고, 남은 평가·평가 인원·점수표에서도 빠져요. 룸 관리자는 켜도 발표하지 않아요." />
       </section>
 
       <section className="card stack">
@@ -101,6 +105,36 @@ export function SettingsTab({ project }: { project: Project }) {
           <ConfirmButton label="평가 마감하기" confirmLabel="마감합니다" detail="마감 후에는 되돌릴 수 없습니다." onConfirm={() => run(() => mutate(closeProject(project.id)), '평가를 마감했습니다.')} />
         </section>
       )}
+
+      <DeleteRoom project={project} />
     </div>
+  );
+}
+
+/** 평가룸 삭제: 실수로 지우지 않도록 평가룸 이름을 그대로 입력해야 버튼이 켜진다 */
+function DeleteRoom({ project }: { project: Project }) {
+  const { db } = useSession();
+  const nav = useNavigate();
+  const [typed, setTyped] = useState('');
+  const pres = db.presentations.filter(p => p.projectId === project.id).length;
+  const ratings = db.ratings.filter(r => r.projectId === project.id).length;
+  const people = db.memberships.filter(m => m.projectId === project.id).length;
+  const remove = async () => {
+    const ok = await run(() => deleteProject(project.id), `'${project.name}' 평가룸을 삭제했습니다.`);
+    if (!ok) return;
+    nav('/', { replace: true });
+    await refresh().catch(() => undefined);
+  };
+  return (
+    <section className="card danger-zone stack">
+      <SectionTitle icon="trash" tone="red" title="평가룸 삭제"
+        desc={`참여자 ${people}명, 발표 ${pres}개, 평가 ${ratings}건과 올린 자료가 모두 지워지고 되돌릴 수 없어요.`} />
+      <label className="field">
+        <span className="field-label">확인을 위해 평가룸 이름 <b>{project.name}</b>을(를) 입력해 주세요.</span>
+        <input value={typed} onChange={e => setTyped(e.target.value)} placeholder={project.name} aria-label="삭제할 평가룸 이름" />
+      </label>
+      <ConfirmButton label="평가룸 삭제하기" confirmLabel="삭제합니다" disabled={typed.trim() !== project.name.trim()}
+        detail="삭제한 평가룸은 되돌릴 수 없습니다." onConfirm={remove} />
+    </section>
   );
 }

@@ -30,6 +30,21 @@ function MemberRow({ project, m, no }: { project: Project; m: Membership; no: nu
   const name = userName(db, m.userId);
   const position = userOf(db, m.userId)?.position;
   const open = project.status === 'OPEN';
+  // 룸 관리자는 발표하지 않는다: 발표에 등록된 사람을 관리자로 지정하면 그 발표에서 빠지고 받은 평가가 지워진다.
+  // 관리자 평가를 끈 평가룸이면 그 사람이 준 평가도 지워진다
+  const pres = db.presentations.find(p => p.projectId === project.id
+    && [p.leaderId, ...p.presenterIds, ...p.memberIds].includes(m.userId));
+  const lostRatings = db.ratings.filter(r => r.projectId === project.id
+    && (r.targetId === m.userId || (!project.settings.allowAdminRating && r.raterId === m.userId))).length;
+  const grantImpact = !m.isAdmin && (!!pres || lostRatings > 0);
+  const solo = !!pres && new Set([pres.leaderId, ...pres.presenterIds, ...pres.memberIds]).size === 1;
+  const grantText = [
+    '룸 관리자는 발표하지 않아요.',
+    pres && (solo ? `'${pres.title}' 발표가 삭제돼요.` : `'${pres.title}' 발표에서 빠져요.`),
+    lostRatings > 0 && `평가 ${lostRatings}건이 지워져요.`,
+  ].filter(Boolean).join(' ');
+  const toggleAdmin = () => run(() => mutate(setMemberAdmin(project.id, m.userId, !m.isAdmin, project.version)),
+    m.isAdmin ? '룸 관리자 권한을 해제했습니다.' : '룸 관리자 권한을 부여했습니다.');
   return (
     <div className="mrow">
       <span className="c-no">{no}</span>
@@ -42,9 +57,11 @@ function MemberRow({ project, m, no }: { project: Project; m: Membership; no: nu
       <span className="c-role">{m.isAdmin ? <Chip tone="violet" icon="shield">룸 관리자</Chip> : <Chip icon="user">참여자</Chip>}</span>
       <span className="c-act">
         {open && <>
-          <button className="btn sm" onClick={() => run(() => mutate(setMemberAdmin(project.id, m.userId, !m.isAdmin)), m.isAdmin ? '룸 관리자 권한을 해제했습니다.' : '룸 관리자 권한을 부여했습니다.')}>
-            {m.isAdmin ? '관리자 해제' : '관리자 지정'}
-          </button>
+          {grantImpact
+            ? <ConfirmButton className="btn sm" label="관리자 지정" confirmLabel="관리자 지정"
+                detail={grantText}
+                onConfirm={toggleAdmin} />
+            : <button className="btn sm" onClick={toggleAdmin}>{m.isAdmin ? '관리자 해제' : '관리자 지정'}</button>}
           {m.userId !== me!.id && (
             <ConfirmButton className="btn sm danger" label="제거" confirmLabel="제거"
               detail={<>

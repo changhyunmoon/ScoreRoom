@@ -14,6 +14,8 @@ export interface Settings {
   showRatingStatus: boolean;
   /** 집계(평균·순위)에 넣을 점수: 본인 점수 / 같은 발표 팀원이 준 점수 / 같은 회사 팀원이 준 점수 (기본: 모두 포함) */
   countSelf: boolean; countSameCrew: boolean; countSameTeam: boolean;
+  /** 룸 관리자도 평가할지 (새 평가룸 기본: 안 함). 끄면 관리자는 평가자에서 빠진다. 관리자는 어떤 경우에도 발표하지 않는다 */
+  allowAdminRating: boolean;
 }
 
 /** 입장 코드. expiresAt이 null이면 기간 무제한 (중지할 때까지 유효) */

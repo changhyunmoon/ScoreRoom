@@ -25,6 +25,7 @@ import com.scoreroom.project.dto.RemovedResponse;
 import com.scoreroom.project.dto.SetAdminRequest;
 import com.scoreroom.project.dto.UpdateSettingsRequest;
 import com.scoreroom.project.service.MembershipService;
+import com.scoreroom.project.service.ProjectRemovalService;
 import com.scoreroom.project.service.ProjectService;
 
 @RestController
@@ -33,10 +34,12 @@ public class ProjectController {
 
     private final ProjectService projectService;
     private final MembershipService membershipService;
+    private final ProjectRemovalService removalService;
 
-    public ProjectController(ProjectService projectService, MembershipService membershipService) {
+    public ProjectController(ProjectService projectService, MembershipService membershipService, ProjectRemovalService removalService) {
         this.projectService = projectService;
         this.membershipService = membershipService;
+        this.removalService = removalService;
     }
 
     @PostMapping
@@ -58,6 +61,13 @@ public class ProjectController {
         projectService.close(me.userId(), projectId);
     }
 
+    /** 평가룸 삭제: 룸 관리자 또는 시스템 관리자. 발표·평가·자료·참여자를 모두 지우고 되돌릴 수 없다 */
+    @DeleteMapping("/{projectId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@AuthenticationPrincipal AuthenticatedUser me, @PathVariable UUID projectId) {
+        removalService.delete(me.userId(), projectId);
+    }
+
     /** 사람 지정 초대: 고른 사람을 바로 참여자로 추가한다 */
     @PostMapping("/{projectId}/members")
     public AddedResponse addMembers(@AuthenticationPrincipal AuthenticatedUser me, @PathVariable UUID projectId,
@@ -69,7 +79,7 @@ public class ProjectController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void setAdmin(@AuthenticationPrincipal AuthenticatedUser me, @PathVariable UUID projectId,
             @PathVariable UUID userId, @RequestBody SetAdminRequest request) {
-        membershipService.setAdmin(me.userId(), projectId, userId, request.isAdmin());
+        membershipService.setAdmin(me.userId(), projectId, userId, request.isAdmin(), request.expectedVersion());
     }
 
     /** expectedVersion: 화면이 제거 영향(지울 평가·발표)을 보여줄 때 본 평가룸 version */

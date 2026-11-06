@@ -1357,3 +1357,7 @@ textarea.invalid { border-color: var(--red); }
   .roster-popup .team-path, .roster-pres { display: none; }
   .roster-foot .btn.primary { width: 100%; justify-content: center; }
 }
+
+/* 시스템 관리자: 평가룸 관리 */
+.rooms-table .room-desc { display: block; margin-top: 2px; font-size: 12px; }
+.rooms-table .chip { margin-left: 4px; vertical-align: middle; }

@@ -21,12 +21,16 @@ public final class RoomRoster {
 
     private final List<Membership> members;
     private final Map<UUID, UUID> teamByUser = new HashMap<>();
+    private final Set<UUID> adminIds = new java.util.HashSet<>();
     private final Map<UUID, Set<UUID>> crewByPresentation = new HashMap<>();
 
     public RoomRoster(List<Membership> members, Collection<PresentationMember> presentationMembers) {
         this.members = members;
         for (Membership m : members) {
             teamByUser.put(m.getUserId(), m.getTeamIdAtJoin());
+            if (m.isAdmin()) {
+                adminIds.add(m.getUserId());
+            }
         }
         presentationMembers.stream()
                 .sorted((a, b) -> Integer.compare(a.getSortOrder(), b.getSortOrder()))
@@ -36,6 +40,15 @@ public final class RoomRoster {
 
     public List<Membership> members() {
         return members;
+    }
+
+    /** 평가하는 사람. 관리자 평가를 끈 평가룸이면 룸 관리자는 빠진다 */
+    public List<Membership> raters(ProjectSettings settings) {
+        return settings.allowAdminRating() ? members : members.stream().filter(m -> !m.isAdmin()).toList();
+    }
+
+    public boolean isAdmin(UUID userId) {
+        return adminIds.contains(userId);
     }
 
     public Set<UUID> crewOf(UUID presentationId) {
@@ -58,6 +71,9 @@ public final class RoomRoster {
     }
 
     public Optional<BlockReason> check(ProjectSettings settings, UUID presentationId, UUID raterId, UUID targetId) {
+        if (!settings.allowAdminRating() && adminIds.contains(raterId)) {
+            return Optional.of(BlockReason.ADMIN);
+        }
         return RatingEligibilityPolicy.check(settings, raterId, targetId, crewOf(presentationId),
                 teamByUser.get(raterId), teamByUser.get(targetId));
     }

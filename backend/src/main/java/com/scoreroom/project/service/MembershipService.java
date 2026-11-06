@@ -107,17 +107,34 @@ public class MembershipService {
         return added;
     }
 
-    /** 룸 관리자는 최소 1명이어야 한다 */
+    /**
+     * 룸 관리자는 최소 1명이어야 한다.
+     * 룸 관리자는 발표하지 않으므로, 발표에 등록된 사람을 관리자로 지정하면 그 발표에서 뺀다(받은 평가 삭제).
+     * 관리자 평가를 끈 평가룸이면 그 사람이 준 평가도 지운다. 지울 데이터가 있으면 화면이 확인한 version이 지금과 같아야 한다.
+     */
     @Transactional
-    public void setAdmin(UUID actorId, UUID projectId, UUID userId, boolean admin) {
-        roomGuard.lockAsAdmin(projectId, actorId);
+    public void setAdmin(UUID actorId, UUID projectId, UUID userId, boolean admin, Long expectedVersion) {
+        RoomWrite room = roomGuard.lockAsAdmin(projectId, actorId);
         Membership target = memberships.findByProjectIdAndUserId(projectId, userId)
                 .orElseThrow(() -> ApiException.notFound("참여자를 찾을 수 없습니다."));
         if (!admin && target.isAdmin() && memberships.countByProjectIdAndAdminTrue(projectId) <= 1) {
             throw ApiException.badRequest("룸 관리자는 최소 1명이어야 합니다.");
         }
+        int removedRatings = 0;
+        if (admin && !target.isAdmin()) {
+            List<PresentationMember> involved = presentationMembers.findByProjectIdAndUserId(projectId, userId);
+            boolean dropGiven = !room.project().settings().allowAdminRating();
+            List<UUID> doomed = ratings.findByProjectId(projectId).stream()
+                    .filter(r -> r.getTargetId().equals(userId) || (dropGiven && r.getRaterId().equals(userId)))
+                    .map(r -> r.getId()).toList();
+            if (!involved.isEmpty() || !doomed.isEmpty()) {
+                room.requireVersion(expectedVersion);
+            }
+            removedRatings = doomed.isEmpty() ? 0 : ratings.deleteByIds(doomed);
+            removedRatings += leavePresentations(involved, userId);
+        }
         target.setAdmin(admin);
-        audit.record(actorId, projectId, admin ? "ROOM_ADMIN_GRANTED" : "ROOM_ADMIN_REVOKED", 1);
+        audit.record(actorId, projectId, admin ? "ROOM_ADMIN_GRANTED" : "ROOM_ADMIN_REVOKED", removedRatings);
     }
 
     /**
@@ -143,6 +160,14 @@ public class MembershipService {
         }
 
         int removedRatings = ratings.deleteInvolving(projectId, userId);
+        removedRatings += leavePresentations(involved, userId);
+        memberships.deleteMember(projectId, userId);
+        audit.record(actorId, projectId, "MEMBER_REMOVED", removedRatings);
+    }
+
+    /** 혼자 하는 발표는 삭제하고, 함께 하는 발표에서는 빼고 대표였으면 새 대표를 정한다. 발표 삭제로 지운 평가 수를 돌려준다 */
+    private int leavePresentations(List<PresentationMember> involved, UUID userId) {
+        int removedRatings = 0;
         for (PresentationMember row : involved) {
             Presentation presentation = presentations.findById(row.getPresentationId()).orElseThrow();
             List<PresentationMember> crew = presentationMembers.findByPresentationId(presentation.getId());
@@ -155,8 +180,7 @@ public class MembershipService {
             }
             presentationMembers.deleteOne(presentation.getId(), userId);
         }
-        memberships.deleteMember(projectId, userId);
-        audit.record(actorId, projectId, "MEMBER_REMOVED", removedRatings);
+        return removedRatings;
     }
 
     /** 남은 구성원 중 발표자 먼저, 없으면 팀원 중 앞 순서 */

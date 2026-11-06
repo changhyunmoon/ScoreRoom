@@ -52,8 +52,8 @@ export default function PresentationFormPage() {
       .filter(id => id !== existing?.leaderId).forEach(id => { roles[id] = 'MEMBER'; });
     return {
       title: existing?.title ?? '', intro: existing?.intro ?? '', type: (existing?.type ?? 'PERSONAL') as PresType,
-      // 새 발표는 만든 사람을 대표로 시작하고, 원하면 바꾼다. 이미 다른 발표에 있으면 비워 둔다 (한 사람은 발표 하나)
-      leaderId: existing?.leaderId ?? (me && pid && !presentationOfUser(db, pid, me.id) ? me.id : ''),
+      // 새 발표는 만든 사람을 대표로 시작하고, 원하면 바꾼다. 이미 다른 발표에 있거나 룸 관리자(발표하지 않음)면 비워 둔다
+      leaderId: existing?.leaderId ?? (me && pid && !presentationOfUser(db, pid, me.id) && !membership(db, pid, me.id)?.isAdmin ? me.id : ''),
       roles,
       deployUrl: existing?.deployUrl ?? '',
     };
@@ -91,7 +91,10 @@ export default function PresentationFormPage() {
   // 점수를 받은 발표는 평가 가능 여부가 바뀌지 않도록 구성원 추가·제외를 막는다 (역할 변경은 가능)
   const locked = !!existing?.hasRatings;
   const lockedCrew = existing ? involvedIds(existing) : [];
-  const ms = members(db, project.id);
+  // 룸 관리자는 발표하지 않으므로 구성원 후보에서 뺀다 (예전 데이터로 이 발표에 이미 있는 관리자는 남긴다)
+  const ms = members(db, project.id).filter(x => !x.isAdmin || lockedCrew.includes(x.userId));
+  // 나를 구성원으로 넣지 않고 등록하는 경우: 룸 관리자가 대신 등록하거나, 내가 이미 다른 발표에 있을 때
+  const proxy = m.isAdmin || !!myOther;
   const teamOf = (id: ID) => membership(db, project.id, id)?.teamIdAtJoin ?? null;
   // 우리 회사 팀으로 고를 때의 기준: 내 팀
   const myTeam = teamOf(me.id);
@@ -100,10 +103,11 @@ export default function PresentationFormPage() {
   const byName = (a: ID, b: ID) => userName(db, a).localeCompare(userName(db, b));
   // 개인 발표: 본인(편집이면 기존 대표) 한 명
   // 팀 발표: 우리 회사 팀이면 내 팀 참여자(조직도 순), 직접 고르기면 참여자 전원(나 먼저)
-  const personalLeader = existing?.type === 'PERSONAL' ? existing.leaderId : me.id;
+  // 룸 관리자가 대신 등록하는 개인 발표는 참여자 중 한 명을 대표로 고른다
+  const personalLeader = existing?.type === 'PERSONAL' ? existing.leaderId : m.isAdmin ? null : me.id;
   const fromMyTeam = f.type === 'TEAM' && pick === 'MY_TEAM';
   const people = ms
-    .filter(x => (f.type === 'PERSONAL' ? x.userId === personalLeader : fromMyTeam ? x.teamIdAtJoin === myTeam : true))
+    .filter(x => (f.type === 'PERSONAL' ? (personalLeader === null ? !takenBy(x.userId) : x.userId === personalLeader) : fromMyTeam ? x.teamIdAtJoin === myTeam : true))
     .sort((a, b) => fromMyTeam
       ? rankOf(a.userId) - rankOf(b.userId) || byName(a.userId, b.userId)
       : (a.userId === me.id ? -1 : b.userId === me.id ? 1 : byName(a.userId, b.userId)));
@@ -149,7 +153,7 @@ export default function PresentationFormPage() {
     // 다른 발표에 이미 등록된 사람은 빼고 불러온다
     const crew = ms.filter(x => x.teamIdAtJoin === myTeam && !takenBy(x.userId)).map(x => x.userId)
       .sort((a, b) => rankOf(a) - rankOf(b) || byName(a, b));
-    const leader = myOther ? crew[0] ?? '' : me.id;
+    const leader = proxy ? crew[0] ?? '' : me.id;
     const roles: Record<ID, 'MEMBER'> = {};
     crew.filter(id => id !== leader).forEach(id => { roles[id] = 'MEMBER'; });
     setF({ ...f, type, leaderId: leader, roles });
@@ -158,7 +162,7 @@ export default function PresentationFormPage() {
     if (type === f.type) return;
     if (type === 'PERSONAL') {
       // 개인 발표: 본인이 대표 (구성원 선택 없음)
-      setF({ ...f, type, roles: {}, leaderId: existing?.type === 'PERSONAL' ? existing.leaderId : myOther ? '' : me.id });
+      setF({ ...f, type, roles: {}, leaderId: existing?.type === 'PERSONAL' ? existing.leaderId : proxy ? '' : me.id });
       return;
     }
     // 팀 발표: 우리 회사 팀으로 시작
@@ -313,7 +317,8 @@ export default function PresentationFormPage() {
         </Field>
       </div>
 
-      {f.type !== 'PERSONAL' && <div className="card stack">
+      {/* 팀 발표, 또는 룸 관리자가 대신 등록하는 개인 발표면 구성원을 고른다 */}
+      {(f.type !== 'PERSONAL' || personalLeader === null) && <div className="card stack">
         <div className="row between wrap gap">
           <div>
             <h2>발표 구성원</h2>
@@ -323,14 +328,14 @@ export default function PresentationFormPage() {
             <span className="crew-label member">팀원 {memberIds.length}</span>
           </div>
         </div>
-        <div className="segmented pick-seg" role="group" aria-label="구성원 고르는 방법">
+        {f.type !== 'PERSONAL' && <div className="segmented pick-seg" role="group" aria-label="구성원 고르는 방법">
           <button type="button" className={pick === 'MY_TEAM' ? 'on' : ''} onClick={() => changePick('MY_TEAM')}>
             <Icon name="building" size={15} />우리 회사 팀
           </button>
           <button type="button" className={pick === 'ANY' ? 'on' : ''} onClick={() => changePick('ANY')}>
             <Icon name="users" size={15} />직접 고르기
           </button>
-        </div>
+        </div>}
         <ul className="role-guide">
           <li><span className="crew-label lead">대표</span>꼭 1명 필요해요. 나머지 구성원은 팀원으로 고르세요.</li>
           <li>등록하면 고른 구성원 모두 이 발표로 등록돼요. 한 사람은 발표 하나에만 참여할 수 있어서, 다른 발표에 등록된 사람은 고를 수 없어요.</li>

@@ -38,7 +38,8 @@ export function isCounted(d: DB, project: Project, pres: Presentation, raterId: 
 export function computeResults(d: DB, project: Project): ResultRow[] {
   const { aggMin, aggMax, min, max } = project.settings;
   const hasAgg = aggMin !== null && aggMax !== null;
-  const ms = members(d, project.id);
+  // 평가하는 사람만 칸으로 만든다 (관리자도 평가하기가 꺼져 있으면 룸 관리자는 빠진다)
+  const ms = members(d, project.id).filter(m => project.settings.allowAdminRating || !m.isAdmin);
   return presentationsOf(d, project.id).flatMap(pres => crewOf(pres).map(({ id: targetId, role }) => {
     const ratings = d.ratings.filter(r => r.presentationId === pres.id && r.targetId === targetId);
     // 평균·합계에는 집계에 넣는 점수만. count(평가함)는 제출한 사람 모두

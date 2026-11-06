@@ -17,8 +17,9 @@ export const revokeInvite = (pid: ID) => http.del(`/projects/${pid}/invite`);
 export const addMembers = async (pid: ID, userIds: ID[]) =>
   (await http.post<{ added: number }>(`/projects/${pid}/members`, { userIds })).added;
 
-export const setMemberAdmin = (pid: ID, userId: ID, isAdmin: boolean) =>
-  http.put(`/projects/${pid}/members/${userId}/admin`, { isAdmin });
+/** 관리자 지정·해제. 발표에 등록된 사람을 지정하면 발표에서 빠지므로, 화면이 영향을 보여 준 평가룸 version을 함께 보낸다 */
+export const setMemberAdmin = (pid: ID, userId: ID, isAdmin: boolean, expectedVersion?: number) =>
+  http.put(`/projects/${pid}/members/${userId}/admin`, { isAdmin, expectedVersion });
 
 /** 참여자 제거. expectedVersion은 화면이 제거 영향을 보여줄 때 본 평가룸 version (그 사이 바뀌었으면 409) */
 export const removeMember = (pid: ID, userId: ID, expectedVersion: number) =>
@@ -32,3 +33,5 @@ export const updateSettings = async (pid: ID, settings: Settings, expectedVersio
   (await http.put<{ removed: number }>(`/projects/${pid}/settings`, { ...settings, expectedVersion })).removed;
 
 export const closeProject = (pid: ID) => http.post(`/projects/${pid}/close`);
+/** 평가룸 삭제 (룸 관리자·시스템 관리자). 발표·평가·자료·참여자가 모두 지워지고 되돌릴 수 없다 */
+export const deleteProject = (pid: ID) => http.del(`/projects/${pid}`);
