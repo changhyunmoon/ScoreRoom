@@ -54,12 +54,10 @@ export default function RoomAdminPage() {
       ];
     }
     if (tab === 'members') {
-      const teams = new Set(all.map(x => x.teamIdAtJoin).filter(t => t !== null)).size;
       return [
         { icon: 'users', label: '전체 참여자', value: `${all.length}명` },
         { icon: 'shield', label: '룸 관리자', value: `${admins}명` },
         { icon: 'user', label: '일반 참여자', value: `${all.length - admins}명` },
-        { icon: 'building', label: '소속 팀', value: `${teams}개` },
       ];
     }
     if (tab === 'run') {
@@ -71,7 +69,6 @@ export default function RoomAdminPage() {
         { icon: 'mic', label: '발표', value: `${list.length}개` },
         { icon: 'checkCircle', label: '발표 등록', value: `${registered} / ${roster.length}명` },
         { icon: 'check', label: '평가 제출', value: `${sums.reduce((a, x) => a + x.scored, 0)} / ${sums.reduce((a, x) => a + x.eligible, 0)}` },
-        { icon: 'paperclip', label: '자료 올린 발표', value: `${list.filter(p => p.attachments.length > 0).length}개` },
       ];
     }
     const s = project.settings;
@@ -79,10 +76,10 @@ export default function RoomAdminPage() {
     return [
       { icon: 'flag', label: '평가룸 상태', value: closed ? '마감' : '진행 중', tone: closed ? 'off' : 'ok' },
       { icon: 'star', label: '점수 입력 범위', value: `${s.min} ~ ${s.max}점` },
-      { icon: 'sliders', label: '집계 기준', value: s.aggMin !== null && s.aggMax !== null ? `${s.aggMin} ~ ${s.aggMax}점` : '사용 안 함', tone: s.aggMin !== null ? undefined : 'off' },
-      { icon: 'check', label: '제출된 평가', value: `${db.ratings.filter(r => r.projectId === project.id).length}건` },
     ];
   };
+
+  const items = overview();
 
   return (
     <ProjectShell project={project} current={`admin-${tab}`}>
@@ -90,8 +87,8 @@ export default function RoomAdminPage() {
 
       {project.status === 'CLOSED' && <div className="notice"><Icon name="flag" size={16} />{project.closedAt && timeText(project.closedAt)}에 마감된 평가룸이에요.</div>}
 
-      <div className="overview">
-        {overview().map(o => (
+      <div className={`overview ${items.length <= 3 ? 'few' : ''}`} style={{ '--ov-cols': items.length } as React.CSSProperties}>
+        {items.map(o => (
           <div key={o.label} className="ov">
             <span className="ov-label"><Icon name={o.icon} size={14} />{o.label}</span>
             <b className={`ov-value ${o.tone ?? ''}`}>{o.value}</b>

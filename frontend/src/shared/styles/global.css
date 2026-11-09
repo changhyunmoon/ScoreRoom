@@ -183,8 +183,7 @@ input:disabled, select:disabled { background: var(--gray-soft); color: #a9abb1; 
 
 /* ---------- 포털 위젯 ---------- */
 .widgets { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 16px; }
-.widgets.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-.widget { background: #fff; border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px 22px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.widgets.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }.widget { background: #fff; border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px 22px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .widget-title { font-size: 18px; font-weight: 700; letter-spacing: -0.02em; }
 .widget-title .red { color: var(--red); }
 .widget.join .row { margin-top: 4px; }
@@ -394,7 +393,7 @@ body.dragging, body.dragging * { cursor: grabbing !important; user-select: none;
 .danger-zone { border: 1px solid var(--red-line); box-shadow: none; }
 
 /* ---------- 관리 요약 ---------- */
-.overview { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; padding: 18px 0; border: 1px solid #d3d9e6; background: #f8f9fb; }
+.overview { display: grid; grid-template-columns: repeat(var(--ov-cols, 4), minmax(0, 1fr)); gap: 0; padding: 18px 0; border: 1px solid #d3d9e6; background: #f8f9fb; }
 .ov { background: transparent; border-right: 1px solid var(--line-2); padding: 0 22px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .ov:last-child { border-right: 0; }
 .ov-label { display: flex; align-items: center; gap: 4px; font-size: 13px; color: var(--muted); }
@@ -1400,3 +1399,8 @@ textarea.invalid { border-color: var(--red); }
 .roster-popup .roster-popup-title svg { color: var(--navy); }
 .roster-popup .roster-popup-title.ok svg { color: var(--green, #1a7f4b); }
 .roster-popup .roster-popup-title.warn svg { color: #b7791f; }
+
+/* 관리 화면 요약이 3칸 이하면 휴대폰에서도 한 줄로 둔다 (4칸일 때만 2×2) */
+.overview.few { grid-template-columns: repeat(var(--ov-cols), minmax(0, 1fr)); }
+.overview.few .ov:nth-child(n) { border-bottom: 0; border-right: 1px solid var(--line-2); }
+.overview.few .ov:last-child:nth-child(n) { border-right: 0; }
