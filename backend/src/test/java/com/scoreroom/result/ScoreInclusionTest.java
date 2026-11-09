@@ -17,7 +17,7 @@ import com.scoreroom.support.IntegrationTest;
 import com.scoreroom.user.domain.User;
 
 /**
- * 새 평가룸은 본인·같은 팀·같은 발표 팀원 평가를 기본으로 허용하고,
+ * 새 평가룸은 같은 팀·같은 발표 팀원 평가를 기본으로 허용하고 (본인 평가는 기본으로 막혀 있어 여기서 켠다),
  * 결과 집계에 넣을 점수(본인 / 같은 발표 팀원 / 같은 회사 팀원이 준 점수)를 따로 고를 수 있다.
  */
 class ScoreInclusionTest extends IntegrationTest {
@@ -47,6 +47,9 @@ class ScoreInclusionTest extends IntegrationTest {
         mvc.perform(json(post("/api/v1/projects/{p}/members", room), "{\"userIds\":[\"%s\",\"%s\",\"%s\",\"%s\"]}"
                 .formatted(leader.getId(), mate.getId(), teammate.getId(), outsider.getId())).with(as(owner)))
                 .andExpect(status().isOk());
+        // 본인 평가는 기본으로 막혀 있으므로 켠다
+        mvc.perform(json(put("/api/v1/projects/{p}/settings", room), "{\"min\":0,\"max\":100,\"allowSelf\":true}").with(as(owner)))
+                .andExpect(status().isOk());
         pres = fixtures.teamPresentation(room, leader, List.of(), List.of(mate));
         rate(leader, 100);    // 본인
         rate(mate, 90);       // 같은 발표 팀원
@@ -64,7 +67,7 @@ class ScoreInclusionTest extends IntegrationTest {
     }
 
     @Test
-    void 새_평가룸은_본인_같은_팀_같은_발표_팀원_평가가_기본으로_허용되고_모든_점수가_집계에_들어간다() throws Exception {
+    void 새_평가룸은_같은_팀_같은_발표_팀원_평가가_기본으로_허용되고_모든_점수가_집계에_들어간다() throws Exception {
         mvc.perform(get("/api/v1/state").with(as(owner)))
                 .andExpect(jsonPath("$.projects[0].settings.allowSelf").value(true))
                 .andExpect(jsonPath("$.projects[0].settings.allowSameTeam").value(true))

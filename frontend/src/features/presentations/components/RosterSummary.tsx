@@ -5,7 +5,7 @@ import { Icon, type IconName } from '../../../shared/icons/Icon';
 import type { ID } from '../../../shared/lib/types';
 import { Chip, IconText, Popup, run, toast } from '../../../shared/ui';
 import { teamName, teamPath, userName, userOf } from '../../organization';
-import { groupByTeam, members, sortByTeamStructure, type Membership, type Project } from '../../projects';
+import { groupByTeam, members, membership, sortByTeamStructure, type Membership, type Project } from '../../projects';
 import { mutate, useSession } from '../../session';
 import { requestPresentations } from '../api/presentations.api';
 import { presentationOfUser, presenterRoster, presTypeText } from '../model/crew';
@@ -53,7 +53,8 @@ export function RosterSummary({ project }: { project: Project }) {
 function RosterPopup({ project, kind, list, onClose }: { project: Project; kind: Kind; list: Membership[]; onClose: () => void }) {
   const { db, me } = useSession();
   const meta = KINDS.find(k => k.key === kind)!;
-  const selectable = kind === 'todo' && project.status === 'OPEN';
+  // 발표 등록 요청은 룸 관리자만 보낸다 (설정을 켜면 참여자도 목록은 볼 수 있다)
+  const selectable = kind === 'todo' && project.status === 'OPEN' && !!membership(db, project.id, me!.id)?.isAdmin;
   // 미등록 목록: 나(룸 관리자)는 고를 수 없다
   const candidates = list.filter(m => m.userId !== me!.id);
   const [picked, setPicked] = useState<Set<ID>>(new Set());

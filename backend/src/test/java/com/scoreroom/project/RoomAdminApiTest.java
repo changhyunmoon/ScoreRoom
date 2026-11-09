@@ -114,7 +114,7 @@ class RoomAdminApiTest extends IntegrationTest {
         UUID pres = fixtures.teamPresentation(room, leader, List.of(presenter), List.of());
         rate(owner, pres, presenter, 80);
 
-        // 기본은 켜짐: 참여자도 사람별 인원 수를 받지만 평균 점수는 받지 않는다
+        // 켜져 있으면 (테스트 평가룸은 켜 둠) 참여자도 사람별 인원 수를 받지만 평균 점수는 받지 않는다
         mvc.perform(get("/api/v1/state").with(as(member)))
                 .andExpect(jsonPath("$.projects[0].settings.showRatingStatus").value(true))
                 .andExpect(jsonPath("$.summaries[?(@.targetId == '" + presenter.getId() + "')].scored").value(1))
@@ -133,6 +133,20 @@ class RoomAdminApiTest extends IntegrationTest {
         mvc.perform(json(put("/api/v1/projects/{p}/settings", room), "{\"min\":0,\"max\":100,\"allowEdit\":false}")
                 .with(as(owner))).andExpect(status().isOk());
         assertThat(jdbc.queryForObject("select show_rating_status from projects where id = ?", Boolean.class, room)).isFalse();
+    }
+
+    @Test
+    void 참여자_발표_등록_인원_표시는_기본으로_꺼져_있고_룸_관리자가_켤_수_있다() throws Exception {
+        mvc.perform(get("/api/v1/state").with(as(member)))
+                .andExpect(jsonPath("$.projects[0].settings.showRosterSummary").value(false));
+        mvc.perform(json(put("/api/v1/projects/{p}/settings", room), "{\"min\":0,\"max\":100,\"showRosterSummary\":true}")
+                .with(as(owner))).andExpect(status().isOk());
+        mvc.perform(get("/api/v1/state").with(as(member)))
+                .andExpect(jsonPath("$.projects[0].settings.showRosterSummary").value(true));
+        // 다른 설정만 바꿀 때 값을 보내지 않으면 그대로 유지한다
+        mvc.perform(json(put("/api/v1/projects/{p}/settings", room), "{\"min\":0,\"max\":100,\"allowEdit\":false}")
+                .with(as(owner))).andExpect(status().isOk());
+        assertThat(jdbc.queryForObject("select show_roster_summary from projects where id = ?", Boolean.class, room)).isTrue();
     }
 
     @Test

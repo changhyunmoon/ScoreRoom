@@ -50,8 +50,15 @@ class RoomAdminRoleTest extends IntegrationTest {
     }
 
     @Test
-    void 새_평가룸은_기본으로_관리자가_평가하지_않는다() {
-        assertThat(ProjectSettings.defaults().allowAdminRating()).isFalse();
+    void 새_평가룸_기본_평가_규칙() {
+        ProjectSettings d = ProjectSettings.defaults();
+        assertThat(d.allowSelf()).isFalse();
+        assertThat(d.allowSameTeam()).isTrue();
+        assertThat(d.allowSameCrew()).isTrue();
+        assertThat(d.allowEdit()).isTrue();
+        assertThat(d.allowAdminRating()).isTrue();
+        assertThat(d.showRatingStatus()).isFalse();
+        assertThat(d.showRosterSummary()).isFalse();
     }
 
     @Test

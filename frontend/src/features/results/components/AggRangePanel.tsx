@@ -38,8 +38,8 @@ export const aggChanged = (a: Project['settings'], b: Project['settings']) =>
 // '누가 준 점수인지'로 이름을 붙인다 (발표자와 가까운 사람 → 먼 사람 순)
 const INCLUDE: { key: 'countSelf' | 'countSameCrew' | 'countSameTeam' | 'countAdmin'; label: string; hint: string }[] = [
   { key: 'countSelf', label: '발표자 본인이 준 점수', hint: '발표자가 자기 자신에게 준 점수' },
-  { key: 'countSameCrew', label: '같은 발표 팀원이 준 점수', hint: '팀 발표에서 함께 발표한 사람끼리 준 점수' },
   { key: 'countSameTeam', label: '같은 회사 팀원이 준 점수', hint: '발표자와 같은 회사 팀인 사람이 준 점수' },
+  { key: 'countSameCrew', label: '같은 발표 팀원이 준 점수', hint: '팀 발표에서 함께 발표한 사람끼리 준 점수' },
   { key: 'countAdmin', label: '룸 관리자가 준 점수', hint: '이 평가룸의 룸 관리자가 발표자에게 준 점수' },
 ];
 

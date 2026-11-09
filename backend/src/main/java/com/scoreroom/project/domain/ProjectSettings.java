@@ -12,6 +12,7 @@ import com.scoreroom.common.error.ApiException;
  * - countSelf / countSameCrew / countSameTeam: 본인 점수 / 같은 발표 팀원이 준 점수 / 같은 회사 팀원이 준 점수를 집계(평균·순위)에 넣을지
  * - countAdmin: 룸 관리자가 준 점수를 집계(평균·순위)에 넣을지
  * - allowAdminRating: 룸 관리자도 평가할지. 끄면 관리자는 평가자에서 빠진다 (관리자는 어떤 경우에도 발표하지 않는다)
+ * - showRosterSummary: 발표 화면 위쪽 참여자·발표 등록·발표 미등록 인원을 일반 참여자에게도 보여 줌. 룸 관리자는 항상 본다
  */
 public record ProjectSettings(
         int min,
@@ -27,10 +28,12 @@ public record ProjectSettings(
         boolean countSameCrew,
         boolean countSameTeam,
         boolean allowAdminRating,
-        boolean countAdmin) {
+        boolean countAdmin,
+        boolean showRosterSummary) {
 
+    /** 새 평가룸: 본인 평가만 막고, 같은 회사 팀·같은 발표 팀원 평가, 점수 수정, 룸 관리자 평가는 허용. 발표 화면 표시(평가 현황·발표 등록 인원)는 참여자에게 숨김 */
     public static ProjectSettings defaults() {
-        return new ProjectSettings(0, 100, null, null, true, true, true, true, true, true, true, true, false, true);
+        return new ProjectSettings(0, 100, null, null, false, true, true, true, false, true, true, true, true, true, false);
     }
 
     public boolean hasAggregationRange() {
@@ -44,7 +47,7 @@ public record ProjectSettings(
 
     public ProjectSettings withoutAggregation() {
         return new ProjectSettings(min, max, null, null, allowSelf, allowSameTeam, allowSameCrew, allowEdit, showRatingStatus,
-                countSelf, countSameCrew, countSameTeam, allowAdminRating, countAdmin);
+                countSelf, countSameCrew, countSameTeam, allowAdminRating, countAdmin, showRosterSummary);
     }
 
     /** 화면(validateSettings)과 같은 순서로 검사한다 */

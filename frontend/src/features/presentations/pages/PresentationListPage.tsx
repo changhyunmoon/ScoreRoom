@@ -236,18 +236,20 @@ export default function PresentationListPage() {
           </div>
           <div className="widget rules">
             <Rule icon="star" label="점수 범위" value={`${s.min} ~ ${s.max}점`} />
-            <Rule icon="pencil" label="제출 후 수정" value={s.allowEdit ? '가능' : '불가'} tone={s.allowEdit ? 'ok' : 'no'} />
+            {/* 설정 화면의 평가 규칙과 같은 순서 */}
             <Rule icon="user" label="본인 평가" value={s.allowSelf ? '가능' : '불가'} tone={s.allowSelf ? 'ok' : 'no'} />
+            <Rule icon="users" label="같은 회사 팀 평가" value={s.allowSameTeam ? '가능' : '불가'} tone={s.allowSameTeam ? 'ok' : 'no'} />
             <Rule icon="mic" label="같은 발표 팀원 평가" value={s.allowSameCrew ? '가능' : '불가'} tone={s.allowSameCrew ? 'ok' : 'no'} />
-            <Rule icon="users" label="같은 팀 평가" value={s.allowSameTeam ? '가능' : '불가'} tone={s.allowSameTeam ? 'ok' : 'no'} />
+            <Rule icon="pencil" label="제출 후 수정" value={s.allowEdit ? '가능' : '불가'} tone={s.allowEdit ? 'ok' : 'no'} />
             <Rule icon="shield" label="관리자 평가" value={s.allowAdminRating ? '함' : '안 함'} tone={s.allowAdminRating ? 'ok' : 'no'} />
             <Rule icon="building" label="내 팀" value={m?.teamNameAtJoin ?? teamName(db, m?.teamIdAtJoin ?? null)} />
           </div>
         </div>
       )}
 
-      {/* 룸 관리자: 참여자 · 발표 등록 · 발표 미등록 인원 (누르면 목록 팝업, 미등록자에게 발표 등록 요청) */}
-      {m?.isAdmin && f === 'all' && <RosterSummary project={project} />}
+      {/* 참여자 · 발표 등록 · 발표 미등록 인원 (누르면 목록 팝업). 룸 관리자(와 전체 열람)는 항상, 참여자는 설정이 켜져 있을 때.
+          미등록자에게 발표 등록 요청은 룸 관리자만 */}
+      {(m?.isAdmin || viewer || s.showRosterSummary) && f === 'all' && <RosterSummary project={project} />}
 
       <div className="board-tools">
         <span className="muted small">발표 등록</span>
