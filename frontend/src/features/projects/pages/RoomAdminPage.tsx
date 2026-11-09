@@ -1,10 +1,10 @@
-// 룸 운영: 요약과 탭 (발표 관리 / 초대·입장 코드 / 참여자 / 설정). 탭은 ?tab= 으로 주소에 남는다
+// 룸 운영: 탭(초대·입장 코드 / 참여자 / 발표 관리 / 설정)과 탭마다 맞는 위쪽 요약. 탭은 ?tab= 으로 주소에 남는다
 import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom';
 import { useNow } from '../../../shared/hooks/useNow';
 import { Icon, type IconName } from '../../../shared/icons/Icon';
 import { mmss, timeText } from '../../../shared/lib/format';
 import { BoardHead, Empty } from '../../../shared/ui';
-import { presentationsOf } from '../../presentations';
+import { presentationOfUser, presentationsOf, presenterRoster } from '../../presentations';
 import { useSession } from '../../session';
 import { InviteTab, inviteState } from '../components/admin/InviteTab';
 import { MembersTab } from '../components/admin/MembersTab';
@@ -14,6 +14,8 @@ import { ProjectShell, RoomNotFound } from '../components/ProjectShell';
 import { members, membership } from '../model/access';
 
 type Tab = 'run' | 'invite' | 'members' | 'settings';
+/** 위쪽 요약 한 칸 */
+type Ov = { icon: IconName; label: string; value: string; tone?: 'ok' | 'off' };
 const TABS: { key: Tab; label: string; icon: IconName }[] = [
   { key: 'invite', label: '초대·입장 코드', icon: 'ticket' },
   { key: 'members', label: '참여자', icon: 'users' },
@@ -35,12 +37,52 @@ export default function RoomAdminPage() {
   const m = membership(db, project.id, me.id);
   if (!m?.isAdmin) return <Empty icon="lock">룸 관리자만 볼 수 있는 화면이에요. <Link to={`/p/${project.id}`}>참여자 화면으로</Link></Empty>;
 
-  const list = presentationsOf(db, project.id);
-  const sums = db.summaries.filter(x => list.some(p => p.id === x.presentationId));
-  const scored = sums.reduce((a, x) => a + x.scored, 0);
-  const eligible = sums.reduce((a, x) => a + x.eligible, 0);
-  const inv = inviteState(project, now);
   const active = TABS.find(t => t.key === tab)!;
+  const all = members(db, project.id);
+  const admins = all.filter(x => x.isAdmin).length;
+
+  // 위쪽 요약은 탭마다 그 화면에 필요한 정보만 보여 준다
+  const overview = (): Ov[] => {
+    if (tab === 'invite') {
+      const inv = inviteState(project, now);
+      const code = project.invite;
+      return [
+        { icon: 'ticket', label: '입장 코드', value: inv === 'ACTIVE' ? '사용 중' : inv === 'REVOKED' ? '중지됨' : inv === 'EXPIRED' ? '만료됨' : '없음', tone: inv === 'ACTIVE' ? 'ok' : 'off' },
+        { icon: 'clock', label: '남은 시간', value: inv !== 'ACTIVE' ? '-' : code!.expiresAt === null ? '무제한' : mmss(code!.expiresAt - now), tone: inv === 'ACTIVE' ? undefined : 'off' },
+        { icon: 'ticket', label: '코드 발급', value: code ? timeText(code.issuedAt) : '-', tone: code ? undefined : 'off' },
+        { icon: 'users', label: '참여자', value: `${all.length}명` },
+      ];
+    }
+    if (tab === 'members') {
+      const teams = new Set(all.map(x => x.teamIdAtJoin).filter(t => t !== null)).size;
+      return [
+        { icon: 'users', label: '전체 참여자', value: `${all.length}명` },
+        { icon: 'shield', label: '룸 관리자', value: `${admins}명` },
+        { icon: 'user', label: '일반 참여자', value: `${all.length - admins}명` },
+        { icon: 'building', label: '소속 팀', value: `${teams}개` },
+      ];
+    }
+    if (tab === 'run') {
+      const list = presentationsOf(db, project.id);
+      const sums = db.summaries.filter(x => list.some(p => p.id === x.presentationId));
+      const roster = presenterRoster(db, project.id, all);
+      const registered = roster.filter(x => presentationOfUser(db, project.id, x.userId)).length;
+      return [
+        { icon: 'mic', label: '발표', value: `${list.length}개` },
+        { icon: 'checkCircle', label: '발표 등록', value: `${registered} / ${roster.length}명` },
+        { icon: 'check', label: '평가 제출', value: `${sums.reduce((a, x) => a + x.scored, 0)} / ${sums.reduce((a, x) => a + x.eligible, 0)}` },
+        { icon: 'paperclip', label: '자료 올린 발표', value: `${list.filter(p => p.attachments.length > 0).length}개` },
+      ];
+    }
+    const s = project.settings;
+    const closed = project.status === 'CLOSED';
+    return [
+      { icon: 'flag', label: '평가룸 상태', value: closed ? '마감' : '진행 중', tone: closed ? 'off' : 'ok' },
+      { icon: 'star', label: '점수 입력 범위', value: `${s.min} ~ ${s.max}점` },
+      { icon: 'sliders', label: '집계 기준', value: s.aggMin !== null && s.aggMax !== null ? `${s.aggMin} ~ ${s.aggMax}점` : '사용 안 함', tone: s.aggMin !== null ? undefined : 'off' },
+      { icon: 'check', label: '제출된 평가', value: `${db.ratings.filter(r => r.projectId === project.id).length}건` },
+    ];
+  };
 
   return (
     <ProjectShell project={project} current={`admin-${tab}`}>
@@ -49,11 +91,12 @@ export default function RoomAdminPage() {
       {project.status === 'CLOSED' && <div className="notice"><Icon name="flag" size={16} />{project.closedAt && timeText(project.closedAt)}에 마감된 평가룸이에요.</div>}
 
       <div className="overview">
-        <div className="ov"><span className="ov-label"><Icon name="mic" size={14} />발표</span><b className="ov-value">{list.length}개</b></div>
-        <div className="ov"><span className="ov-label"><Icon name="check" size={14} />평가 제출</span><b className="ov-value">{scored} / {eligible}</b></div>
-        <div className="ov"><span className="ov-label"><Icon name="users" size={14} />참여자</span><b className="ov-value">{members(db, project.id).length}명</b></div>
-        <div className="ov"><span className="ov-label"><Icon name="ticket" size={14} />입장 코드</span>
-          <b className={`ov-value ${inv === 'ACTIVE' ? 'ok' : 'off'}`}>{inv === 'ACTIVE' ? (project.invite!.expiresAt === null ? '사용 중 · 무제한' : `사용 중 ${mmss(project.invite!.expiresAt - now)}`) : inv === 'REVOKED' ? '중지됨' : inv === 'EXPIRED' ? '만료됨' : '없음'}</b></div>
+        {overview().map(o => (
+          <div key={o.label} className="ov">
+            <span className="ov-label"><Icon name={o.icon} size={14} />{o.label}</span>
+            <b className={`ov-value ${o.tone ?? ''}`}>{o.value}</b>
+          </div>
+        ))}
       </div>
 
       {tab === 'run' && <RunTab project={project} />}

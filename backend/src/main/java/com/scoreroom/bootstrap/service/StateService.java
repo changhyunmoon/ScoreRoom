@@ -153,10 +153,11 @@ public class StateService {
     }
 
     /** 내 알림 (최근 50건). 지금 참여 중인 평가룸에 대한 것만 보여 준다 */
-    /** 점수(평균·범위 안 제출) 정보를 지운 집계 */
-    private static SummaryResponse countsOnly(SummaryResponse s) {
+    /** 점수(평균·범위 안 제출) 정보를 지운 집계. 사람 목록은 룸 관리자가 참여자에게 보이도록 켰을 때만 남긴다 */
+    private static SummaryResponse countsOnly(SummaryResponse s, boolean withNames) {
         return new SummaryResponse(s.presentationId(), s.targetId(), s.total(), s.blocked(), s.eligible(), s.scored(),
-                s.notRated(), null, 0, null);
+                s.notRated(), null, 0, null, withNames ? s.scoredIds() : null, withNames ? s.blockedIds() : null,
+                withNames ? s.notRatedIds() : null);
     }
 
     private List<NotificationResponse> myNotifications(UUID meId, Set<UUID> memberOf, List<Project> visibleProjects,
@@ -177,7 +178,7 @@ public class StateService {
 
     /**
      * 사람별 집계. summaryOf(룸 관리자·전체 열람)는 점수까지, countsOnly(평가 현황을 켠 평가룸의 참여자)는
-     * 전체·평가함·평가 불가·미평가 인원만 보낸다.
+     * 전체·평가함·평가 불가·미평가 인원만 보낸다 (사람 목록은 설정을 켰을 때만).
      */
     private static List<SummaryResponse> summaries(List<Project> visibleProjects, Set<UUID> summaryOf, Set<UUID> countsOnly,
             List<Membership> roomMembers, List<Presentation> roomPresentations,
@@ -193,7 +194,8 @@ public class StateService {
                             roomMembers.stream().filter(m -> m.getProjectId().equals(pid)).toList(), crewRows);
                     List<Rating> roomRatings = scopedRatings.stream().filter(r -> r.getProjectId().equals(pid)).toList();
                     var stream = SummaryCalculator.summarize(project.settings(), roster, list, crews, roomRatings).stream();
-                    return summaryOf.contains(pid) ? stream : stream.map(StateService::countsOnly);
+                    boolean withNames = project.settings().showRatingStatusNames();
+                    return summaryOf.contains(pid) ? stream : stream.map(s -> countsOnly(s, withNames));
                 })
                 .toList();
     }

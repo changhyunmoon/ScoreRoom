@@ -24,6 +24,7 @@ public record UpdateSettingsRequest(
         Boolean allowAdminRating,
         Boolean countAdmin,
         Boolean showRosterSummary,
+        Boolean showRatingStatusNames,
         Long expectedVersion) {
 
     public ProjectSettings toSettings(ProjectSettings current) {
@@ -38,6 +39,7 @@ public record UpdateSettingsRequest(
                 countSameTeam != null ? countSameTeam : current.countSameTeam(),
                 allowAdminRating != null ? allowAdminRating : current.allowAdminRating(),
                 countAdmin != null ? countAdmin : current.countAdmin(),
-                showRosterSummary != null ? showRosterSummary : current.showRosterSummary());
+                showRosterSummary != null ? showRosterSummary : current.showRosterSummary(),
+                showRatingStatusNames != null ? showRatingStatusNames : current.showRatingStatusNames());
     }
 }

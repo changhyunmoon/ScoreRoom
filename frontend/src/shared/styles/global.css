@@ -1341,6 +1341,14 @@ textarea.invalid { border-color: var(--red); }
 .roster-value small { margin-left: 2px; font-size: 13px; font-weight: 600; color: var(--muted); }
 .roster-value-row { display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px 8px; }
 .roster-split { font-size: 12px; color: var(--muted); }
+/* 평가 현황 숫자: 사람 목록을 볼 수 있으면 눌러서 팝업을 연다 */
+.c-stats .st.clickable { cursor: pointer; border-radius: 6px; }
+.c-stats .st.clickable b { text-decoration: underline; text-decoration-color: #c9ced8; text-underline-offset: 3px; }
+.c-stats .st.clickable:hover { background: var(--navy-soft); }
+.c-stats .st.clickable:focus-visible { outline: 2px solid var(--navy); outline-offset: 1px; }
+.stat-tabs { align-self: flex-start; flex-wrap: wrap; }
+/* 상위 설정이 켜져 있을 때만 쓰는 하위 설정 */
+.toggle-sub { margin-left: 18px; padding-left: 12px; border-left: 2px solid var(--line); }
 .roster-card.ok .roster-value { color: var(--green); }
 .roster-card.warn .roster-value { color: var(--amber); }
 .roster-more { display: inline-flex; align-items: center; gap: 2px; font-size: 12px; color: var(--muted); }

@@ -1,5 +1,6 @@
 package com.scoreroom.result.dto;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -9,6 +10,7 @@ import java.util.UUID;
  * avg: 전체 평균 (제출이 없으면 null), inCount/inAvg: 집계 기준 범위 안의 제출 수/평균 (범위를 안 쓰면 0/null,
  * 점수는 있는데 모두 범위 밖이면 평균 0).
  * 미제출과 평가 불가는 0점으로 넣지 않는다. 반올림은 화면에서 한다.
+ * scoredIds / blockedIds / notRatedIds: 평가함 / 평가 불가 / 미평가 인원이 누구인지 (평가자 순서). 사람 목록을 볼 수 없는 사람에게는 null로 보낸다.
  */
 public record SummaryResponse(
         UUID presentationId,
@@ -20,5 +22,8 @@ public record SummaryResponse(
         int notRated,
         Double avg,
         int inCount,
-        Double inAvg) {
+        Double inAvg,
+        List<UUID> scoredIds,
+        List<UUID> blockedIds,
+        List<UUID> notRatedIds) {
 }

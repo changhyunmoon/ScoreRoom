@@ -21,6 +21,8 @@ export interface Settings {
   countAdmin: boolean;
   /** 발표 화면 위쪽 참여자·발표 등록·발표 미등록 인원을 일반 참여자에게도 보여 줄지 (기본: 숨김). 룸 관리자는 항상 본다 */
   showRosterSummary: boolean;
+  /** 평가 현황 숫자를 누르면 해당하는 사람 목록을 일반 참여자에게도 보여 줄지 (기본: 숨김). showRatingStatus가 켜져 있을 때만 쓴다. 룸 관리자는 항상 본다 */
+  showRatingStatusNames: boolean;
 }
 
 /** 입장 코드. expiresAt이 null이면 기간 무제한 (중지할 때까지 유효) */

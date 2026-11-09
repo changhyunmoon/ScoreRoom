@@ -136,6 +136,28 @@ class RoomAdminApiTest extends IntegrationTest {
     }
 
     @Test
+    void 평가_현황_사람_목록은_룸_관리자는_항상_받고_참여자는_설정을_켰을_때만_받는다() throws Exception {
+        UUID pres = fixtures.teamPresentation(room, leader, List.of(presenter), List.of());
+        rate(owner, pres, presenter, 80);
+        String row = "$.summaries[?(@.targetId == '" + presenter.getId() + "')].";
+
+        // 룸 관리자: 누가 평가했는지 받는다
+        mvc.perform(get("/api/v1/state").with(as(owner)))
+                .andExpect(jsonPath(row + "scoredIds[*]").value(org.hamcrest.Matchers.contains(owner.getId().toString())));
+        // 참여자: 기본은 인원 수만 받고 사람 목록은 받지 않는다
+        mvc.perform(get("/api/v1/state").with(as(member)))
+                .andExpect(jsonPath("$.projects[0].settings.showRatingStatusNames").value(false))
+                .andExpect(jsonPath(row + "scored").value(1))
+                .andExpect(jsonPath(row + "scoredIds[*]").isEmpty());
+
+        mvc.perform(json(put("/api/v1/projects/{p}/settings", room), "{\"min\":0,\"max\":100,\"showRatingStatusNames\":true}")
+                .with(as(owner))).andExpect(status().isOk());
+        mvc.perform(get("/api/v1/state").with(as(member)))
+                .andExpect(jsonPath(row + "scoredIds[*]").value(org.hamcrest.Matchers.contains(owner.getId().toString())))
+                .andExpect(jsonPath(row + "avg").value(org.hamcrest.Matchers.contains((Object) null)));
+    }
+
+    @Test
     void 참여자_발표_등록_인원_표시는_기본으로_꺼져_있고_룸_관리자가_켤_수_있다() throws Exception {
         mvc.perform(get("/api/v1/state").with(as(member)))
                 .andExpect(jsonPath("$.projects[0].settings.showRosterSummary").value(false));

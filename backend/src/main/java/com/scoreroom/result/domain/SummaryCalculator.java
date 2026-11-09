@@ -40,18 +40,20 @@ public final class SummaryCalculator {
                 List<Rating> received = byTarget.getOrDefault(key(p.getId(), targetId), List.of()).stream()
                         .filter(r -> raterIds.contains(r.getRaterId())).toList();
                 Set<UUID> raters = received.stream().map(Rating::getRaterId).collect(Collectors.toSet());
-                int blocked = 0;
-                int notRated = 0;
+                List<UUID> scoredIds = new ArrayList<>();
+                List<UUID> blockedIds = new ArrayList<>();
+                List<UUID> notRatedIds = new ArrayList<>();
                 for (Membership m : members) {
                     if (raters.contains(m.getUserId())) {
-                        continue;
-                    }
-                    if (roster.check(settings, p.getId(), m.getUserId(), targetId).isPresent()) {
-                        blocked++;
+                        scoredIds.add(m.getUserId());
+                    } else if (roster.check(settings, p.getId(), m.getUserId(), targetId).isPresent()) {
+                        blockedIds.add(m.getUserId());
                     } else {
-                        notRated++;
+                        notRatedIds.add(m.getUserId());
                     }
                 }
+                int blocked = blockedIds.size();
+                int notRated = notRatedIds.size();
                 // 평균·순위에는 집계에 넣기로 한 점수만 쓴다 (평가함 인원은 제출한 사람 모두)
                 List<Integer> scores = received.stream()
                         .filter(r -> roster.counts(settings, p.getId(), r.getRaterId(), targetId))
@@ -60,7 +62,8 @@ public final class SummaryCalculator {
                         ? scores.stream().filter(s -> s >= settings.aggMin() && s <= settings.aggMax()).toList()
                         : List.of();
                 rows.add(new SummaryResponse(p.getId(), targetId, members.size(), blocked, members.size() - blocked,
-                        received.size(), notRated, average(scores), inRange.size(), inRangeAverage(settings, scores, inRange)));
+                        received.size(), notRated, average(scores), inRange.size(), inRangeAverage(settings, scores, inRange),
+                        scoredIds, blockedIds, notRatedIds));
             }
         }
         return rows;

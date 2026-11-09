@@ -24,6 +24,7 @@ export function SettingsTab({ project }: { project: Project }) {
   const [f, setF] = useState({
     min: String(s.min), max: String(s.max), allowSelf: s.allowSelf, allowSameTeam: s.allowSameTeam, allowSameCrew: s.allowSameCrew, allowEdit: s.allowEdit,
     showRatingStatus: s.showRatingStatus, allowAdminRating: s.allowAdminRating, showRosterSummary: s.showRosterSummary,
+    showRatingStatusNames: s.showRatingStatusNames,
   });
   const open = project.status === 'OPEN';
   // 점수 입력 범위를 바꾸면 기존 평가가 모두 지워지고 집계 기준도 '사용 안 함'으로 초기화된다
@@ -37,6 +38,7 @@ export function SettingsTab({ project }: { project: Project }) {
     countSelf: s.countSelf, countSameCrew: s.countSameCrew, countSameTeam: s.countSameTeam,
     allowAdminRating: f.allowAdminRating, countAdmin: s.countAdmin,
     showRosterSummary: f.showRosterSummary,
+    showRatingStatusNames: f.showRatingStatusNames,
   };
   const blank = [f.min, f.max].some(v => v.trim() === '');
   const err = blank ? '빈 값이 있습니다.' : validateSettings(next);
@@ -86,6 +88,13 @@ export function SettingsTab({ project }: { project: Project }) {
           title="참여자에게 발표 등록 인원 보이기" desc="발표 화면 위쪽의 참여자·발표 등록·발표 미등록 인원과 그 목록을 보여 줘요. 끄면 룸 관리자만 볼 수 있어요. 발표 등록 요청은 켜도 룸 관리자만 보낼 수 있어요." />
         <Toggle disabled={!open} checked={f.showRatingStatus} onChange={v => setF({ ...f, showRatingStatus: v })}
           title="참여자에게 평가 현황 보이기" desc="발표 목록의 각 사람 왼쪽에 전체·평가함·평가 불가·미평가 인원을 보여 줘요. 끄면 룸 관리자만 볼 수 있어요. 평균 점수는 켜도 참여자에게 보이지 않아요." />
+        {/* 평가 현황을 보여 줄 때만 고를 수 있다 */}
+        <div className="toggle-sub">
+          <Toggle disabled={!open || !f.showRatingStatus} checked={f.showRatingStatusNames} onChange={v => setF({ ...f, showRatingStatusNames: v })}
+            title="평가 현황 사람 목록도 보이기" desc={f.showRatingStatus
+              ? '참여자도 평가 현황 숫자를 누르면 평가함·평가 불가·미평가인 사람이 누구인지 볼 수 있어요. 점수는 보이지 않아요. 룸 관리자는 항상 볼 수 있어요.'
+              : '참여자에게 평가 현황 보이기를 켜야 고를 수 있어요.'} />
+        </div>
       </section>
 
       {open && (

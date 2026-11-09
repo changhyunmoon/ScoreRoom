@@ -12,6 +12,7 @@ import type { Summary } from '../../results';
 import { mutate, useSession } from '../../session';
 import { deletePresentation } from '../api/presentations.api';
 import { PresInfo } from '../components/PresInfo';
+import { hasNames, RatingStatusPopup, type StatKind } from '../components/RatingStatusPopup';
 import { RosterSummary } from '../components/RosterSummary';
 import { canEditPresentation, involvedIds, presentationOfUser, presenterRoster, presTypeText } from '../model/crew';
 import type { Presentation } from '../model/types';
@@ -75,14 +76,27 @@ export function DeletePresentation({ project, pres, isAdmin, size = 'sm' }: { pr
  * 이 사람에 대한 평가 현황: 전체 참여자 / 평가함 / 평가 불가 / 미평가 인원.
  * 서버 집계(summaries)를 쓴다. 발표 등록 전이면 아직 평가 대상이 아니라 '-'로 둔다.
  */
-function PersonStats({ summary }: { summary: Summary | undefined }) {
+function PersonStats({ summary, onOpen }: { summary: Summary | undefined; onOpen: (k: StatKind) => void }) {
   const n = (v: number | undefined) => (v === undefined ? '-' : v);
+  // 사람 목록을 받은 경우(룸 관리자, 또는 설정이 켜진 참여자)에만 숫자를 눌러 목록을 연다.
+  // 줄 전체가 버튼이라 안에 버튼을 둘 수 없어 role="button"으로 두고, 줄이 펼쳐지지 않게 막는다
+  const open = hasNames(summary);
+  const cell = (k: StatKind, cls: string, title: string, label: string, v: number | undefined) => (
+    <span className={`st ${cls} ${open ? 'clickable' : ''}`} title={open ? `${title} 목록 보기` : title}
+      {...(open ? {
+        role: 'button', tabIndex: 0,
+        onClick: (e: React.MouseEvent) => { e.stopPropagation(); onOpen(k); },
+        onKeyDown: (e: React.KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); onOpen(k); } },
+      } : {})}>
+      <b>{n(v)}</b><i>{label}</i>
+    </span>
+  );
   return (
     <span className={`c-stats ${summary ? '' : 'no-stats'}`}>
-      <span className="st" title="전체 참여자"><b>{n(summary?.total)}</b><i>전체</i></span>
-      <span className="st ok" title="평가함"><b>{n(summary?.scored)}</b><i>평가</i></span>
-      <span className="st off" title="평가 불가"><b>{n(summary?.blocked)}</b><i>불가</i></span>
-      <span className="st red" title="미평가"><b>{n(summary?.notRated)}</b><i>미평가</i></span>
+      {cell('all', '', '전체 참여자', '전체', summary?.total)}
+      {cell('scored', 'ok', '평가함', '평가', summary?.scored)}
+      {cell('blocked', 'off', '평가 불가', '불가', summary?.blocked)}
+      {cell('notRated', 'red', '미평가', '미평가', summary?.notRated)}
     </span>
   );
 }
@@ -100,8 +114,13 @@ function PersonRow({ project, member, no, pres, open, onToggle, viewer, showStat
   const s = pres && !viewer ? personStatus(db, project, pres, me!.id, uid) : null;
   const canEdit = !!pres && !viewer && project.status === 'OPEN' && canEditPresentation(pres, me!.id, !!m?.isAdmin);
   const reg = pres ? <Chip tone="green" icon="checkCircle">발표 등록 완료</Chip> : <Chip icon="clock">발표 등록 전</Chip>;
+  const summary = pres ? db.summaries.find(x => x.presentationId === pres.id && x.targetId === uid) : undefined;
+  const [statKind, setStatKind] = useState<StatKind | null>(null);
   return (
     <div className={`brow-wrap ${open ? 'open' : ''}`}>
+      {statKind && pres && summary && (
+        <RatingStatusPopup project={project} pres={pres} targetId={uid} summary={summary} initial={statKind} onClose={() => setStatKind(null)} />
+      )}
       <button className={`brow ${s === 'TODO' ? 'unread' : ''}`} onClick={onToggle} aria-expanded={open}>
         <span className="c-no">{no}</span>
         <span className="c-title">
@@ -116,7 +135,7 @@ function PersonRow({ project, member, no, pres, open, onToggle, viewer, showStat
         <span className="c-who ellipsis" title={pres?.title}>
           {pres ? <>{pres.title}{pres.attachments.length > 0 && <Icon name="paperclip" size={13} className="title-clip" />}</> : <span className="muted">-</span>}
         </span>
-        {showStats && <PersonStats summary={pres ? db.summaries.find(x => x.presentationId === pres.id && x.targetId === uid) : undefined} />}
+        {showStats && <PersonStats summary={summary} onOpen={setStatKind} />}
         <span className="c-status">{reg}</span>
         <span className="c-score">{s ? <b className={RATE_SHORT[s].cls}>{RATE_SHORT[s].text}</b> : <span className="muted">-</span>}</span>
         <span className="c-chev"><Icon name={open ? 'up' : 'down'} size={16} /></span>
@@ -217,7 +236,7 @@ export default function PresentationListPage() {
 
   return (
     <ProjectShell project={project} current={f}>
-      <BoardHead title={meta.title} count={list.length} search={q} onSearch={v => { setQ(v); setLimit(PAGE_SIZE); }} />
+      <BoardHead title={meta.title} search={q} onSearch={v => { setQ(v); setLimit(PAGE_SIZE); }} />
 
       {closed && <div className="notice"><Icon name="flag" size={16} />마감된 평가룸이에요.</div>}
       {viewer && <div className="notice info"><Icon name="eye" size={16} />전체 열람 권한으로 보고 있어요. 평가·발표 등록은 할 수 없어요.</div>}
@@ -271,7 +290,7 @@ export default function PresentationListPage() {
       <div className={`btable team-sorted ${showStats ? 'with-stats' : ''}`}>
         <div className="bhead">
           <span className="c-no">No</span><span className="c-title">이름</span><span className="c-type">유형</span>
-          <span className="c-who">발표</span>
+          <span className="c-who">발표 제목</span>
           {showStats && <span className="c-stats" title="이 사람을 평가한 현황"><span className="st">전체</span><span className="st">평가</span><span className="st">불가</span><span className="st">미평가</span></span>}<span className="c-status">발표 등록</span><span className="c-score">내 평가</span><span className="c-chev" />
         </div>
         {shown.length === 0 && <div className="bempty">{kw ? '검색 결과가 없습니다.' : '해당하는 참여자가 없습니다.'}</div>}

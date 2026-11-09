@@ -7,4 +7,6 @@ import type { ID } from '../../../shared/lib/types';
 export interface Summary {
   presentationId: ID; targetId: ID; total: number; blocked: number; eligible: number; scored: number; notRated: number;
   avg: number | null; inCount: number; inAvg: number | null;
+  /** 평가함·평가 불가·미평가 인원이 누구인지. 사람 목록을 볼 수 없으면(설정이 꺼진 참여자) 서버가 null로 보낸다 */
+  scoredIds?: ID[] | null; blockedIds?: ID[] | null; notRatedIds?: ID[] | null;
 }
