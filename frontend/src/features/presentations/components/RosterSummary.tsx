@@ -20,11 +20,14 @@ const KINDS: { key: Kind; label: string; icon: IconName; tone: string }[] = [
 export function RosterSummary({ project }: { project: Project }) {
   const { db } = useSession();
   const [popup, setPopup] = useState<Kind | null>(null);
-  // 룸 관리자는 발표하지 않으므로 인원·요청 대상에서 뺀다
-  const everyone = sortByTeamStructure(db, presenterRoster(db, project.id, members(db, project.id)));
+  // 참여자는 룸 관리자까지 모두 센다 (발표 목록의 '전체'에 평가하는 룸 관리자가 들어가므로 맞춘다).
+  // 발표 등록·미등록은 발표하는 사람만: 룸 관리자는 발표하지 않으므로 인원·요청 대상에서 뺀다
+  const all = sortByTeamStructure(db, members(db, project.id));
+  const everyone = presenterRoster(db, project.id, all);
+  const adminCount = all.filter(m => m.isAdmin).length;
   const isDone = (m: Membership) => !!presentationOfUser(db, project.id, m.userId);
   const lists: Record<Kind, Membership[]> = {
-    all: everyone,
+    all,
     done: everyone.filter(isDone),
     todo: everyone.filter(m => !isDone(m)),
   };
@@ -34,7 +37,10 @@ export function RosterSummary({ project }: { project: Project }) {
         {KINDS.map(k => (
           <button key={k.key} type="button" className={`roster-card ${k.tone}`} onClick={() => setPopup(k.key)}>
             <span className="roster-label"><Icon name={k.icon} size={15} />{k.label}</span>
-            <b className="roster-value">{lists[k.key].length}<small>명</small></b>
+            <span className="roster-value-row">
+              <b className="roster-value">{lists[k.key].length}<small>명</small></b>
+              {k.key === 'all' && <span className="roster-split">룸 관리자 {adminCount}명 · 일반 참여자 {all.length - adminCount}명</span>}
+            </span>
             <span className="roster-more">목록 보기 <Icon name="right" size={13} /></span>
           </button>
         ))}
@@ -111,9 +117,10 @@ function RosterPopup({ project, kind, list, onClose }: { project: Project; kind:
                           {userOf(db, m.userId)?.position && <small className="muted"> {userOf(db, m.userId)!.position}</small>}
                           {isMe && <small className="muted"> (나)</small>}
                         </span>
+                        {m.isAdmin && <Chip tone="violet" icon="shield">룸 관리자</Chip>}
                         {pres
                           ? <span className="roster-pres muted small">{presTypeText[pres.type]} · {pres.title}</span>
-                          : <Chip icon="clock">발표 등록 전</Chip>}
+                          : !m.isAdmin && <Chip icon="clock">발표 등록 전</Chip>}
                       </Row>
                     );
                   })}
