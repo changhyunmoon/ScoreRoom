@@ -13,9 +13,9 @@ export default function FindPasswordPage() {
   const mismatch = f.password2 !== '' && f.password !== f.password2;
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    if (f.password !== f.password2) return toast('새 비밀번호가 일치하지 않습니다.', 'err');
+    if (f.password !== f.password2) return toast('새 비밀번호가 일치하지 않아요.', 'err');
     setBusy(true);
-    const ok = await run(() => resetPassword(f.loginId, f.name, f.phone, f.password), '비밀번호를 바꿨습니다. 새 비밀번호로 로그인해 주세요.');
+    const ok = await run(() => resetPassword(f.loginId, f.name, f.phone, f.password), '비밀번호를 바꿨어요. 새 비밀번호로 로그인해 주세요.');
     setBusy(false);
     if (ok) nav('/login');
   };

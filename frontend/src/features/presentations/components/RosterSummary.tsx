@@ -21,9 +21,9 @@ export function RosterSummary({ project }: { project: Project }) {
   const { db } = useSession();
   const [popup, setPopup] = useState<Kind | null>(null);
   // 참여자는 룸 관리자까지 모두 센다 (발표 목록의 '전체'에 평가하는 룸 관리자가 들어가므로 맞춘다).
-  // 발표 등록·미등록은 발표하는 사람만: 룸 관리자는 발표하지 않으므로 인원·요청 대상에서 뺀다
+  // 발표 등록·미등록은 발표하는 사람만: 룸 관리자 발표를 끈 평가룸이면 관리자는 인원·요청 대상에서 뺀다
   const all = sortByTeamStructure(db, members(db, project.id));
-  const everyone = presenterRoster(db, project.id, all);
+  const everyone = presenterRoster(db, project.id, all, project.settings.allowAdminPresent);
   const adminCount = all.filter(m => m.isAdmin).length;
   const isDone = (m: Membership) => !!presentationOfUser(db, project.id, m.userId);
   const lists: Record<Kind, Membership[]> = {
@@ -91,7 +91,7 @@ function RosterPopup({ project, kind, list, onClose }: { project: Project; kind:
           </button>
         </div>
       ) : undefined}>
-      {selectable && <p className="muted small roster-hint">고른 사람에게 "발표를 등록해 달라"는 알림이 가요. 알림을 누르면 바로 발표 등록 화면으로 이동해요.</p>}
+      {selectable && <p className="muted small roster-hint">고른 사람에게 발표 등록 요청 알림이 가요.</p>}
       {list.length === 0
         ? <p className="muted roster-empty">{kind === 'todo' ? '모두 발표를 등록했어요.' : '해당하는 사람이 없어요.'}</p>
         : (
@@ -121,7 +121,7 @@ function RosterPopup({ project, kind, list, onClose }: { project: Project; kind:
                         {m.isAdmin && <Chip tone="violet" icon="shield">룸 관리자</Chip>}
                         {pres
                           ? <span className="roster-pres muted small">{presTypeText[pres.type]} · {pres.title}</span>
-                          : !m.isAdmin && <Chip icon="clock">발표 등록 전</Chip>}
+                          : (!m.isAdmin || project.settings.allowAdminPresent) && <Chip icon="clock">발표 등록 전</Chip>}
                       </Row>
                     );
                   })}

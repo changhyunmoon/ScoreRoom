@@ -60,13 +60,13 @@ export function clearSession() {
 setUnauthenticatedHandler(() => {
   if (snapshot.status !== 'ready') return;
   clearSession();
-  toast('로그인이 만료되었습니다. 다시 로그인해 주세요.', 'err');
+  toast('로그인이 만료됐어요. 다시 로그인해 주세요.', 'err');
 });
 
 /** 앱 시작 시 한 번 부른다 */
 export function startSession() {
   refresh().catch(e => {
-    if (!(e instanceof ApiError && e.status === 401)) toast('서버에 연결할 수 없습니다. 잠시 후 새로 고침해 주세요.', 'err');
+    if (!(e instanceof ApiError && e.status === 401)) toast('서버에 연결할 수 없어요. 잠시 후 새로 고침해 주세요.', 'err');
     clearSession();
   });
 

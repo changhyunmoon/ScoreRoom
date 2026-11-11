@@ -958,6 +958,7 @@ textarea.invalid { border-color: var(--red); }
 .pres-popup-head > div, .profile-popup-head > div { min-width: 0; overflow-wrap: anywhere; }
 .pres-popup-head h2 { margin-top: 6px; font-size: 19px; word-break: keep-all; }
 .pres-popup-body { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 14px; padding: 18px 22px; overflow-y: auto; }
+.pres-popup-body > * { flex-shrink: 0; } /* 본문이 스크롤되므로 안의 탭·목록이 눌려 찌그러지지 않게 */
 .pres-popup-foot { flex: none; display: flex; flex-wrap: wrap; justify-content: flex-end; padding: 12px 22px; border-top: 1px solid var(--line); background: var(--bg); }
 .pres-popup .info-table { max-width: none; }
 .pres-popup-foot { gap: 8px; }
@@ -1404,3 +1405,39 @@ textarea.invalid { border-color: var(--red); }
 .overview.few { grid-template-columns: repeat(var(--ov-cols), minmax(0, 1fr)); }
 .overview.few .ov:nth-child(n) { border-bottom: 0; border-right: 1px solid var(--line-2); }
 .overview.few .ov:last-child:nth-child(n) { border-right: 0; }
+
+/* 결과 표: 한 줄 = 발표 하나. 제목(누르면 발표 설명) 아래 구성원 이름 */
+.result-pres-title { display: block; max-width: 300px; padding: 0; border: 0; background: none; color: var(--text, inherit); font: inherit; font-weight: 700; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.result-pres-title:hover { color: var(--primary, #2f6fde); text-decoration: underline; }
+.result-crew { display: block; max-width: 300px; margin-top: 2px; color: var(--muted); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.result-crew-type { display: inline-block; margin-right: 5px; padding: 0 5px; border-radius: 4px; background: #eef2f8; color: #1d4f8c; font-size: 11px; font-weight: 600; }
+.score-sheet th.ss-person .result-pres-title, .score-sheet th.ss-person .result-crew { max-width: 130px; margin-left: auto; margin-right: auto; text-align: center; }
+.score-sheet th.ss-person .result-crew { font-weight: 400; font-size: 11.5px; }
+@media (max-width: 720px) { .results .result-pres-title, .results .result-crew { max-width: 136px; } }
+
+/* 발표 화면 · 발표별 보기: 한 줄 = 발표 하나 (No · 발표 제목 · 유형 · 구성원 · 대표 소속 팀 · [평가 현황] · 내 평가) */
+.btable.by-pres > .bhead, .btable.by-pres .brow { grid-template-columns: 56px minmax(0, 1fr) 56px minmax(0, 240px) 130px 80px 36px; }
+.btable.by-pres.with-stats > .bhead, .btable.by-pres.with-stats .brow { grid-template-columns: 56px minmax(0, 1fr) 56px minmax(0, 220px) 120px 168px 80px 36px; }
+.brow.pres-row .c-type { text-align: center; color: var(--text-2); }
+.brow.pres-row .c-crew { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.brow.pres-row .c-crew b { font-weight: 600; }
+.brow.pres-row .c-team { font-size: 12.5px; }
+.board-tools .segmented button { display: inline-flex; align-items: center; gap: 4px; }
+@media (max-width: 1100px) {
+  .btable.by-pres > .bhead, .btable.by-pres .brow { grid-template-columns: 44px minmax(0, 1fr) 48px minmax(0, 180px) 100px 72px 32px; }
+  .btable.by-pres.with-stats > .bhead, .btable.by-pres.with-stats .brow { grid-template-columns: 44px minmax(0, 1fr) 48px minmax(0, 150px) 90px 152px 72px 32px; }
+}
+@media (max-width: 900px) {
+  /* 좁은 화면: 제목 아래 '유형 · 구성원' 한 줄, 오른쪽에 내 평가 */
+  .btable.by-pres .brow.pres-row { grid-template-columns: 34px minmax(0, 1fr) auto 24px; grid-template-areas: "no title score chev"; }
+  .brow.pres-row .c-type, .brow.pres-row .c-crew, .brow.pres-row .c-team, .brow.pres-row .c-stats { display: none; }
+}
+.result-crew-type.personal { background: #f1f2f4; color: #4b5563; }
+
+/* 발표 관리: 등록 시간 열 */
+@media (min-width: 901px) { .btable.admin > .bhead, .arow { grid-template-columns: 112px minmax(0, 1fr) 64px minmax(0, 190px) 140px 72px 72px 120px; } }
+.arow .c-reg, .btable.admin .bhead .c-reg { text-align: center; font-size: 12.5px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.arow .c-no small { font-size: 11px; white-space: nowrap; }
+@media (max-width: 900px) { .arow .c-reg { display: none; } }
+/* 도구 줄: 라벨과 버튼 묶음이 줄바꿈될 때 떨어지지 않게 */
+.tool-group { display: inline-flex; align-items: center; gap: 8px; flex-wrap: nowrap; }

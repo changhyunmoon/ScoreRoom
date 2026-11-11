@@ -34,7 +34,7 @@ class RatingApiTest extends IntegrationTest {
     }
 
     private ResultActions rate(User rater, UUID presentation, User target, String body) throws Exception {
-        return mvc.perform(json(put("/api/v1/projects/{p}/presentations/{pr}/ratings/{t}", room, presentation, target.getId()), body)
+        return mvc.perform(json(put("/api/v1/projects/{p}/presentations/{pr}/rating", room, presentation), body)
                 .with(as(rater)));
     }
 
@@ -48,14 +48,29 @@ class RatingApiTest extends IntegrationTest {
     }
 
     @Test
-    void 본인과_같은_팀은_평가할_수_없다() throws Exception {
+    void 본인_발표와_같은_팀의_발표는_평가할_수_없다() throws Exception {
         UUID mine = fixtures.personal(room, sameTeam);
         rate(sameTeam, mine, sameTeam, "{\"score\":70}")
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("본인은 평가할 수 없습니다."));
+                .andExpect(jsonPath("$.message").value("본인 발표는 평가할 수 없습니다."));
         rate(owner, mine, sameTeam, "{\"score\":70}")
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("같은 회사 팀이라 평가할 수 없습니다."));
+                .andExpect(jsonPath("$.message").value("같은 회사 팀의 발표라 평가할 수 없습니다."));
+    }
+
+    @Test
+    void 팀_발표는_발표_하나에_한_번만_평가하고_팀원은_자기_발표를_평가할_수_없다() throws Exception {
+        User mate = fixtures.user("mate", null);
+        mvc.perform(json(post("/api/v1/projects/{p}/members", room), "{\"userIds\":[\"" + mate.getId() + "\"]}")
+                .with(as(owner))).andExpect(status().isOk());
+        UUID team = fixtures.teamPresentation(room, otherTeam, java.util.List.of(), java.util.List.of(mate));
+        rate(owner, team, otherTeam, "{\"score\":70}").andExpect(status().isNoContent());
+        rate(owner, team, mate, "{\"score\":90}").andExpect(status().isNoContent());
+        assertThat(count("select count(*) from ratings")).isEqualTo(1);
+        assertThat(count("select score from ratings")).isEqualTo(90);
+        rate(mate, team, mate, "{\"score\":100}")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("본인 발표는 평가할 수 없습니다."));
     }
 
     @Test

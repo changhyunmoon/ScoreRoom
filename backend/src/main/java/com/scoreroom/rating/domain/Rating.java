@@ -11,7 +11,7 @@ import jakarta.persistence.Table;
 
 import com.scoreroom.common.persistence.PersistableEntity;
 
-/** 평가자가 발표 구성원 한 명(target)에게 준 점수와 피드백. 수정은 덮어쓰기만 한다 */
+/** 평가자가 발표 하나에 준 점수와 피드백. 팀 발표도 구성원별이 아니라 발표 단위로 한 번 준다. 수정은 덮어쓰기만 한다 */
 @Entity
 @Table(name = "ratings")
 public class Rating extends PersistableEntity<UUID> {
@@ -24,9 +24,6 @@ public class Rating extends PersistableEntity<UUID> {
 
     @Column(name = "presentation_id", nullable = false)
     private UUID presentationId;
-
-    @Column(name = "target_id", nullable = false)
-    private UUID targetId;
 
     @Column(name = "rater_id", nullable = false)
     private UUID raterId;
@@ -42,12 +39,10 @@ public class Rating extends PersistableEntity<UUID> {
     protected Rating() {
     }
 
-    public Rating(UUID projectId, UUID presentationId, UUID targetId, UUID raterId, int score, String feedback,
-            Instant submittedAt) {
+    public Rating(UUID projectId, UUID presentationId, UUID raterId, int score, String feedback, Instant submittedAt) {
         this.id = UUID.randomUUID();
         this.projectId = projectId;
         this.presentationId = presentationId;
-        this.targetId = targetId;
         this.raterId = raterId;
         this.score = score;
         this.feedback = feedback;
@@ -75,10 +70,6 @@ public class Rating extends PersistableEntity<UUID> {
 
     public UUID getPresentationId() {
         return presentationId;
-    }
-
-    public UUID getTargetId() {
-        return targetId;
     }
 
     public UUID getRaterId() {

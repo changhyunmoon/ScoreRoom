@@ -45,7 +45,7 @@ class RoomAdminRoleTest extends IntegrationTest {
     }
 
     private void rate(User rater, UUID pres, User target, int expected) throws Exception {
-        mvc.perform(json(put("/api/v1/projects/{p}/presentations/{pr}/ratings/{t}", room, pres, target.getId()),
+        mvc.perform(json(put("/api/v1/projects/{p}/presentations/{pr}/rating", room, pres),
                 "{\"score\":80}").with(as(rater))).andExpect(status().is(expected));
     }
 
@@ -65,7 +65,7 @@ class RoomAdminRoleTest extends IntegrationTest {
     void 룸_관리자는_발표_구성원이_될_수_없다() throws Exception {
         mvc.perform(json(post("/api/v1/projects/{p}/presentations", room), presentation("관리자 발표", "PERSONAL", owner))
                 .with(as(owner))).andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("룸 관리자는 발표 구성원이 될 수 없습니다."));
+                .andExpect(jsonPath("$.message").value("룸 관리자는 발표 구성원이 될 수 없습니다. 설정에서 룸 관리자 발표를 켜 주세요."));
         mvc.perform(json(post("/api/v1/projects/{p}/presentations", room), presentation("팀 발표", "TEAM", a, owner))
                 .with(as(a))).andExpect(status().isBadRequest());
         assertThat(count("select count(*) from presentations")).isZero();
@@ -100,7 +100,9 @@ class RoomAdminRoleTest extends IntegrationTest {
                 .andExpect(status().isNoContent());
         assertThat(count("select count(*) from presentation_members where presentation_id = ?", team)).isEqualTo(1);
         assertThat(jdbc.queryForObject("select leader_id from presentations where id = ?", UUID.class, team)).isEqualTo(c.getId());
-        assertThat(count("select count(*) from ratings")).isZero();
+        // 단독 발표의 평가는 발표와 함께 지워지고, 팀 발표가 받은 평가는 발표에 남는다
+        assertThat(count("select count(*) from ratings")).isEqualTo(1);
+        assertThat(count("select count(*) from ratings where presentation_id = ?", team)).isEqualTo(1);
     }
 
     @Test
@@ -117,7 +119,7 @@ class RoomAdminRoleTest extends IntegrationTest {
         assertThat(count("select count(*) from ratings where rater_id = ?", owner.getId())).isZero();
         assertThat(count("select count(*) from ratings")).isEqualTo(1);
 
-        mvc.perform(json(put("/api/v1/projects/{p}/presentations/{pr}/ratings/{t}", room, pres, a.getId()), "{\"score\":80}")
+        mvc.perform(json(put("/api/v1/projects/{p}/presentations/{pr}/rating", room, pres), "{\"score\":80}")
                 .with(as(owner))).andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("룸 관리자는 평가하지 않는 평가룸입니다."));
         mvc.perform(get("/api/v1/state").with(as(owner)))
@@ -129,9 +131,9 @@ class RoomAdminRoleTest extends IntegrationTest {
     @Test
     void 룸_관리자_점수를_미포함하면_평균과_인원에서_모두_빠지고_다시_포함하면_돌아온다() throws Exception {
         UUID pres = fixtures.personal(room, a);
-        mvc.perform(json(put("/api/v1/projects/{p}/presentations/{pr}/ratings/{t}", room, pres, a.getId()), "{\"score\":60}")
+        mvc.perform(json(put("/api/v1/projects/{p}/presentations/{pr}/rating", room, pres), "{\"score\":60}")
                 .with(as(owner))).andExpect(status().isNoContent());
-        mvc.perform(json(put("/api/v1/projects/{p}/presentations/{pr}/ratings/{t}", room, pres, a.getId()), "{\"score\":100}")
+        mvc.perform(json(put("/api/v1/projects/{p}/presentations/{pr}/rating", room, pres), "{\"score\":100}")
                 .with(as(b))).andExpect(status().isNoContent());
         mvc.perform(get("/api/v1/state").with(as(owner))).andExpect(jsonPath("$.summaries[0].avg").value(80.0));
 

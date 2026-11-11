@@ -32,7 +32,7 @@ class ProjectDeleteTest extends IntegrationTest {
         b = fixtures.user("b", null);
         room = fixtures.room(owner, a, b);
         UUID pres = fixtures.teamPresentation(room, a, List.of(), List.of(b));
-        mvc.perform(json(put("/api/v1/projects/{p}/presentations/{pr}/ratings/{t}", room, pres, a.getId()), "{\"score\":80}")
+        mvc.perform(json(put("/api/v1/projects/{p}/presentations/{pr}/rating", room, pres), "{\"score\":80}")
                 .with(as(owner)));
         mvc.perform(json(post("/api/v1/projects/{p}/invite", room), "{\"minutes\":null}").with(as(owner)));
         mvc.perform(json(post("/api/v1/projects/{p}/presentation-requests", room), "{\"userIds\":[\"" + a.getId() + "\"]}")

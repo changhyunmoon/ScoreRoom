@@ -36,5 +36,5 @@ export async function run(fn: () => unknown, okText?: string): Promise<boolean> 
 export class UserError extends Error {}
 
 export function errorMessage(e: unknown) {
-  return e instanceof ApiError || e instanceof UserError ? e.message : '오류가 발생했습니다.';
+  return e instanceof ApiError || e instanceof UserError ? e.message : '오류가 발생했어요.';
 }

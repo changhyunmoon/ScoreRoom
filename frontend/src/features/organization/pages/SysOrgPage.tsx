@@ -43,8 +43,8 @@ export default function SysOrgPage() {
   const shownUsers = teamUsers.filter(u => u[searchField].toLowerCase().includes(userSearch.trim().toLowerCase()));
   const otherUsers = selectedTeam ? allUsers.filter(u => u.teamId !== selectedTeam.id) : [];
   const deleteBlocker = selectedTeam && (
-    db.teams.some(t => t.parentId === selectedTeam.id) ? '하위 팀이 있어 삭제할 수 없습니다.' :
-    teamUsers.length > 0 ? '소속 사용자가 있어 삭제할 수 없습니다.' : null
+    db.teams.some(t => t.parentId === selectedTeam.id) ? '하위 팀이 있어 삭제할 수 없어요.' :
+    teamUsers.length > 0 ? '소속 사용자가 있어 삭제할 수 없어요.' : null
   );
 
   const selectTeam = (id: ID | null) => { setSelectedTeamId(id); setPanel('none'); setUserSearch(''); setAssignUserId(''); };
@@ -85,7 +85,7 @@ export default function SysOrgPage() {
                 selectedId={selectedTeam?.id ?? null} expandedIds={expandedIds}
                 search={teamSearch.trim().toLowerCase()} onSelect={selectTeam} onToggle={toggleTeam} />
             ))}
-            {db.teams.length === 0 && <p className="org-tree-empty">등록된 팀이 없습니다.</p>}
+            {db.teams.length === 0 && <p className="org-tree-empty">등록된 팀이 없어요.</p>}
           </div>
         </aside>
 
@@ -113,10 +113,10 @@ export default function SysOrgPage() {
           {panel === 'create' && (
             <form className="org-editor" onSubmit={e => {
               e.preventDefault();
-              run(() => mutate(addTeam(teamName, parentId)), '팀을 추가했습니다.').then(ok => { if (ok) { setPanel('none'); setTeamName(''); } });
+              run(() => mutate(addTeam(teamName, parentId)), '팀을 추가했어요.').then(ok => { if (ok) { setPanel('none'); setTeamName(''); } });
             }}>
               <div className="org-editor-head">
-                <div><strong>{parentId ? '하위 팀 추가' : '최상위 팀 추가'}</strong><p>{parentId ? `${teamPath(db.teams, parentId)} 아래에 팀을 만듭니다.` : '회사 팀 구조도의 최상위에 팀을 만듭니다.'}</p></div>
+                <div><strong>{parentId ? '하위 팀 추가' : '최상위 팀 추가'}</strong><p>{parentId ? `${teamPath(db.teams, parentId)} 아래에 팀을 만들어요.` : '팀 구조도 맨 위에 팀을 만들어요.'}</p></div>
                 <button className="org-editor-close" type="button" aria-label="닫기" onClick={() => setPanel('none')}>×</button>
               </div>
               <div className="org-form-grid">
@@ -129,10 +129,10 @@ export default function SysOrgPage() {
           {panel === 'edit' && selectedTeam && (
             <form className="org-editor" onSubmit={e => {
               e.preventDefault();
-              run(() => mutate(updateTeam(selectedTeam.id, teamName, parentId)), '팀을 수정했습니다.').then(ok => ok && setPanel('none'));
+              run(() => mutate(updateTeam(selectedTeam.id, teamName, parentId)), '팀을 수정했어요.').then(ok => ok && setPanel('none'));
             }}>
               <div className="org-editor-head">
-                <div><strong>팀 수정</strong><p>팀 이름이나 상위 팀을 변경합니다.</p></div>
+                <div><strong>팀 수정</strong><p>팀 이름이나 상위 팀을 바꿔요.</p></div>
                 <button className="org-editor-close" type="button" aria-label="닫기" onClick={() => setPanel('none')}>×</button>
               </div>
               <div className="org-form-grid">
@@ -145,7 +145,7 @@ export default function SysOrgPage() {
           {panel === 'users' && selectedTeam && (
             <div className="org-editor">
               <div className="org-editor-head">
-                <div><strong>사용자 추가</strong><p>{selectedTeam.name}에 기존 사용자를 배정하거나 새 계정을 등록합니다.</p></div>
+                <div><strong>사용자 추가</strong><p>{selectedTeam.name}에 기존 사용자를 넣거나 새 계정을 만들어요.</p></div>
                 <button className="org-editor-close" type="button" aria-label="닫기" onClick={() => setPanel('none')}>×</button>
               </div>
               <div className="org-subsection">
@@ -158,13 +158,13 @@ export default function SysOrgPage() {
                     </select>
                   </label>
                   <button className="btn primary solid" type="button" disabled={!assignUserId} onClick={() => {
-                    run(() => mutate(setUserTeam(assignUserId, selectedTeam.id)), '사용자를 팀에 배정했습니다.').then(ok => ok && setAssignUserId(''));
+                    run(() => mutate(setUserTeam(assignUserId, selectedTeam.id)), '사용자를 팀에 배정했어요.').then(ok => ok && setAssignUserId(''));
                   }}>팀에 배정</button>
                 </div>
               </div>
               <form className="org-new-user" onSubmit={e => {
                 e.preventDefault();
-                run(() => mutate(addUserToTeam(selectedTeam.id, newUser)), '사용자를 등록했습니다.').then(ok => ok && setNewUser(blankUser));
+                run(() => mutate(addUserToTeam(selectedTeam.id, newUser)), '사용자를 등록했어요.').then(ok => ok && setNewUser(blankUser));
               }}>
                 <strong>새 사용자 등록</strong>
                 <div className="org-form-grid">
@@ -184,9 +184,9 @@ export default function SysOrgPage() {
                 <div><strong>팀 삭제</strong><p>삭제할 팀을 확인해 주세요.</p></div>
                 <button className="org-editor-close" type="button" aria-label="닫기" onClick={() => setPanel('none')}>×</button>
               </div>
-              <div className="org-delete-summary"><Icon name="trash" size={18} /><span><b>{selectedTeam.name}</b>{deleteBlocker ? ` · ${deleteBlocker}` : ' · 삭제 후 복구할 수 없습니다. 과거 평가룸 참여 기록이 있는 팀은 기록을 위해 보관됩니다.'}</span></div>
+              <div className="org-delete-summary"><Icon name="trash" size={18} /><span><b>{selectedTeam.name}</b>{deleteBlocker ? ` · ${deleteBlocker}` : ' · 삭제 후 복구할 수 없어요. 과거 평가룸 참여 기록이 있는 팀은 기록을 위해 보관돼요.'}</span></div>
               <div className="org-editor-actions"><button className="btn" onClick={() => setPanel('none')}>취소</button><button className="btn danger solid" disabled={!!deleteBlocker} onClick={() => {
-                run(() => mutate(deleteTeam(selectedTeam.id)), '팀을 삭제했습니다.').then(ok => ok && selectTeam(null));
+                run(() => mutate(deleteTeam(selectedTeam.id)), '팀을 삭제했어요.').then(ok => ok && selectTeam(null));
               }}>팀 삭제</button></div>
             </div>
           )}
@@ -212,7 +212,7 @@ export default function SysOrgPage() {
                         {editingId === u.id ? (
                           <form className="org-inline" onSubmit={e => {
                             e.preventDefault();
-                            run(() => mutate(setUserPosition(u.id, positionDraft)), '직위를 바꿨습니다.').then(ok => ok && setEditingId(null));
+                            run(() => mutate(setUserPosition(u.id, positionDraft)), '직위를 바꿨어요.').then(ok => ok && setEditingId(null));
                           }}>
                             <input value={positionDraft} onChange={e => setPositionDraft(e.target.value)} aria-label={`${u.name} 직위`} autoFocus />
                             <button className="btn sm primary solid" type="submit">저장</button>
@@ -230,7 +230,7 @@ export default function SysOrgPage() {
                         {resetId === u.id ? (
                           <form className="org-inline" onSubmit={e => {
                             e.preventDefault();
-                            run(() => resetUserPassword(u.id, resetPassword), `${u.name}님의 비밀번호를 재설정했습니다.`)
+                            run(() => resetUserPassword(u.id, resetPassword), `${u.name}님의 비밀번호를 재설정했어요.`)
                               .then(ok => { if (ok) { setResetId(null); setResetPassword(''); } });
                           }}>
                             <input type="password" placeholder="새 비밀번호 (8자 이상)" minLength={8} required value={resetPassword}
@@ -245,11 +245,11 @@ export default function SysOrgPage() {
                     </tr>
                   );
                 })}
-                {shownUsers.length === 0 && <tr><td colSpan={selectedTeam ? 7 : 6} className="org-empty">표시할 사용자가 없습니다.</td></tr>}
+                {shownUsers.length === 0 && <tr><td colSpan={selectedTeam ? 7 : 6} className="org-empty">표시할 사용자가 없어요.</td></tr>}
               </tbody>
             </table>
           </div>
-          <div className="org-footer">팀을 고르면 ▲▼로 팀 안 순서를 바꿀 수 있어요. 맨 위 사람이 그 팀에서 가장 높은 사람으로, 팀 발표에서 우리 팀을 불러올 때 대표로 먼저 지정돼요. 비밀번호를 잊은 사람은 여기서 새 비밀번호를 정해 알려 주세요.</div>
+          <div className="org-footer">▲▼로 팀 안 순서를 바꿔요. 맨 위 사람이 팀 발표의 기본 대표가 돼요.</div>
         </section>
       </div>
     </div>

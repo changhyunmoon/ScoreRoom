@@ -14,6 +14,7 @@ import com.scoreroom.invitation.repository.InviteCodeRepository;
 import com.scoreroom.project.domain.Project;
 import com.scoreroom.project.domain.ProjectSettings;
 import com.scoreroom.project.dto.CreateProjectRequest;
+import com.scoreroom.project.dto.UpdateProjectInfoRequest;
 import com.scoreroom.project.dto.UpdateSettingsRequest;
 import com.scoreroom.project.repository.ProjectRepository;
 import com.scoreroom.project.service.RoomGuard.RoomWrite;
@@ -83,6 +84,14 @@ public class ProjectService {
         }
         next.validate();
 
+        // 룸 관리자 발표를 끄면 발표에 들어 있는 관리자를 발표에서 뺀다 (관리자로 지정할 때와 같은 규칙)
+        int removedByAdminPresent = 0;
+        if (current.allowAdminPresent() && !next.allowAdminPresent()
+                && !membershipService.adminPresenters(projectId).isEmpty()) {
+            room.requireVersion(request.expectedVersion());
+            removedByAdminPresent = membershipService.removeAdminPresenters(projectId);
+        }
+
         int removed;
         if (reset) {
             if (ratings.countByProjectId(projectId) > 0) {
@@ -96,9 +105,23 @@ public class ProjectService {
             }
             removed = blocked.isEmpty() ? 0 : ratings.deleteByIds(blocked);
         }
+        removed += removedByAdminPresent;
         project.applySettings(next);
         audit.record(actorId, projectId, "SETTINGS_CHANGED", removed);
         return removed;
+    }
+
+    /** 평가룸 이름·설명 수정 (룸 관리자, 마감 전). 평가·설정에는 영향이 없다 */
+    @Transactional
+    public void updateInfo(UUID actorId, UUID projectId, UpdateProjectInfoRequest request) {
+        RoomWrite room = roomGuard.lockAsAdmin(projectId, actorId);
+        String name = request.name().trim();
+        if (name.isEmpty()) {
+            throw ApiException.badRequest("평가룸 이름을 입력해 주세요.");
+        }
+        String description = request.description() == null ? "" : request.description().trim();
+        room.project().describe(name, description);
+        audit.record(actorId, projectId, "PROJECT_INFO_CHANGED", 0);
     }
 
     /** 마감하면 평가를 받지 않고, 입장 코드를 무효로 한다. 다시 열 수 없다 */

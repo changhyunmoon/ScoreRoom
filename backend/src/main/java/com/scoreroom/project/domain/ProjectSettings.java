@@ -6,12 +6,16 @@ import com.scoreroom.common.error.ApiException;
  * 평가룸 설정.
  * - min~max: 점수 입력 범위 (정수)
  * - aggMin~aggMax: 집계 기준 범위. 둘 다 null이면 사용 안 함
- * - allowSelf / allowSameTeam / allowSameCrew: 본인 / 같은 회사 팀 / 같은 발표 구성원 평가 허용
+ * 점수는 발표 하나에 한 번 준다 (팀 발표도 구성원별이 아니다).
+ * - allowSelf: 본인 발표 평가 허용. 개인 발표의 본인과 팀 발표의 팀원 모두 "본인 발표"로 본다
+ * - allowSameTeam: 구성원 중 나와 같은 회사 팀인 사람이 있는 발표 평가 허용
+ * - allowSameCrew / countSameCrew: 예전 구성원별 평가 때의 "같은 발표 팀원" 설정. 발표 단위 평가에서는 쓰지 않는다 (예전 값 보관용)
  * - allowEdit: 제출한 점수 수정 허용
- * - showRatingStatus: 참여자에게도 사람별 평가 현황(전체·평가함·평가 불가·미평가 인원)을 보여 줌. 룸 관리자는 항상 본다
- * - countSelf / countSameCrew / countSameTeam: 본인 점수 / 같은 발표 팀원이 준 점수 / 같은 회사 팀원이 준 점수를 집계(평균·순위)에 넣을지
+ * - showRatingStatus: 참여자에게도 발표별 평가 현황(전체·평가함·평가 불가·미평가 인원)을 보여 줌. 룸 관리자는 항상 본다
+ * - countSelf / countSameTeam: 본인 발표에 준 점수 / 같은 회사 팀원이 있는 발표에 준 점수를 집계(평균·순위)에 넣을지
  * - countAdmin: 룸 관리자가 준 점수를 집계(평균·순위)에 넣을지
- * - allowAdminRating: 룸 관리자도 평가할지. 끄면 관리자는 평가자에서 빠진다 (관리자는 어떤 경우에도 발표하지 않는다)
+ * - allowAdminRating: 룸 관리자도 평가할지. 끄면 관리자는 평가자에서 빠진다
+ * - allowAdminPresent: 룸 관리자도 발표할지 (기본: 안 함). 끄면 관리자는 발표 구성원이 될 수 없고 발표 등록 인원에서도 빠진다
  * - showRosterSummary: 발표 화면 위쪽 참여자·발표 등록·발표 미등록 인원을 일반 참여자에게도 보여 줌. 룸 관리자는 항상 본다
  * - showRatingStatusNames: 평가 현황 숫자를 누르면 해당하는 사람 목록을 일반 참여자에게도 보여 줌 (showRatingStatus가 켜져 있을 때만). 룸 관리자는 항상 본다
  */
@@ -31,11 +35,12 @@ public record ProjectSettings(
         boolean allowAdminRating,
         boolean countAdmin,
         boolean showRosterSummary,
-        boolean showRatingStatusNames) {
+        boolean showRatingStatusNames,
+        boolean allowAdminPresent) {
 
     /** 새 평가룸: 본인 평가만 막고, 같은 회사 팀·같은 발표 팀원 평가, 점수 수정, 룸 관리자 평가는 허용. 발표 화면 표시(평가 현황·사람 목록·발표 등록 인원)는 참여자에게 숨김 */
     public static ProjectSettings defaults() {
-        return new ProjectSettings(0, 100, null, null, false, true, true, true, false, true, true, true, true, true, false, false);
+        return new ProjectSettings(0, 100, null, null, false, true, true, true, false, true, true, true, true, true, false, false, false);
     }
 
     public boolean hasAggregationRange() {
@@ -50,7 +55,7 @@ public record ProjectSettings(
     public ProjectSettings withoutAggregation() {
         return new ProjectSettings(min, max, null, null, allowSelf, allowSameTeam, allowSameCrew, allowEdit, showRatingStatus,
                 countSelf, countSameCrew, countSameTeam, allowAdminRating, countAdmin, showRosterSummary,
-                showRatingStatusNames);
+                showRatingStatusNames, allowAdminPresent);
     }
 
     /** 화면(validateSettings)과 같은 순서로 검사한다 */

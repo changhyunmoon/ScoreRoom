@@ -41,8 +41,8 @@ export function PermissionManager({ name, desc, has, set }: PermissionConfig) {
       <td className="viewer-wide">{teamPath(db.teams, u.teamId)}</td>
       <td className="right">
         {has(u)
-          ? <button className="btn sm danger" onClick={() => run(() => mutate(set(u.id, false)), `${u.name}님의 ${name}을 회수했습니다.`)}>권한 회수</button>
-          : <button className="btn sm primary solid" onClick={() => run(() => mutate(set(u.id, true)), `${u.name}님에게 ${name}을 주었습니다.`)}>권한 주기</button>}
+          ? <button className="btn sm danger" onClick={() => run(() => mutate(set(u.id, false)), `${u.name}님의 ${name}을 회수했어요.`)}>권한 회수</button>
+          : <button className="btn sm primary solid" onClick={() => run(() => mutate(set(u.id, true)), `${u.name}님에게 ${name}을 줬어요.`)}>권한 주기</button>}
       </td>
     </tr>
   );
@@ -70,7 +70,7 @@ export function PermissionManager({ name, desc, has, set }: PermissionConfig) {
               <tbody>{found.map(row)}</tbody>
             </table>
           ) : (
-            <p className="viewer-empty">{kw ? '검색 결과가 없습니다.' : '이름, 이메일, 팀으로 검색하면 여기에 결과가 나와요.'}</p>
+            <p className="viewer-empty">{kw ? '검색 결과가 없어요.' : '이름, 이메일, 팀으로 검색하면 여기에 결과가 나와요.'}</p>
           )}
         </div>
       </section>
@@ -82,7 +82,7 @@ export function PermissionManager({ name, desc, has, set }: PermissionConfig) {
             <thead><tr><th>이름</th><th className="viewer-wide">이메일</th><th className="viewer-wide">소속 팀</th><th /></tr></thead>
             <tbody>
               {granted.map(row)}
-              {granted.length === 0 && <tr><td colSpan={4} className="org-empty">아직 권한을 받은 사람이 없습니다. 위에서 검색해 추가하세요.</td></tr>}
+              {granted.length === 0 && <tr><td colSpan={4} className="org-empty">아직 권한을 받은 사람이 없어요. 위에서 검색해 추가하세요.</td></tr>}
             </tbody>
           </table>
         </div>
@@ -102,7 +102,7 @@ export function PermissionManager({ name, desc, has, set }: PermissionConfig) {
                 await refresh();
               }
             });
-            if (ok) toast(`${ids.length}명에게 ${name}을 주었습니다.`);
+            if (ok) toast(`${ids.length}명에게 ${name}을 줬어요.`);
             return ok;
           },
         }} />

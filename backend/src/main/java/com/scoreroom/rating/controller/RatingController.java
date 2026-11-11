@@ -25,11 +25,11 @@ public class RatingController {
         this.ratingService = ratingService;
     }
 
-    @PutMapping("/api/v1/projects/{projectId}/presentations/{presentationId}/ratings/{targetId}")
+    /** 발표 하나에 내 점수를 준다 (팀 발표도 한 번) */
+    @PutMapping("/api/v1/projects/{projectId}/presentations/{presentationId}/rating")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void submit(@AuthenticationPrincipal AuthenticatedUser me, @PathVariable UUID projectId,
-            @PathVariable UUID presentationId, @PathVariable UUID targetId,
-            @Valid @RequestBody SubmitRatingRequest request) {
-        ratingService.submit(me.userId(), projectId, presentationId, targetId, request);
+            @PathVariable UUID presentationId, @Valid @RequestBody SubmitRatingRequest request) {
+        ratingService.submit(me.userId(), projectId, presentationId, request);
     }
 }

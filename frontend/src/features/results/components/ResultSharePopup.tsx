@@ -6,6 +6,7 @@ import { saveFile } from '../../../shared/lib/download';
 import { roundAvg } from '../../../shared/lib/format';
 import { Popup, toast } from '../../../shared/ui';
 import { userName } from '../../organization';
+import { involvedIds } from '../../presentations';
 import type { Project } from '../../projects';
 import type { DB } from '../../session';
 import { drawResultImage, THEMES, type Basis, type Entry } from '../lib/renderResultImage';
@@ -39,7 +40,7 @@ export function ResultSharePopup({ db, project, rows, avgOf, inAvgOf, decimals, 
     .map(r => ({
       key: r.key,
       rank: rank.get(r.key)!,
-      name: userName(db, r.targetId), title: r.pres.title, score: valueOf(r)!,
+      name: r.pres.title, title: involvedIds(r.pres).map(id => userName(db, id)).join(', '), score: valueOf(r)!,
     }))
     .sort((a, b) => a.rank - b.rank || a.name.localeCompare(b.name) || a.key.localeCompare(b.key))
     .slice(0, opt.top ?? undefined);
@@ -55,7 +56,7 @@ export function ResultSharePopup({ db, project, rows, avgOf, inAvgOf, decimals, 
       aggText: hasAgg ? `${s.aggMin}~${s.aggMax}점` : '', topLabel: opt.top === null ? '전체 순위' : `TOP ${opt.top}`,
     })
       .then(url => { if (alive) setImage(url); })
-      .catch(() => { if (alive) toast('이미지를 만들지 못했습니다.', 'err'); })
+      .catch(() => { if (alive) toast('이미지를 만들지 못했어요.', 'err'); })
       .finally(() => { if (alive) setMaking(false); });
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -113,8 +114,8 @@ export function ResultSharePopup({ db, project, rows, avgOf, inAvgOf, decimals, 
           </div>
         </dl>
         <span className="muted small">{entries.length
-          ? `선택한 기준의 평균 점수가 있는 ${scored.length}명 중 ${entries.length}명이 이미지에 들어가요.${opt.top !== null && scored.length < opt.top ? ` 현재 ${opt.top}위까지 채울 점수가 없어요.` : ''}`
-          : '선택한 기준의 평균 점수를 받은 사람이 없어 만들 수 없어요.'}</span>
+          ? `선택한 기준의 평균 점수가 있는 발표 ${scored.length}개 중 ${entries.length}개가 이미지에 들어가요.${opt.top !== null && scored.length < opt.top ? ` 현재 ${opt.top}위까지 채울 점수가 없어요.` : ''}`
+          : '선택한 기준의 평균 점수를 받은 발표가 없어 만들 수 없어요.'}</span>
       </>}
 
       {step === 1 && (
@@ -140,7 +141,7 @@ export function ResultSharePopup({ db, project, rows, avgOf, inAvgOf, decimals, 
           ))}
         </div>
         <div className="share-preview-wrap">
-          <b className="small">선택한 설정과 테마 미리보기 · {entries.length}명</b>
+          <b className="small">선택한 설정과 테마 미리보기 · 발표 {entries.length}개</b>
           {image
             ? <div className="share-preview"><img src={image} alt={`${theme.name} 테마 결과 이미지 미리보기`} /></div>
             : <div className="share-preview empty muted small">{making ? '이미지를 만드는 중이에요…' : '이미지를 만들지 못했어요.'}</div>}

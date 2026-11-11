@@ -24,8 +24,8 @@ export function ProjectShell({ project, current, children }: { project: Project;
   // 전체 열람 권한으로 들어온 경우: 발표와 결과만 볼 수 있다
   const viewer = roomAccess(db, project.id, me!) === 'viewer';
   const base = `/p/${project.id}`;
-  // 발표 화면 목록과 같은 인원 (룸 관리자는 발표하지 않으므로 뺀다)
-  const people = presenterRoster(db, project.id, members(db, project.id)).length;
+  // 발표 화면 목록과 같은 인원 (룸 관리자 발표를 끈 평가룸이면 관리자는 뺀다)
+  const people = presenterRoster(db, project.id, members(db, project.id), project.settings.allowAdminPresent).length;
   const myPres = presentationOfUser(db, project.id, me!.id);
   const open = project.status === 'OPEN';
 
@@ -38,8 +38,8 @@ export function ProjectShell({ project, current, children }: { project: Project;
     },
   ] : [
     { key: 'rate', label: '발표', items: [{ key: 'all', label: '발표', to: base, count: people }] },
-    // 룸 관리자는 발표하지 않는다 (예전 데이터로 이미 발표가 있으면 보여 준다)
-    ...(m?.isAdmin && !myPres ? [] : [{ key: 'mine', label: '내 발표', items: [{ key: 'mine', label: '내 발표', to: `${base}?f=mine` }] }]),
+    // 룸 관리자 발표를 끈 평가룸이면 관리자에게 내 발표가 없다 (이미 발표가 있으면 보여 준다)
+    ...(m?.isAdmin && !myPres && !project.settings.allowAdminPresent ? [] : [{ key: 'mine', label: '내 발표', items: [{ key: 'mine', label: '내 발표', to: `${base}?f=mine` }] }]),
   ];
   if (m?.isAdmin) groups.push({
     key: 'admin', label: '관리', items: [
@@ -67,7 +67,7 @@ export function ProjectShell({ project, current, children }: { project: Project;
             ? <Chip tone="violet" icon="eye">열람 전용</Chip>
             : <Chip tone="violet" icon={m?.isAdmin ? 'shield' : 'user'}>{m?.isAdmin ? '룸 관리자' : '참여자'}</Chip>}
         </div>
-        {open && !viewer && (myPres || !m?.isAdmin) && <div className="lnb-write">{myPres
+        {open && !viewer && (myPres || !m?.isAdmin || project.settings.allowAdminPresent) && <div className="lnb-write">{myPres
           ? <Link to={`${base}/pres/${myPres.id}`} className={`btn outline block ${current === 'write' ? 'on' : ''}`}><Icon name="pencil" size={16} />내 발표 편집</Link>
           : <Link to={`${base}/pres/new`} className={`btn outline block ${current === 'write' ? 'on' : ''}`}><Icon name="plus" size={16} />발표 등록</Link>}</div>}
         {groups.map(g => {

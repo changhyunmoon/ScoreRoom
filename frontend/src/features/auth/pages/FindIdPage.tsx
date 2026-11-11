@@ -25,7 +25,7 @@ export default function FindIdPage() {
       </form>
       {result && (
         <div className="result-box" role="status">
-          {result.length ? <>가입된 이메일: {result.map(r => <b key={r} className="mono"> {r}</b>)}</> : '일치하는 계정이 없습니다.'}
+          {result.length ? <>가입된 이메일: {result.map(r => <b key={r} className="mono"> {r}</b>)}</> : '일치하는 계정이 없어요.'}
         </div>
       )}
       <div className="auth-links"><Link to="/login">로그인</Link><span>·</span><Link to="/find-pw">비밀번호 찾기</Link></div>

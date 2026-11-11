@@ -34,7 +34,7 @@ class StateApiTest extends IntegrationTest {
         room = fixtures.room(owner, rater, target);
         UUID pres = fixtures.personal(room, target);
         for (User u : new User[] { owner, rater }) {
-            mvc.perform(json(put("/api/v1/projects/{p}/presentations/{pr}/ratings/{t}", room, pres, target.getId()),
+            mvc.perform(json(put("/api/v1/projects/{p}/presentations/{pr}/rating", room, pres),
                     "{\"score\":50,\"feedback\":\"의견\"}").with(as(u))).andExpect(status().isNoContent());
         }
     }

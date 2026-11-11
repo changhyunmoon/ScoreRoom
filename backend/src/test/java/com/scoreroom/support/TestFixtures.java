@@ -75,7 +75,7 @@ public class TestFixtures {
         tx.executeWithoutResult(s -> {
             var project = projects.findById(projectId).orElseThrow();
             // 기존 테스트는 본인·같은 팀·같은 발표 팀원 평가를 막는 평가룸 기준이다 (새 평가룸 기본값은 모두 허용)
-            project.applySettings(new ProjectSettings(0, 100, null, null, false, false, false, true, true, true, true, true, true, true, false, false));
+            project.applySettings(new ProjectSettings(0, 100, null, null, false, false, false, true, true, true, true, true, true, true, false, false, false));
             for (User m : members) {
                 membershipService.join(project, m, false);
             }

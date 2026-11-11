@@ -15,7 +15,7 @@ export default function SysRoomsPage() {
   useEffect(() => { void load(); }, [load]);
 
   const remove = async (id: ID, name: string) => {
-    const ok = await run(() => deleteProject(id), `'${name}' 평가룸을 삭제했습니다.`);
+    const ok = await run(() => deleteProject(id), `'${name}' 평가룸을 삭제했어요.`);
     if (ok) await load();
   };
   const kw = q.trim().toLowerCase();
@@ -25,7 +25,7 @@ export default function SysRoomsPage() {
     <div className="stack lg sys-admin-page">
       <div className="page-head">
         <h1>평가룸 관리</h1>
-        <p className="muted">모든 평가룸을 보고 삭제할 수 있어요. 삭제하면 참여자·발표·평가·올린 자료가 모두 지워지고 되돌릴 수 없어요.</p>
+        <p className="muted">삭제하면 발표·평가·자료가 모두 지워지고 되돌릴 수 없어요.</p>
       </div>
       <div className="org-search viewer-search">
         <Icon name="search" size={16} />
@@ -49,12 +49,12 @@ export default function SysRoomsPage() {
                   <td className="viewer-wide">{dateText(r.createdAt)}</td>
                   <td className="right">
                     <ConfirmButton className="btn sm danger" label="삭제" confirmLabel="삭제합니다"
-                      detail={`'${r.name}' 평가룸의 참여자 ${r.memberCount}명, 발표 ${r.presentationCount}개, 평가 ${r.ratingCount}건이 모두 지워져요. 되돌릴 수 없습니다.`}
+                      detail={`'${r.name}' 평가룸의 참여자 ${r.memberCount}명, 발표 ${r.presentationCount}개, 평가 ${r.ratingCount}건이 모두 지워져요. 되돌릴 수 없어요.`}
                       onConfirm={() => void remove(r.id, r.name)} />
                   </td>
                 </tr>
               ))}
-              {rooms && list.length === 0 && <tr><td colSpan={5} className="org-empty">{kw ? '검색 결과가 없습니다.' : '평가룸이 없습니다.'}</td></tr>}
+              {rooms && list.length === 0 && <tr><td colSpan={5} className="org-empty">{kw ? '검색 결과가 없어요.' : '평가룸이 없어요.'}</td></tr>}
             </tbody>
           </table>
         </div>

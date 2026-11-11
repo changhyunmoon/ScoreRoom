@@ -17,13 +17,13 @@ export function ProfilePopup({ onClose }: { onClose: () => void }) {
   const changingPassword = f.password !== '' || f.password2 !== '';
   const mismatch = f.password2 !== '' && f.password !== f.password2;
   const save = async () => {
-    if (changingPassword && f.password !== f.password2) return toast('새 비밀번호가 일치하지 않습니다.', 'err');
+    if (changingPassword && f.password !== f.password2) return toast('새 비밀번호가 일치하지 않아요.', 'err');
     if (changingPassword && !f.currentPassword) return toast('현재 비밀번호를 입력해 주세요.', 'err');
     setSaving(true);
     const ok = await run(() => mutate(updateProfile({
       loginId: f.loginId, name: f.name, phone: f.phone, teamId: f.teamId, position: f.position,
       ...(changingPassword ? { currentPassword: f.currentPassword, newPassword: f.password } : {}),
-    })), changingPassword ? '저장했습니다. 다른 기기의 로그인은 끊겼어요.' : '저장했습니다.');
+    })), changingPassword ? '저장했어요. 다른 기기의 로그인은 끊겼어요.' : '저장했어요.');
     setSaving(false);
     if (ok) onClose();
   };

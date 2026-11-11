@@ -1,4 +1,4 @@
-// 결과 표. 한 줄 = 발표 구성원 한 명 (이름 아래 발표 제목).
+// 결과 표. 한 줄 = 발표 하나 (팀 발표도 한 줄, 제목 아래 구성원).
 // - 룸 관리자(detail): 평가자별 점수·피드백·합계와 평가자별 점수표까지
 // - 전체 열람 권한자: 인원·평균·순위만 (누가 몇 점을 줬는지와 피드백은 서버가 보내지 않는다)
 import { Fragment, useState } from 'react';
@@ -7,10 +7,10 @@ import { Icon } from '../../../shared/icons/Icon';
 import { formatAvg, roundAvg, timeText } from '../../../shared/lib/format';
 import { Chip, Empty, IconText, Popup, run } from '../../../shared/ui';
 import { teamName, teamPath, teamRank, userName, userOf } from '../../organization';
-import { PresInfo, presTypeText, type Presentation } from '../../presentations';
+import { involvedIds, PresInfo, presTypeText, type Presentation } from '../../presentations';
 import { members, membership, type Project } from '../../projects';
 import { blockShort } from '../../ratings';
-import { refresh, useSession } from '../../session';
+import { refresh, useSession, type DB } from '../../session';
 import { computeResults, rankBy, type Cell, type ResultRow } from '../model/computeResults';
 import { aggChanged, AggRangePanel, draftOf, previewSettings, type AggDraft } from './AggRangePanel';
 import { ResultSharePopup } from './ResultSharePopup';
@@ -35,14 +35,17 @@ function CellView({ c, onOpenFeedback }: { c: Cell; onOpenFeedback: (c: ScoreCel
   return <span className="red-text small">미평가</span>;
 }
 
-/** 사람 이름 + 발표 제목 (누르면 발표 정보). 대표·발표자·팀원 같은 역할은 결과 표에 보이지 않는다 */
-function PersonCell({ r, onOpenPres }: { r: ResultRow; compact?: boolean; onOpenPres: (p: Presentation) => void }) {
+/** 발표 구성원 이름 (대표 먼저, 쉼표로) */
+const crewNames = (db: DB, pres: Presentation) => involvedIds(pres).map(id => userName(db, id)).join(', ');
+
+/** 발표 제목(누르면 발표 정보) + 구성원 이름. 팀 발표는 팀원 모두를 보여 준다 */
+function PresCell({ r, onOpenPres }: { r: ResultRow; onOpenPres: (p: Presentation) => void }) {
   const { db } = useSession();
   return (
     <>
-      <b>{userName(db, r.targetId)}</b>
-      <button type="button" className="result-pres" title="발표 설명 보기"
+      <button type="button" className="result-pres-title" title="발표 설명 보기"
         onClick={e => { e.stopPropagation(); onOpenPres(r.pres); }}>{r.pres.title}</button>
+      <span className="result-crew"><span className={`result-crew-type ${r.pres.type === 'TEAM' ? 'team' : 'personal'}`}>{presTypeText[r.pres.type]}</span>{crewNames(db, r.pres)}</span>
     </>
   );
 }
@@ -60,11 +63,10 @@ function PresentationPopup({ project, pres, onClose }: { project: Project; pres:
 function FeedbackPopup({ project, cell, row, onClose }: { project: Project; cell: ScoreCell; row: ResultRow; onClose: () => void }) {
   const { db } = useSession();
   const rater = userName(db, cell.userId);
-  const target = userName(db, row.targetId);
   return (
-    <Popup label={`${rater}의 피드백`} onClose={onClose} head={<><Chip>피드백</Chip><h2>{rater} → {target}</h2></>}>
+    <Popup label={`${rater}의 피드백`} onClose={onClose} head={<><Chip>피드백</Chip><h2>{rater} → {row.pres.title}</h2></>}>
       <dl className="info-table">
-        <div className="info-row"><dt>발표</dt><dd>{row.pres.title}</dd></div>
+        <div className="info-row"><dt>발표</dt><dd>{row.pres.title} <span className="muted small">{crewNames(db, row.pres)}</span></dd></div>
         <div className="info-row"><dt>평가자</dt><dd>{rater} <span className="muted small">{teamName(db, membership(db, project.id, cell.userId)?.teamIdAtJoin ?? null)}</span></dd></div>
         <div className="info-row"><dt>점수</dt><dd><b className="feedback-score">{cell.rating.score}</b><span className="muted"> / {project.settings.max}점</span> <span className="muted small">· {timeText(cell.rating.submittedAt)} 제출</span></dd></div>
         <div className="info-row"><dt>피드백</dt><dd><p className="feedback-text">{cell.rating.feedback}</p></dd></div>
@@ -76,26 +78,26 @@ function FeedbackPopup({ project, cell, row, onClose }: { project: Project; cell
 export function ResultBoard({ project, detail = true }: { project: Project; detail?: boolean }) {
   const { db, loadedAt } = useSession();
   const [decimals, setDecimals] = useState(true);
-  // 보기(구성원별 집계/평가자별 점수표)와 정렬은 주소에 남겨서 새로 고침해도 유지한다
+  // 보기(발표별 집계/평가자별 점수표)와 정렬은 주소에 남겨서 새로 고침해도 유지한다
   const [sp, setSp] = useSearchParams();
   const view: 'topic' | 'matrix' = detail && sp.get('view') === 'sheet' ? 'matrix' : 'topic';
   const sortParam = sp.get('sort');
-  // 기본은 팀별 순서. 다른 정렬은 주소(?sort=)에 남는다
-  const sortBy: SortKey = sortParam === 'avg' || sortParam === 'inAvg' || sortParam === 'order' ? sortParam : 'team';
+  // 기본은 발표별(발표 순서). 다른 정렬은 주소(?sort=)에 남는다
+  const sortBy: SortKey = sortParam === 'avg' || sortParam === 'inAvg' || sortParam === 'team' ? sortParam : 'order';
   const setParam = (key: string, value: string | null) => {
     const next = new URLSearchParams(sp);
     if (value === null) next.delete(key); else next.set(key, value);
     setSp(next, { replace: true });
   };
   const setView = (v: 'topic' | 'matrix') => setParam('view', v === 'matrix' ? 'sheet' : null);
-  const setSortBy = (k: SortKey) => setParam('sort', k === 'team' ? null : k);
+  const setSortBy = (k: SortKey) => setParam('sort', k === 'order' ? null : k);
   const [openKey, setOpenKey] = useState<string | null>(null);
   const [popupPres, setPopupPres] = useState<Presentation | null>(null);
   const [sharing, setSharing] = useState(false);
   const [popupFeedback, setPopupFeedback] = useState<{ cell: ScoreCell; row: ResultRow } | null>(null);
-  // 평가자별 점수표에서 누른 칸: 그 칸은 진하게, 같은 줄(평가자)·같은 열(발표자)은 연하게 표시한다
+  // 평가자별 점수표에서 누른 칸: 그 칸은 진하게, 같은 줄(평가자)·같은 열(발표)은 연하게 표시한다
   const [sel, setSel] = useState<{ rater: string; col: string } | null>(null);
-  // 구성원별 집계에서 누른 칸 (같은 방식). 상세 펼치기와는 따로 움직인다
+  // 발표별 집계에서 누른 칸 (같은 방식). 상세 펼치기와는 따로 움직인다
   const [tsel, setTsel] = useState<{ row: string; col: string } | null>(null);
   const tcell = (rowKey: string, col: string, cls = '') => ({
     className: `${cls} ${tsel?.col === col ? 'x-col' : ''} ${tsel?.row === rowKey && tsel.col === col ? 'x-cell' : ''}`,
@@ -111,19 +113,19 @@ export function ResultBoard({ project, detail = true }: { project: Project; deta
   // 인원·평균·순위는 서버 집계(summaries)를 쓴다. 합계와 평가자별 점수(detail)는 룸 관리자에게만 보이는 점수로 계산한다.
   // 집계 기준을 미리보기 중이면 룸 관리자가 가진 점수로 기준 안 평균을 바로 다시 계산한다 (저장하면 서버 집계와 같아진다)
   const base = computeResults(db, previewing ? { ...project, settings: preview } : project);
-  const summaryOf = (r: ResultRow) => db.summaries.find(x => x.presentationId === r.pres.id && x.targetId === r.targetId);
+  const summaryOf = (r: ResultRow) => db.summaries.find(x => x.presentationId === r.pres.id);
   const inAvgOf = (r: ResultRow) => (previewing ? r.inAvg : summaryOf(r)?.inAvg ?? null);
   // 미리보기 중이면 룸 관리자가 가진 점수로 전체 평균도 다시 계산한다 (점수 포함·미포함이 바뀌면 전체 평균도 바뀐다)
   const avgOf = (r: ResultRow) => (previewing ? r.avg : summaryOf(r)?.avg ?? null);
   // 순위는 화면에 보이는 평균(소수점 넷째 자리 / 정수 반올림 설정)으로 매긴다. 보이는 값이 같으면 같은 순위
   const rank = rankBy(base, r => roundAvg(avgOf(r), decimals));
   const inRank = rankBy(base, r => roundAvg(inAvgOf(r), decimals));
-  const sortKey: SortKey = sortBy === 'inAvg' && !hasAgg ? 'team' : sortBy;
-  // 팀별 순서: 발표자의 참여 당시 팀(팀 구조도 위 → 아래), 같은 팀은 조직도 순서(위 = 높은 사람), 그다음 발표 순서. 소속 없음은 맨 뒤
-  const teamOf = (r: ResultRow) => membership(db, project.id, r.targetId)?.teamIdAtJoin ?? null;
+  const sortKey: SortKey = sortBy === 'inAvg' && !hasAgg ? 'order' : sortBy;
+  // 팀별 순서: 발표 대표의 참여 당시 팀(팀 구조도 위 → 아래), 같은 팀은 조직도 순서(위 = 높은 사람), 그다음 발표 순서. 소속 없음은 맨 뒤
+  const teamOf = (r: ResultRow) => membership(db, project.id, r.pres.leaderId)?.teamIdAtJoin ?? null;
   const tRank = teamRank(db);
   const teamRankOf = (r: ResultRow) => { const t = teamOf(r); return t !== null && tRank.has(t) ? tRank.get(t)! : Number.MAX_SAFE_INTEGER; };
-  const userRankOf = (r: ResultRow) => userOf(db, r.targetId)?.rank ?? Number.MAX_SAFE_INTEGER;
+  const userRankOf = (r: ResultRow) => userOf(db, r.pres.leaderId)?.rank ?? Number.MAX_SAFE_INTEGER;
   const rows = sortKey === 'order' ? base : [...base].sort((a, b) => {
     if (sortKey === 'team') return teamRankOf(a) - teamRankOf(b) || (teamOf(a) ?? '').localeCompare(teamOf(b) ?? '')
       || userRankOf(a) - userRankOf(b) || a.pres.order - b.pres.order;
@@ -138,7 +140,7 @@ export function ResultBoard({ project, detail = true }: { project: Project; deta
     const last = groups[groups.length - 1];
     if (last && last.key === key) { last.rows.push(r); continue; }
     const t = teamOf(r);
-    const m = membership(db, project.id, r.targetId);
+    const m = membership(db, project.id, r.pres.leaderId);
     groups.push({
       key, rows: [r],
       team: sortKey === 'team' ? { name: m?.teamNameAtJoin ?? teamName(db, t), path: t ? teamPath(db.teams, t) : '' } : null,
@@ -146,7 +148,7 @@ export function ResultBoard({ project, detail = true }: { project: Project; deta
   }
   // 지금 보이는 순서대로 1, 2, 3 … (팀별 순서여도 팀을 넘어 이어서 센다)
   const noOf = new Map(rows.map((r, i) => [r.key, i + 1]));
-  // 평가자별 점수표: 팀별 순서면 팀이 시작되는 발표자 열에 구분선을 넣는다
+  // 평가자별 점수표: 팀별 순서면 팀이 시작되는 발표 열에 구분선을 넣는다
   const teamStart = new Set(sortKey === 'team' ? groups.map(g => g.rows[0].key) : []);
   const colCls = (key: string) => `${teamStart.has(key) ? 'edge-l' : ''} ${sel?.col === key ? 'x-col' : ''}`;
   const colCount = 1 + 1 + 5 + (detail ? 3 : 2) + (hasAgg ? (detail ? 3 : 2) : 0) + (detail ? 1 : 0);
@@ -173,7 +175,7 @@ export function ResultBoard({ project, detail = true }: { project: Project; deta
           <label className="switch"><input type="checkbox" checked={decimals} onChange={e => setDecimals(e.target.checked)} /><span />평균 소수점 {decimals ? '넷째 자리까지' : '정수로 반올림'}</label>
         </div>
         {detail && <div className="segmented full">
-          <button className={view === 'topic' ? 'on' : ''} onClick={() => setView('topic')}><Icon name="list" size={15} />구성원별 집계</button>
+          <button className={view === 'topic' ? 'on' : ''} onClick={() => setView('topic')}><Icon name="list" size={15} />발표별 집계</button>
           <button className={view === 'matrix' ? 'on' : ''} onClick={() => setView('matrix')}><Icon name="grid" size={15} />평가자별 점수표</button>
         </div>}
         <div className="rule-row small">
@@ -189,8 +191,8 @@ export function ResultBoard({ project, detail = true }: { project: Project; deta
         <div className="row gap wrap sort-bar">
           <span className="muted small">정렬</span>
           <div className="segmented">
-            <button className={sortKey === 'team' ? 'on' : ''} onClick={() => setSortBy('team')}>팀별 순서</button>
-            <button className={sortKey === 'order' ? 'on' : ''} onClick={() => setSortBy('order')}>발표 순서</button>
+            <button className={sortKey === 'order' ? 'on' : ''} onClick={() => setSortBy('order')}>발표별</button>
+            <button className={sortKey === 'team' ? 'on' : ''} onClick={() => setSortBy('team')}>팀별</button>
             <button className={sortKey === 'avg' ? 'on' : ''} onClick={() => setSortBy('avg')}>전체 점수 순위</button>
             {hasAgg && <button className={sortKey === 'inAvg' ? 'on' : ''} onClick={() => setSortBy('inAvg')}>집계 기준 순위</button>}
           </div>
@@ -204,7 +206,7 @@ export function ResultBoard({ project, detail = true }: { project: Project; deta
             <thead>
               <tr>
                 <th rowSpan={2} className={thc('no', 'c-rno')}>No</th>
-                <th rowSpan={2} className={thc('pres', 'left')}>발표자 · 발표</th>
+                <th rowSpan={2} className={thc('pres', 'left')}>발표 · 구성원</th>
                 <th colSpan={5} className="grp edge-l">인원</th>
                 <th colSpan={detail ? 3 : 2} className="grp col-avg edge-l edge-r">전체 점수</th>
                 {hasAgg && <th colSpan={detail ? 3 : 2} className="grp agg edge-l edge-r">집계 기준 {s.aggMin}~{s.aggMax}점</th>}
@@ -212,7 +214,7 @@ export function ResultBoard({ project, detail = true }: { project: Project; deta
               </tr>
               <tr>
                 <th className={thc('total', 'edge-l')} title="이 평가룸의 전체 참여자">참여</th>
-                <th className={thc('blocked')} title="본인·같은 발표 팀원·같은 회사 팀이라 평가할 수 없는 인원">평가 불가</th>
+                <th className={thc('blocked')} title="본인 발표이거나 같은 회사 팀의 발표라 평가할 수 없는 인원">평가 불가</th>
                 <th className={thc('eligible')} title="참여 - 평가 불가">평가 가능</th>
                 <th className={thc('scored')} title="점수를 제출한 인원">평가함</th>
                 <th className={thc('notRated')} title="평가할 수 있는데 아직 점수를 주지 않은 인원">미평가</th>
@@ -230,7 +232,7 @@ export function ResultBoard({ project, detail = true }: { project: Project; deta
                       <Icon name="building" size={14} />
                       <b>{g.team.name}</b>
                       {g.team.path && <span className="team-path">{g.team.path}</span>}
-                      <span className="team-count">발표자 {g.rows.length}명</span>
+                      <span className="team-count">발표 {g.rows.length}개</span>
                     </div>
                   </td>
                 </tr>
@@ -256,7 +258,7 @@ export function ResultBoard({ project, detail = true }: { project: Project; deta
                     {/* 칸을 누르면 그 칸·줄·열을 표시하고, 상세(평가자별 점수·피드백)는 맨 오른쪽 펼치기 버튼으로만 연다 */}
                     <tr className={`${open ? 'open' : ''} ${tsel?.row === r.key ? 'x-row' : ''}`}>
                       <td {...tcell(r.key, 'no', 'c-rno')}>{noOf.get(r.key)}</td>
-                      <td {...tcell(r.key, 'pres', 'left')}><PersonCell r={r} onOpenPres={setPopupPres} /></td>
+                      <td {...tcell(r.key, 'pres', 'left')}><PresCell r={r} onOpenPres={setPopupPres} /></td>
                       <td {...tcell(r.key, 'total', 'edge-l')}>{sm?.total ?? 0}</td>
                       <td {...tcell(r.key, 'blocked', 'muted')}>{sm?.blocked ?? 0}</td>
                       <td {...tcell(r.key, 'eligible')}>{sm?.eligible ?? 0}</td>
@@ -281,7 +283,7 @@ export function ResultBoard({ project, detail = true }: { project: Project; deta
                       <tr className="detail-row">
                         <td colSpan={span}>
                           <div className="detail-inner">
-                          <div className="detail-title">{userName(db, r.targetId)}에게 준 점수 · 피드백</div>
+                          <div className="detail-title">'{r.pres.title}' 발표에 준 점수 · 피드백</div>
                           <table className="tbl inner">
                             <thead><tr><th className="left">평가자</th><th>점수</th><th className="left">피드백</th><th className="left">제출 시각</th></tr></thead>
                             <tbody>
@@ -319,7 +321,7 @@ export function ResultBoard({ project, detail = true }: { project: Project; deta
         <div className="table-wrap">
           <table className={`tbl board-tbl score-sheet sort-${sortKey}`}>
             <thead>
-              {/* 팀별 순서면 발표자 열을 팀마다 묶는다 (구성원별 집계의 팀 묶음과 같은 순서) */}
+              {/* 팀별 순서면 발표 열을 팀마다 묶는다 (발표별 집계의 팀 묶음과 같은 순서) */}
               {sortKey === 'team' && (
                 <tr>
                   <th rowSpan={2} className="c-rno">No</th>
@@ -330,9 +332,9 @@ export function ResultBoard({ project, detail = true }: { project: Project; deta
               <tr>
                 {sortKey !== 'team' && <><th className="c-rno">No</th><th className="left sticky">평가자</th></>}
                 {rows.map(r => (
-                  <th key={r.key} className={`ss-person ${colCls(r.key)}`} title={`${userName(db, r.targetId)} · ${r.pres.title}`}>
+                  <th key={r.key} className={`ss-person ${colCls(r.key)}`} title={`${r.pres.title} · ${crewNames(db, r.pres)}`}>
                     <span className="ss-no">{noOf.get(r.key)}</span>
-                    <PersonCell r={r} compact onOpenPres={setPopupPres} />
+                    <PresCell r={r} onOpenPres={setPopupPres} />
                   </th>
                 ))}
               </tr>

@@ -19,6 +19,8 @@ public class Notification extends PersistableEntity<UUID> {
     public static final String ROOM_INVITED = "ROOM_INVITED";
     /** 룸 관리자가 발표를 등록해 달라고 요청함 */
     public static final String PRESENTATION_REQUESTED = "PRESENTATION_REQUESTED";
+    /** 룸 관리자가 아직 평가하지 않은 발표를 평가해 달라고 요청함 */
+    public static final String RATING_REQUESTED = "RATING_REQUESTED";
 
     @Id
     private UUID id;
@@ -41,7 +43,18 @@ public class Notification extends PersistableEntity<UUID> {
     @Column(name = "read_at")
     private Instant readAt;
 
+    /** 평가 요청 알림이 가리키는 발표 (그 밖의 알림은 null, 발표가 지워지면 null) */
+    @Column(name = "presentation_id")
+    private UUID presentationId;
+
     protected Notification() {
+    }
+
+    /** 룸 관리자가 이 발표를 평가해 달라고 요청함 */
+    public static Notification ratingRequested(UUID userId, UUID projectId, UUID presentationId, UUID actorId, Instant now) {
+        Notification n = of(RATING_REQUESTED, userId, projectId, actorId, now);
+        n.presentationId = presentationId;
+        return n;
     }
 
     public static Notification roomInvited(UUID userId, UUID projectId, UUID actorId, Instant now) {
@@ -90,5 +103,9 @@ public class Notification extends PersistableEntity<UUID> {
 
     public Instant getReadAt() {
         return readAt;
+    }
+
+    public UUID getPresentationId() {
+        return presentationId;
     }
 }

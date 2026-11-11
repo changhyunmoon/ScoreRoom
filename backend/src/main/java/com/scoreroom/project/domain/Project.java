@@ -90,6 +90,9 @@ public class Project extends TimestampedEntity<UUID> {
     @Column(name = "show_rating_status_names", nullable = false)
     private boolean showRatingStatusNames;
 
+    @Column(name = "allow_admin_present", nullable = false)
+    private boolean allowAdminPresent;
+
     protected Project() {
     }
 
@@ -101,10 +104,16 @@ public class Project extends TimestampedEntity<UUID> {
         applySettings(ProjectSettings.defaults());
     }
 
+    /** 이름과 설명을 바꾼다 (앞뒤 공백은 호출하는 쪽에서 정리) */
+    public void describe(String name, String description) {
+        this.name = name;
+        this.description = description;
+    }
+
     public ProjectSettings settings() {
         return new ProjectSettings(scoreMin, scoreMax, aggMin, aggMax, allowSelf, allowSameTeam, allowSameCrew, allowEdit,
                 showRatingStatus, countSelf, countSameCrew, countSameTeam, allowAdminRating, countAdmin, showRosterSummary,
-                showRatingStatusNames);
+                showRatingStatusNames, allowAdminPresent);
     }
 
     public void applySettings(ProjectSettings settings) {
@@ -124,6 +133,7 @@ public class Project extends TimestampedEntity<UUID> {
         this.countAdmin = settings.countAdmin();
         this.showRosterSummary = settings.showRosterSummary();
         this.showRatingStatusNames = settings.showRatingStatusNames();
+        this.allowAdminPresent = settings.allowAdminPresent();
     }
 
     public boolean isOpen() {

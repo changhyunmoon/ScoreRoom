@@ -63,7 +63,7 @@ export default function ProjectListPage() {
     if (busy) return;
     setBusy(true);
     let pid = '';
-    const ok = await run(async () => { pid = await mutate(joinByCode(code)); }, '평가룸에 입장했습니다.');
+    const ok = await run(async () => { pid = await mutate(joinByCode(code)); }, '평가룸에 입장했어요.');
     setBusy(false);
     if (ok) nav(`/p/${pid}`);
   };
@@ -71,7 +71,7 @@ export default function ProjectListPage() {
     if (busy) return;
     setBusy(true);
     let pid = '';
-    const ok = await run(async () => { pid = await mutate(createProject(name, desc)); }, '평가룸을 만들었습니다. 평가 규칙을 확인해 주세요.');
+    const ok = await run(async () => { pid = await mutate(createProject(name, desc)); }, '평가룸을 만들었어요. 평가 규칙을 확인해 주세요.');
     setBusy(false);
     if (ok) nav(`/p/${pid}/admin?tab=settings`);
   };
@@ -98,7 +98,7 @@ export default function ProjectListPage() {
           <div className="widget-title">바로 평가하기</div>
           {next
             ? <div className="portal-live-content"><Link to={`/p/${next.p.id}`} className="live-line"><b>{next.p.name}</b><Icon name="right" size={15} /></Link><p className="muted small">평가할 발표 {next.todo}개</p><Link to={`/p/${next.p.id}`} className="btn primary">평가하러 가기</Link></div>
-            : <div className="portal-empty"><Icon name="checkCircle" size={22} /><p>지금 평가할 발표가 없습니다.</p></div>}
+            : <div className="portal-empty"><Icon name="checkCircle" size={22} /><p>지금 평가할 발표가 없어요.</p></div>}
         </div>
         <div className="widget join">
           <div className="widget-title">평가룸 입장</div>
@@ -135,7 +135,7 @@ export default function ProjectListPage() {
             <span className="c-no">No</span><span className="c-title">평가룸 이름</span><span className="c-role">내 역할</span>
             <span className="c-num">참여자</span><span className="c-num">발표</span><span className="c-todo">내 평가</span><span className="c-date">생성일</span><span className="c-state">상태</span>
           </div>
-          {shown.length === 0 && <div className="bempty">{q ? '검색 결과가 없습니다.' : '참여 중인 평가룸이 없습니다. 입장 코드를 입력하거나 새로 만들어 보세요.'}</div>}
+          {shown.length === 0 && <div className="bempty">{q ? '검색 결과가 없어요.' : '참여 중인 평가룸이 없어요. 입장 코드를 입력하거나 새로 만들어 보세요.'}</div>}
           {shown.map(r => (
             <Link key={r.p.id} to={`/p/${r.p.id}`} className={`prow ${r.todo > 0 && r.p.status === 'OPEN' ? 'unread' : ''}`}>
               <span className="c-no">{myNo.get(r.p.id)}</span>
@@ -189,7 +189,7 @@ function AllRooms() {
           <span className="c-no">No</span><span className="c-title">평가룸 이름</span><span className="c-role">내 권한</span>
           <span className="c-num">참여자</span><span className="c-num">발표</span><span className="c-todo">관리자</span><span className="c-date">생성일</span><span className="c-state">상태</span>
         </div>
-        {shown.length === 0 && <div className="bempty">{q ? '검색 결과가 없습니다.' : '평가룸이 없습니다.'}</div>}
+        {shown.length === 0 && <div className="bempty">{q ? '검색 결과가 없어요.' : '평가룸이 없어요.'}</div>}
         {shown.map(p => {
           const admins = members(db, p.id).filter(m => m.isAdmin).map(m => userName(db, m.userId));
           const r = myRole(p.id);

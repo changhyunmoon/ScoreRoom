@@ -48,14 +48,14 @@ async function send(method: string, path: string, init: RequestInit = {}): Promi
     return await fetch(BASE + path, { ...init, method, credentials: 'same-origin' });
   } catch (e) {
     if (e instanceof DOMException && e.name === 'AbortError') throw e;
-    throw new ApiError(0, 'NETWORK_ERROR', '서버에 연결할 수 없습니다. 네트워크를 확인해 주세요.');
+    throw new ApiError(0, 'NETWORK_ERROR', '서버에 연결할 수 없어요. 네트워크를 확인해 주세요.');
   }
 }
 
 async function toError(res: Response): Promise<ApiError> {
   let body: { code?: string; message?: string; fieldErrors?: FieldError[]; requestId?: string } = {};
   try { body = await res.json(); } catch { /* HTML·빈 응답 */ }
-  return new ApiError(res.status, body.code ?? 'UNKNOWN', body.message ?? '오류가 발생했습니다.', body.fieldErrors ?? [], body.requestId ?? null);
+  return new ApiError(res.status, body.code ?? 'UNKNOWN', body.message ?? '오류가 발생했어요.', body.fieldErrors ?? [], body.requestId ?? null);
 }
 
 async function request(method: string, path: string, body?: unknown, signal?: AbortSignal): Promise<Response> {

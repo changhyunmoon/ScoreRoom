@@ -149,31 +149,36 @@ public class StateService {
                         .toList(),
                 summaries(visibleProjects, summaryOf, countsOnly, roomMembers, roomPresentations, membersByPresentation,
                         crews, scopedRatings),
-                myNotifications(meId, memberOf, visibleProjects, allUsers));
+                myNotifications(meId, memberOf, visibleProjects, allUsers, roomPresentations));
     }
 
     /** 내 알림 (최근 50건). 지금 참여 중인 평가룸에 대한 것만 보여 준다 */
     /** 점수(평균·범위 안 제출) 정보를 지운 집계. 사람 목록은 룸 관리자가 참여자에게 보이도록 켰을 때만 남긴다 */
     private static SummaryResponse countsOnly(SummaryResponse s, boolean withNames) {
-        return new SummaryResponse(s.presentationId(), s.targetId(), s.total(), s.blocked(), s.eligible(), s.scored(),
+        return new SummaryResponse(s.presentationId(), s.total(), s.blocked(), s.eligible(), s.scored(),
                 s.notRated(), null, 0, null, withNames ? s.scoredIds() : null, withNames ? s.blockedIds() : null,
                 withNames ? s.notRatedIds() : null);
     }
 
     private List<NotificationResponse> myNotifications(UUID meId, Set<UUID> memberOf, List<Project> visibleProjects,
-            List<User> allUsers) {
+            List<User> allUsers, List<Presentation> roomPresentations) {
         Map<UUID, String> projectNames = visibleProjects.stream().collect(Collectors.toMap(Project::getId, Project::getName));
         Map<UUID, String> userNames = allUsers.stream().collect(Collectors.toMap(User::getId, User::getName));
+        Map<UUID, String> presentationTitles = roomPresentations.stream()
+                .collect(Collectors.toMap(Presentation::getId, Presentation::getTitle));
         return notifications.findTop50ByUserIdOrderByCreatedAtDesc(meId).stream()
                 .filter(n -> memberOf.contains(n.getProjectId()))
-                .map(n -> toResponse(n, projectNames, userNames))
+                .map(n -> toResponse(n, projectNames, userNames, presentationTitles))
                 .toList();
     }
 
-    private static NotificationResponse toResponse(Notification n, Map<UUID, String> projectNames, Map<UUID, String> userNames) {
+    private static NotificationResponse toResponse(Notification n, Map<UUID, String> projectNames, Map<UUID, String> userNames,
+            Map<UUID, String> presentationTitles) {
+        UUID presentationId = n.getPresentationId();
         return new NotificationResponse(n.getId(), n.getType(), n.getProjectId(), projectNames.getOrDefault(n.getProjectId(), ""),
                 n.getActorId(), userNames.getOrDefault(n.getActorId(), ""), Times.toMillis(n.getCreatedAt()),
-                n.getReadAt() == null ? null : Times.toMillis(n.getReadAt()));
+                n.getReadAt() == null ? null : Times.toMillis(n.getReadAt()),
+                presentationId, presentationId == null ? null : presentationTitles.get(presentationId));
     }
 
     /**

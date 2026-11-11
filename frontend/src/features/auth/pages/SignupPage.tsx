@@ -16,15 +16,15 @@ export default function SignupPage() {
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement>) => setF({ ...f, [k]: e.target.value });
   useEffect(() => {
     fetchAuthOptions().then(o => setEnabled(o.signupEnabled)).catch(() => setEnabled(false));
-    fetchTeams().then(setTeams).catch(() => toast('팀 목록을 불러오지 못했습니다.', 'err'));
+    fetchTeams().then(setTeams).catch(() => toast('팀 목록을 불러오지 못했어요.', 'err'));
   }, []);
   if (enabled === false) return <Navigate to="/login" replace />;
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    if (f.password !== f.password2) return toast('비밀번호가 일치하지 않습니다.', 'err');
+    if (f.password !== f.password2) return toast('비밀번호가 일치하지 않아요.', 'err');
     const { password2: _skip, ...form } = f;
     setBusy(true);
-    const ok = await run(() => signup(form), '가입이 완료되었습니다.');
+    const ok = await run(() => signup(form), '가입이 완료됐어요.');
     setBusy(false);
     if (ok) nav('/');
   };

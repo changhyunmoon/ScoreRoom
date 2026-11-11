@@ -35,12 +35,11 @@ export const aggChanged = (a: Project['settings'], b: Project['settings']) =>
   a.aggMin !== b.aggMin || a.aggMax !== b.aggMax || a.countSelf !== b.countSelf || a.countSameCrew !== b.countSameCrew || a.countSameTeam !== b.countSameTeam
   || a.countAdmin !== b.countAdmin;
 
-// '누가 준 점수인지'로 이름을 붙인다 (발표자와 가까운 사람 → 먼 사람 순)
+// '누가 준 점수인지'로 이름을 붙인다 (발표와 가까운 사람 → 먼 사람 순). 같은 발표 팀원 설정은 발표 단위 평가에서 본인 발표에 들어가 따로 두지 않는다
 const INCLUDE: { key: 'countSelf' | 'countSameCrew' | 'countSameTeam' | 'countAdmin'; label: string; hint: string }[] = [
-  { key: 'countSelf', label: '발표자 본인이 준 점수', hint: '발표자가 자기 자신에게 준 점수' },
-  { key: 'countSameTeam', label: '같은 회사 팀원이 준 점수', hint: '발표자와 같은 회사 팀인 사람이 준 점수' },
-  { key: 'countSameCrew', label: '같은 발표 팀원이 준 점수', hint: '팀 발표에서 함께 발표한 사람끼리 준 점수' },
-  { key: 'countAdmin', label: '룸 관리자가 준 점수', hint: '이 평가룸의 룸 관리자가 발표자에게 준 점수' },
+  { key: 'countSelf', label: '본인 발표에 준 점수', hint: '구성원이 자기 발표에 준 점수' },
+  { key: 'countSameTeam', label: '같은 회사 팀원이 준 점수', hint: '구성원 중 같은 회사 팀인 사람이 있는 발표에 준 점수' },
+  { key: 'countAdmin', label: '룸 관리자가 준 점수', hint: '이 평가룸의 룸 관리자가 발표에 준 점수' },
 ];
 
 /** onReset: 입력을 버리고 저장된 설정을 따른다 (되돌리기·저장 후) */

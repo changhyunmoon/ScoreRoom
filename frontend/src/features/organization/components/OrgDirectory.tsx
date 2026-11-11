@@ -71,7 +71,7 @@ export function OrgDirectory({ onClose, picker }: { onClose: () => void; picker?
         <div className="org-modal-head">
           <div>
             <h2 id="org-directory-title">{picker ? picker.title : '회사 팀 구조도'}</h2>
-            <p>{picker ? picker.hint ?? '사람 옆의 체크박스를 눌러 목록에 담으세요.' : '팀을 선택하면 소속 팀원을 볼 수 있습니다.'}</p>
+            <p>{picker ? picker.hint ?? '사람 옆의 체크박스를 눌러 목록에 담으세요.' : '팀을 선택하면 소속 팀원을 볼 수 있어요.'}</p>
           </div>
           <button className="org-modal-close" type="button" aria-label="닫기" onClick={onClose} autoFocus>×</button>
         </div>
@@ -127,7 +127,7 @@ export function OrgDirectory({ onClose, picker }: { onClose: () => void; picker?
                       </tr>
                     );
                   })}
-                  {shownUsers.length === 0 && <tr><td colSpan={picker ? 4 : 3} className="org-empty">표시할 팀원이 없습니다.</td></tr>}
+                  {shownUsers.length === 0 && <tr><td colSpan={picker ? 4 : 3} className="org-empty">표시할 팀원이 없어요.</td></tr>}
                 </tbody>
               </table>
             </div>

@@ -4,7 +4,10 @@ import java.time.Clock;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -109,8 +112,9 @@ public class MembershipService {
 
     /**
      * 룸 관리자는 최소 1명이어야 한다.
-     * 룸 관리자는 발표하지 않으므로, 발표에 등록된 사람을 관리자로 지정하면 그 발표에서 뺀다(받은 평가 삭제).
-     * 관리자 평가를 끈 평가룸이면 그 사람이 준 평가도 지운다. 지울 데이터가 있으면 화면이 확인한 version이 지금과 같아야 한다.
+     * 룸 관리자 발표를 끈 평가룸이면, 발표에 등록된 사람을 관리자로 지정할 때 그 발표에서 뺀다
+     * (혼자 하는 발표는 받은 평가와 함께 삭제, 팀 발표는 발표와 받은 평가가 남는다. 그 사람이 자기 발표에 준 평가는 지운다).
+     * 관리자 평가를 끈 평가룸이면 그 사람이 준 평가도 모두 지운다. 지울 데이터가 있으면 화면이 확인한 version이 지금과 같아야 한다.
      */
     @Transactional
     public void setAdmin(UUID actorId, UUID projectId, UUID userId, boolean admin, Long expectedVersion) {
@@ -122,10 +126,14 @@ public class MembershipService {
         }
         int removedRatings = 0;
         if (admin && !target.isAdmin()) {
-            List<PresentationMember> involved = presentationMembers.findByProjectIdAndUserId(projectId, userId);
+            List<PresentationMember> involved = room.project().settings().allowAdminPresent()
+                    ? List.of() : presentationMembers.findByProjectIdAndUserId(projectId, userId);
+            Set<UUID> ownPresentations = involved.stream().map(PresentationMember::getPresentationId)
+                    .collect(Collectors.toSet());
             boolean dropGiven = !room.project().settings().allowAdminRating();
             List<UUID> doomed = ratings.findByProjectId(projectId).stream()
-                    .filter(r -> r.getTargetId().equals(userId) || (dropGiven && r.getRaterId().equals(userId)))
+                    .filter(r -> r.getRaterId().equals(userId)
+                            && (dropGiven || ownPresentations.contains(r.getPresentationId())))
                     .map(r -> r.getId()).toList();
             if (!involved.isEmpty() || !doomed.isEmpty()) {
                 room.requireVersion(expectedVersion);
@@ -137,9 +145,40 @@ public class MembershipService {
         audit.record(actorId, projectId, admin ? "ROOM_ADMIN_GRANTED" : "ROOM_ADMIN_REVOKED", removedRatings);
     }
 
+    /** 발표 구성원으로 들어 있는 룸 관리자 (룸 관리자 발표를 끌 때 영향 확인용) */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public List<PresentationMember> adminPresenters(UUID projectId) {
+        Set<UUID> admins = memberships.findByProjectId(projectId).stream()
+                .filter(Membership::isAdmin).map(Membership::getUserId).collect(Collectors.toSet());
+        return presentationMembers.findByProjectId(projectId).stream().filter(pm -> admins.contains(pm.getUserId())).toList();
+    }
+
+    /**
+     * 룸 관리자 발표를 끌 때: 발표에 들어 있는 관리자를 모두 발표에서 뺀다 (관리자로 지정할 때와 같은 규칙).
+     * 그 관리자가 자기 발표에 준 평가도 지운다. 지운 평가 수를 돌려준다. 호출하는 쪽이 평가룸을 잠그고 version을 확인한다
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public int removeAdminPresenters(UUID projectId) {
+        int removedRatings = 0;
+        Map<UUID, List<PresentationMember>> byAdmin = adminPresenters(projectId).stream()
+                .collect(Collectors.groupingBy(PresentationMember::getUserId));
+        for (Map.Entry<UUID, List<PresentationMember>> e : byAdmin.entrySet()) {
+            UUID userId = e.getKey();
+            Set<UUID> own = e.getValue().stream().map(PresentationMember::getPresentationId).collect(Collectors.toSet());
+            List<UUID> doomed = ratings.findByProjectId(projectId).stream()
+                    .filter(r -> r.getRaterId().equals(userId) && own.contains(r.getPresentationId()))
+                    .map(r -> r.getId()).toList();
+            removedRatings += doomed.isEmpty() ? 0 : ratings.deleteByIds(doomed);
+            // 앞에서 다른 관리자가 빠지며 발표가 지워졌을 수 있으므로 다시 읽는다
+            removedRatings += leavePresentations(presentationMembers.findByProjectIdAndUserId(projectId, userId), userId);
+        }
+        return removedRatings;
+    }
+
     /**
      * 참여자를 제거한다. 한 트랜잭션에서:
-     * 그 사람이 준·받은 점수 삭제 → 혼자 하는 발표 삭제 → 함께 하는 발표에서 빼고 대표였으면 새 대표 지정(발표자 → 팀원 순).
+     * 그 사람이 준 점수 삭제 → 혼자 하는 발표 삭제(받은 점수도 함께) → 함께 하는 발표에서 빼고 대표였으면 새 대표 지정(발표자 → 팀원 순).
+     * 팀 발표가 받은 점수는 발표에 붙어 있으므로 남는다.
      * 지울 데이터가 있으면 화면이 확인한 version이 지금과 같아야 한다.
      */
     @Transactional
@@ -154,12 +193,12 @@ public class MembershipService {
         }
         List<PresentationMember> involved = presentationMembers.findByProjectIdAndUserId(projectId, userId);
         boolean hasRatings = ratings.findByProjectId(projectId).stream()
-                .anyMatch(r -> r.getRaterId().equals(userId) || r.getTargetId().equals(userId));
+                .anyMatch(r -> r.getRaterId().equals(userId));
         if (hasRatings || !involved.isEmpty()) {
             room.requireVersion(expectedVersion);
         }
 
-        int removedRatings = ratings.deleteInvolving(projectId, userId);
+        int removedRatings = ratings.deleteGivenBy(projectId, userId);
         removedRatings += leavePresentations(involved, userId);
         memberships.deleteMember(projectId, userId);
         audit.record(actorId, projectId, "MEMBER_REMOVED", removedRatings);

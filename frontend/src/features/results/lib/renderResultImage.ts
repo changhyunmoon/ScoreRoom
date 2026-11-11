@@ -274,6 +274,7 @@ function drawScene(c: CanvasRenderingContext2D, scene: Scene, W: number, H: numb
   }
 }
 
+/** 이미지 한 줄: name = 발표 제목, title = 구성원 이름 */
 export type Entry = { key: string; rank: number; name: string; title: string; score: number };
 
 /* ---------- 이미지 그리기 (Canvas) ---------- */
@@ -347,9 +348,9 @@ export async function drawResultImage(project: Project, entries: Entry[], t: The
     const scoreWidth = o.showScore ? (o.decimals ? 210 : 130) : 0;
     font(700, 34);
     c.fillStyle = t.text;
-    const duplicateName = entries.some(other => other.key !== e.key && other.name === e.name);
-    c.fillText(fit(e.name, w - 108 - scoreWidth - 48), tx, duplicateName ? y + 38 : cy);
-    if (duplicateName) {
+    const hasSub = !!e.title; // 구성원 이름을 제목 아래 작은 글씨로
+    c.fillText(fit(e.name, w - 108 - scoreWidth - 48), tx, hasSub ? y + 38 : cy);
+    if (hasSub) {
       font(400, 20);
       c.fillStyle = t.sub;
       c.fillText(fit(e.title, w - 108 - scoreWidth - 48), tx, y + 75);

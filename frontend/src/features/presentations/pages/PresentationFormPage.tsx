@@ -69,9 +69,9 @@ export default function PresentationFormPage() {
   if (!project || !me) return <RoomNotFound />;
   const m = membership(db, project.id, me.id);
   if (!m) return <RoomNotFound />;
-  if (prid && !existing) return <Empty>발표를 찾을 수 없습니다. 삭제됐을 수 있어요. <Link to={`/p/${project.id}`}>목록으로</Link></Empty>;
-  if (existing && !canEditPresentation(existing, me.id, m.isAdmin)) return <Empty>발표 구성원, 발표를 만든 사람, 룸 관리자만 편집할 수 있습니다.</Empty>;
-  if (project.status === 'CLOSED') return <Empty>마감된 평가룸은 편집할 수 없습니다.</Empty>;
+  if (prid && !existing) return <Empty>발표를 찾을 수 없어요. 삭제됐을 수 있어요. <Link to={`/p/${project.id}`}>목록으로</Link></Empty>;
+  if (existing && !canEditPresentation(existing, me.id, m.isAdmin)) return <Empty>발표 구성원, 발표를 만든 사람, 룸 관리자만 편집할 수 있어요.</Empty>;
+  if (project.status === 'CLOSED') return <Empty>마감된 평가룸은 편집할 수 없어요.</Empty>;
 
   // 한 사람은 평가룸에서 발표 하나에만 참여한다. 다른 발표에 이미 들어 있는 사람의 그 발표
   const takenBy = (id: ID) => {
@@ -91,8 +91,8 @@ export default function PresentationFormPage() {
   // 점수를 받은 발표는 평가 가능 여부가 바뀌지 않도록 구성원 추가·제외를 막는다 (역할 변경은 가능)
   const locked = !!existing?.hasRatings;
   const lockedCrew = existing ? involvedIds(existing) : [];
-  // 룸 관리자는 발표하지 않으므로 구성원 후보에서 뺀다 (예전 데이터로 이 발표에 이미 있는 관리자는 남긴다)
-  const ms = members(db, project.id).filter(x => !x.isAdmin || lockedCrew.includes(x.userId));
+  // 룸 관리자 발표를 끈 평가룸이면 관리자는 구성원 후보에서 뺀다 (이 발표에 이미 있는 관리자는 남긴다)
+  const ms = members(db, project.id).filter(x => !x.isAdmin || project.settings.allowAdminPresent || lockedCrew.includes(x.userId));
   // 나를 구성원으로 넣지 않고 등록하는 경우: 룸 관리자가 대신 등록하거나, 내가 이미 다른 발표에 있을 때
   const proxy = m.isAdmin || !!myOther;
   const teamOf = (id: ID) => membership(db, project.id, id)?.teamIdAtJoin ?? null;
@@ -181,7 +181,7 @@ export default function PresentationFormPage() {
   const fileCount = keptFiles.length + newFiles.length;
   const pickFiles = (picked: File[]) => {
     const tooBig = picked.filter(x => x.size > MAX_ATTACHMENT_MB * 1024 * 1024);
-    if (tooBig.length) toast(`${tooBig.map(x => x.name).join(', ')}: 파일당 ${MAX_ATTACHMENT_MB}MB 이하만 올릴 수 있습니다.`, 'err');
+    if (tooBig.length) toast(`${tooBig.map(x => x.name).join(', ')}: 파일당 ${MAX_ATTACHMENT_MB}MB 이하만 올릴 수 있어요.`, 'err');
     const ok = picked.filter(x => x.size <= MAX_ATTACHMENT_MB * 1024 * 1024 && x.size > 0);
     const room = MAX_ATTACHMENTS - fileCount;
     if (ok.length > room) toast(`발표 자료는 ${MAX_ATTACHMENTS}개까지 올릴 수 있어요. ${ok.length - room}개는 빠졌어요.`, 'err');
@@ -222,11 +222,11 @@ export default function PresentationFormPage() {
     if (failed.length) {
       setNewFiles(notUploaded);
       setRemoveIds([]);
-      toast(`발표는 저장했지만 자료 일부를 처리하지 못했습니다: ${failed.join(', ')}`, 'err');
+      toast(`발표는 저장했지만 자료 일부를 처리하지 못했어요: ${failed.join(', ')}`, 'err');
       if (!existing) nav(`/p/${project.id}/pres/${savedId}`, { replace: true });
       return;
     }
-    toast(existing ? '발표를 수정했습니다.' : '발표를 등록했습니다.');
+    toast(existing ? '발표를 수정했어요.' : '발표를 등록했어요.');
     nav(back);
   };
 
@@ -245,7 +245,7 @@ export default function PresentationFormPage() {
   const problems = [
     !f.title.trim() && '발표 제목을 입력해 주세요.',
     takenCrew.length > 0 && `다른 발표에 이미 등록된 사람이 있어요: ${Array.from(new Set(takenCrew)).map(id => userName(db, id)).join(', ')}. 한 사람은 발표 하나에만 참여할 수 있어요.`,
-    titleTaken && '이 평가룸에 같은 제목의 발표가 이미 있습니다.',
+    titleTaken && '이 평가룸에 같은 제목의 발표가 이미 있어요.',
     !leaderId && '대표를 1명 선택해 주세요.',
     !m.isAdmin && !meIncluded && '본인의 역할(대표·팀원)을 선택해 주세요.',
     urlInvalid && '배포 URL은 http:// 또는 https://로 시작하는 주소로 입력해 주세요.',
@@ -307,7 +307,7 @@ export default function PresentationFormPage() {
               <button type="button" className="btn sm" disabled={fileCount >= MAX_ATTACHMENTS} onClick={() => fileInput.current?.click()}>
                 <IconText icon="paperclip">{fileCount ? '파일 추가' : '파일 선택'}</IconText>
               </button>
-              <small className="muted">{fileCount}/{MAX_ATTACHMENTS}개, 파일당 {MAX_ATTACHMENT_MB}MB 이하 (PPT, PDF, HWP 등) · 여러 개를 한 번에 고를 수 있어요</small>
+              <small className="muted">{fileCount}/{MAX_ATTACHMENTS}개 · 파일당 {MAX_ATTACHMENT_MB}MB 이하</small>
             </div>
           </div>
         </div>
@@ -337,8 +337,8 @@ export default function PresentationFormPage() {
           </button>
         </div>}
         <ul className="role-guide">
-          <li><span className="crew-label lead">대표</span>꼭 1명 필요해요. 나머지 구성원은 팀원으로 고르세요.</li>
-          <li>등록하면 고른 구성원 모두 이 발표로 등록돼요. 한 사람은 발표 하나에만 참여할 수 있어서, 다른 발표에 등록된 사람은 고를 수 없어요.</li>
+          <li><span className="crew-label lead">대표</span>꼭 1명, 나머지는 팀원으로 골라요.</li>
+          <li>한 사람은 발표 하나에만 참여해요. 다른 발표에 등록된 사람은 고를 수 없어요.</li>
         </ul>
         {locked && <div className="notice"><Icon name="lock" size={15} />점수를 받은 발표라 역할만 바꿀 수 있어요.</div>}
 
@@ -371,13 +371,13 @@ export default function PresentationFormPage() {
           {fromMyTeam && people.length <= 1 && <div className="bempty">같은 팀의 다른 참여자가 없어요. 직접 고르기로 다른 참여자를 고를 수 있어요.</div>}
         </div>
         <span className="hint">
-          {fromMyTeam ? `${teamName(db, myTeam)} 참여자를 불러왔어요. 등록하는 나는 대표, 나머지는 팀원으로 먼저 선택돼요. 대표는 다른 사람으로 바꿀 수 있어요.` : '평가룸 참여자 누구나 고를 수 있어요.'}
+          {fromMyTeam ? `${teamName(db, myTeam)} 참여자를 불러왔어요. 대표는 바꿀 수 있어요.` : '평가룸 참여자 누구나 고를 수 있어요.'}
         </span>
       </div>}
 
       <div className="card stack">
         <h2>구성원 확인</h2>
-        <span className="hint">아래 사람들이 이 발표로 각각 평가를 받아요. 저장하기 전에 빠진 사람이 없는지 확인하세요.</span>
+        <span className="hint">점수는 구성원별이 아니라 발표에 한 번 매겨져요. 빠진 사람이 없는지 확인하세요.</span>
         {leaderId ? <Presenters db={db} project={project} pres={crewDraft} /> : <p className="muted">대표를 선택하면 구성원이 여기에 보여요.</p>}
         {problems.map(t => <div key={t} className="error"><Icon name="ban" size={15} />{t}</div>)}
         <button className="btn primary solid" disabled={problems.length > 0 || saving} onClick={save}>
@@ -391,11 +391,11 @@ export default function PresentationFormPage() {
           {m.isAdmin || !existing.hasRatings ? (
             <ConfirmButton label="이 발표 삭제" confirmLabel="삭제"
               detail={m.isAdmin
-                ? (ratingCount ? `제출된 평가 ${ratingCount}건이 함께 삭제되고 결과가 다시 계산됩니다.` : '제출된 평가가 없습니다.')
-                : '발표와 올린 자료가 모두 삭제되고 되돌릴 수 없습니다.'}
-              onConfirm={() => run(() => mutate(deletePresentation(project.id, existing.id)), '발표를 삭제했습니다.').then(ok => ok && nav(back))} />
+                ? (ratingCount ? `평가 ${ratingCount}건도 함께 삭제돼요.` : '제출된 평가가 없어요.')
+                : '발표와 자료가 삭제되고 되돌릴 수 없어요.'}
+              onConfirm={() => run(() => mutate(deletePresentation(project.id, existing.id)), '발표를 삭제했어요.').then(ok => ok && nav(back))} />
           ) : (
-            <p className="muted">점수를 받은 발표는 룸 관리자만 삭제할 수 있습니다.</p>
+            <p className="muted">점수를 받은 발표는 룸 관리자만 삭제할 수 있어요.</p>
           )}
         </div>
       )}

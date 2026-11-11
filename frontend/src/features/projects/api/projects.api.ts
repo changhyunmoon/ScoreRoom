@@ -35,3 +35,7 @@ export const updateSettings = async (pid: ID, settings: Settings, expectedVersio
 export const closeProject = (pid: ID) => http.post(`/projects/${pid}/close`);
 /** 평가룸 삭제 (룸 관리자·시스템 관리자). 발표·평가·자료·참여자가 모두 지워지고 되돌릴 수 없다 */
 export const deleteProject = (pid: ID) => http.del(`/projects/${pid}`);
+
+/** 평가룸 이름·설명 수정 (룸 관리자, 마감 전). 평가·설정에는 영향이 없다 */
+export const updateProjectInfo = (pid: ID, name: string, description: string) =>
+  http.put(`/projects/${pid}/info`, { name: name.trim(), description: description.trim() });

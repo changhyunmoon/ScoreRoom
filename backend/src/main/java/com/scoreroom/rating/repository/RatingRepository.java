@@ -13,7 +13,7 @@ import com.scoreroom.rating.domain.Rating;
 
 public interface RatingRepository extends JpaRepository<Rating, UUID> {
 
-    Optional<Rating> findByPresentationIdAndTargetIdAndRaterId(UUID presentationId, UUID targetId, UUID raterId);
+    Optional<Rating> findByPresentationIdAndRaterId(UUID presentationId, UUID raterId);
 
     List<Rating> findByProjectId(UUID projectId);
 
@@ -35,10 +35,10 @@ public interface RatingRepository extends JpaRepository<Rating, UUID> {
     @Query("delete from Rating r where r.presentationId = :presentationId")
     int deleteAllForPresentation(UUID presentationId);
 
-    /** 참여자가 준 점수와 받은 점수 */
+    /** 참여자가 준 점수 (받은 점수는 발표에 붙어 있어 발표가 지워질 때 함께 지워진다) */
     @Modifying(flushAutomatically = true)
-    @Query("delete from Rating r where r.projectId = :projectId and (r.raterId = :userId or r.targetId = :userId)")
-    int deleteInvolving(UUID projectId, UUID userId);
+    @Query("delete from Rating r where r.projectId = :projectId and r.raterId = :userId")
+    int deleteGivenBy(UUID projectId, UUID userId);
 
     @Modifying(flushAutomatically = true)
     @Query("delete from Rating r where r.id in :ids")

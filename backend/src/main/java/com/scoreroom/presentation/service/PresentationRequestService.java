@@ -43,14 +43,14 @@ public class PresentationRequestService {
      */
     @Transactional
     public int request(UUID actorId, UUID projectId, List<UUID> userIds) {
-        roomGuard.lockAsAdmin(projectId, actorId);
+        boolean adminsPresent = roomGuard.lockAsAdmin(projectId, actorId).project().settings().allowAdminPresent();
         Set<UUID> ids = new LinkedHashSet<>(userIds == null ? List.of() : userIds);
         if (ids.isEmpty()) {
             throw ApiException.badRequest("요청을 보낼 사람을 선택해 주세요.");
         }
-        // 룸 관리자는 발표하지 않으므로 요청 대상이 아니다
+        // 룸 관리자 발표를 끈 평가룸이면 관리자는 요청 대상이 아니다
         Set<UUID> roomMembers = memberships.findByProjectId(projectId).stream()
-                .filter(m -> !m.isAdmin())
+                .filter(m -> adminsPresent || !m.isAdmin())
                 .map(Membership::getUserId).collect(Collectors.toSet());
         Set<UUID> registered = presentationMembers.findByProjectId(projectId).stream()
                 .map(PresentationMember::getUserId).collect(Collectors.toSet());

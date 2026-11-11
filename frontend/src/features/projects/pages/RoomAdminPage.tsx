@@ -63,7 +63,7 @@ export default function RoomAdminPage() {
     if (tab === 'run') {
       const list = presentationsOf(db, project.id);
       const sums = db.summaries.filter(x => list.some(p => p.id === x.presentationId));
-      const roster = presenterRoster(db, project.id, all);
+      const roster = presenterRoster(db, project.id, all, project.settings.allowAdminPresent);
       const registered = roster.filter(x => presentationOfUser(db, project.id, x.userId)).length;
       return [
         { icon: 'mic', label: '발표', value: `${list.length}개` },

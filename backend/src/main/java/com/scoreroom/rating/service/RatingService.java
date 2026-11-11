@@ -46,21 +46,18 @@ public class RatingService {
     }
 
     /**
-     * 발표 구성원 한 명에게 점수를 준다. 평가룸을 잠그므로 마감·설정 변경과 순서가 섞이지 않는다.
+     * 발표 하나에 점수를 준다 (팀 발표도 한 번). 평가룸을 잠그므로 마감·설정 변경과 순서가 섞이지 않는다.
      * 수정이 막힌 평가룸에서 같은 값을 다시 보내면(응답 유실 후 재시도) 성공으로 처리하고, 다른 값이면 409.
      */
     @Transactional
-    public void submit(UUID raterId, UUID projectId, UUID presentationId, UUID targetId, SubmitRatingRequest request) {
+    public void submit(UUID raterId, UUID projectId, UUID presentationId, SubmitRatingRequest request) {
         RoomWrite room = roomGuard.lockAsMember(projectId, raterId);
         presentations.findByIdAndProjectId(presentationId, projectId)
                 .orElseThrow(() -> ApiException.notFound("발표를 찾을 수 없습니다."));
         RoomRoster roster = new RoomRoster(memberships.findByProjectId(projectId),
                 presentationMembers.findByPresentationId(presentationId));
-        if (!roster.crewOf(presentationId).contains(targetId)) {
-            throw ApiException.badRequest("이 발표의 구성원이 아닙니다.");
-        }
         ProjectSettings settings = room.project().settings();
-        roster.check(settings, presentationId, raterId, targetId).ifPresent(reason -> {
+        roster.check(settings, presentationId, raterId).ifPresent(reason -> {
             throw ApiException.badRequest(reason.message());
         });
         int score = request.score();
@@ -69,9 +66,9 @@ public class RatingService {
         }
         String feedback = normalizeFeedback(request.feedback());
 
-        Optional<Rating> existing = ratings.findByPresentationIdAndTargetIdAndRaterId(presentationId, targetId, raterId);
+        Optional<Rating> existing = ratings.findByPresentationIdAndRaterId(presentationId, raterId);
         if (existing.isEmpty()) {
-            ratings.save(new Rating(projectId, presentationId, targetId, raterId, score, feedback, clock.instant()));
+            ratings.save(new Rating(projectId, presentationId, raterId, score, feedback, clock.instant()));
             return;
         }
         Rating rating = existing.get();
@@ -84,13 +81,13 @@ public class RatingService {
         rating.overwrite(score, feedback, clock.instant());
     }
 
-    /** 새 설정의 평가 규칙(본인·같은 발표·같은 팀)에 맞지 않게 되는 기존 평가 */
+    /** 새 설정의 평가 규칙(본인 발표·같은 팀·관리자)에 맞지 않게 되는 기존 평가 */
     @Transactional(propagation = Propagation.MANDATORY)
     public List<UUID> findBlockedBy(UUID projectId, ProjectSettings next) {
         RoomRoster roster = new RoomRoster(memberships.findByProjectId(projectId),
                 presentationMembers.findByProjectId(projectId));
         return ratings.findByProjectId(projectId).stream()
-                .filter(r -> roster.check(next, r.getPresentationId(), r.getRaterId(), r.getTargetId()).isPresent())
+                .filter(r -> roster.check(next, r.getPresentationId(), r.getRaterId()).isPresent())
                 .map(Rating::getId)
                 .toList();
     }

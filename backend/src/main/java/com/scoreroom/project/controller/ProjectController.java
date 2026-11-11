@@ -23,6 +23,7 @@ import com.scoreroom.project.dto.AddedResponse;
 import com.scoreroom.project.dto.CreateProjectRequest;
 import com.scoreroom.project.dto.RemovedResponse;
 import com.scoreroom.project.dto.SetAdminRequest;
+import com.scoreroom.project.dto.UpdateProjectInfoRequest;
 import com.scoreroom.project.dto.UpdateSettingsRequest;
 import com.scoreroom.project.service.MembershipService;
 import com.scoreroom.project.service.ProjectRemovalService;
@@ -53,6 +54,14 @@ public class ProjectController {
     public RemovedResponse updateSettings(@AuthenticationPrincipal AuthenticatedUser me, @PathVariable UUID projectId,
             @Valid @RequestBody UpdateSettingsRequest request) {
         return new RemovedResponse(projectService.updateSettings(me.userId(), projectId, request));
+    }
+
+    /** 평가룸 이름·설명 수정 (룸 관리자, 마감 전) */
+    @PutMapping("/{projectId}/info")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void updateInfo(@AuthenticationPrincipal AuthenticatedUser me, @PathVariable UUID projectId,
+            @Valid @RequestBody UpdateProjectInfoRequest request) {
+        projectService.updateInfo(me.userId(), projectId, request);
     }
 
     @PostMapping("/{projectId}/close")

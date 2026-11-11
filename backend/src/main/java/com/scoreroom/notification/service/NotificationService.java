@@ -34,6 +34,12 @@ public class NotificationService {
         notifications.save(Notification.presentationRequested(userId, projectId, actorId, clock.instant()));
     }
 
+    /** 룸 관리자(actorId)가 userId에게 이 발표를 평가해 달라고 요청했다고 알린다 */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void ratingRequested(UUID userId, UUID projectId, UUID presentationId, UUID actorId) {
+        notifications.save(Notification.ratingRequested(userId, projectId, presentationId, actorId, clock.instant()));
+    }
+
     /** 내 알림을 모두 읽음으로 표시한다 */
     @Transactional
     public void markAllRead(UUID userId) {

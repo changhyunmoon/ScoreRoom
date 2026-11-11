@@ -1,37 +1,38 @@
 // 평가 가능 여부와 내 진행 상태 (화면 안내용). 서버가 같은 규칙으로 최종 판단한다.
-// 발표 상태는 없고 마감 전까지 언제든 평가한다. 점수는 발표 구성원(대표·발표자·팀원) 한 명씩 따로 준다.
+// 발표 상태는 없고 마감 전까지 언제든 평가한다. 점수는 발표 하나에 한 번 준다 (팀 발표도 구성원별이 아니다).
 import type { ID } from '../../../shared/lib/types';
-import { crewOf, involvedIds, type Presentation } from '../../presentations';
+import { involvedIds, type Presentation } from '../../presentations';
 import { membership, type Membership, type Project } from '../../projects';
 import type { Rating } from './types';
 
 type RoomData = { memberships: Membership[]; presentations: Presentation[]; ratings: Rating[] };
 
-export type Block = 'ADMIN' | 'SELF' | 'SAME_CREW' | 'SAME_TEAM' | null;
+export type Block = 'ADMIN' | 'SELF' | 'SAME_TEAM' | null;
+
+/** 발표 구성원들의 참여 당시 회사 팀 (팀이 없는 사람은 뺀다) */
+const crewTeams = (d: RoomData, project: Project, pres: Presentation) =>
+  new Set(involvedIds(pres).map(id => membership(d, project.id, id)?.teamIdAtJoin ?? null).filter((t): t is ID => !!t));
 
 /**
- * 평가자(raterId)가 발표 구성원(targetId)을 평가할 수 없는 이유. null이면 평가 가능.
+ * 평가자(raterId)가 이 발표를 평가할 수 없는 이유. null이면 평가 가능. 서버(RoomRoster.check)와 같은 순서:
  * - ADMIN: 룸 관리자 (관리자도 평가하기가 꺼져 있으면)
- * - SELF: 나 자신 (본인 평가 허용이 꺼져 있으면)
- * - SAME_CREW: 내가 구성원인 발표의 다른 구성원 (같은 발표 팀원 평가 허용이 꺼져 있으면)
- * - SAME_TEAM: 참여 당시 나와 같은 회사 팀인 사람 (같은 팀 평가 허용이 꺼져 있으면)
+ * - SELF: 내가 구성원인 발표 = 본인 발표 (개인 발표의 본인, 팀 발표의 팀원. 본인 발표 평가 허용이 꺼져 있으면)
+ * - SAME_TEAM: 구성원 중 참여 당시 나와 같은 회사 팀인 사람이 있는 발표 (같은 팀 평가 허용이 꺼져 있으면)
  */
-export function blockReason(d: RoomData, project: Project, pres: Presentation, raterId: ID, targetId: ID): Block {
-  const { allowSelf, allowSameTeam, allowSameCrew, allowAdminRating } = project.settings;
+export function blockReason(d: RoomData, project: Project, pres: Presentation, raterId: ID): Block {
+  const { allowSelf, allowSameTeam, allowAdminRating } = project.settings;
   if (!allowAdminRating && membership(d, project.id, raterId)?.isAdmin) return 'ADMIN';
-  if (targetId === raterId) return allowSelf ? null : 'SELF';
-  if (!allowSameCrew && involvedIds(pres).includes(raterId)) return 'SAME_CREW';
+  if (involvedIds(pres).includes(raterId)) return allowSelf ? null : 'SELF';
   const myTeam = membership(d, project.id, raterId)?.teamIdAtJoin ?? null;
-  if (!allowSameTeam && myTeam && membership(d, project.id, targetId)?.teamIdAtJoin === myTeam) return 'SAME_TEAM';
+  if (!allowSameTeam && myTeam && crewTeams(d, project, pres).has(myTeam)) return 'SAME_TEAM';
   return null;
 }
 export const blockText: Record<Exclude<Block, null>, string> = {
-  ADMIN: '룸 관리자는 평가하지 않는 평가룸입니다.',
-  SELF: '본인은 평가할 수 없습니다.',
-  SAME_CREW: '같은 발표의 팀원은 평가할 수 없습니다.',
-  SAME_TEAM: '같은 회사 팀이라 평가할 수 없습니다.',
+  ADMIN: '룸 관리자는 평가하지 않는 평가룸이에요.',
+  SELF: '본인 발표는 평가할 수 없어요.',
+  SAME_TEAM: '같은 회사 팀의 발표라 평가할 수 없어요.',
 };
-export const blockShort: Record<Exclude<Block, null>, string> = { ADMIN: '관리자', SELF: '본인', SAME_CREW: '같은 발표', SAME_TEAM: '같은 팀' };
+export const blockShort: Record<Exclude<Block, null>, string> = { ADMIN: '관리자', SELF: '본인 발표', SAME_TEAM: '같은 팀' };
 
 /** 평가 규칙을 바꾸면 새 규칙에 맞지 않게 되는 기존 평가 (저장할 때 삭제된다). 룸 관리자는 평가룸 전체 평가를 받는다 */
 export function ratingsBlockedBy(d: RoomData, project: Project, settings: Project['settings']) {
@@ -39,33 +40,23 @@ export function ratingsBlockedBy(d: RoomData, project: Project, settings: Projec
   return d.ratings.filter(r => {
     if (r.projectId !== project.id) return false;
     const pres = d.presentations.find(p => p.id === r.presentationId);
-    return !!pres && blockReason(d, changed, pres, r.raterId, r.targetId) !== null;
+    return !!pres && blockReason(d, changed, pres, r.raterId) !== null;
   });
 }
 
 /** 이 평가룸에서 평가하는 사람인지. 관리자도 평가하기가 꺼져 있으면 룸 관리자는 평가하지 않는다 */
 export const ratesInRoom = (project: Project, m: Membership | undefined) => !!m && (project.settings.allowAdminRating || !m.isAdmin);
 
-/** 내가 이 발표에서 평가할 수 있는 구성원 수와 이미 평가한 수 */
-export function myProgress(d: RoomData, project: Project, pres: Presentation, userId: ID) {
-  const ratable = crewOf(pres).filter(c => !blockReason(d, project, pres, userId, c.id));
-  const rated = ratable.filter(c => d.ratings.some(r => r.presentationId === pres.id && r.targetId === c.id && r.raterId === userId));
-  return { ratable: ratable.length, rated: rated.length };
-}
+/** 이 발표에 내가 준 점수 */
+export const myRating = (d: RoomData, pres: Presentation, userId: ID) =>
+  d.ratings.find(r => r.presentationId === pres.id && r.raterId === userId);
 
 /** 참여자 입장에서 본 발표 상태. 화면 전체에서 같은 색·아이콘·문구로 표시한다 */
 export type MyStatus = 'TODO' | 'DONE' | 'BLOCKED' | 'MISSED';
 export function myStatus(d: RoomData, project: Project, pres: Presentation, userId: ID): MyStatus {
-  const { ratable, rated } = myProgress(d, project, pres, userId);
-  if (ratable === 0) return 'BLOCKED';
-  if (rated === ratable) return 'DONE';
-  // 마감된 평가룸은 모든 발표가 끝난 것으로 보고, 다 평가하지 않은 발표는 '평가 안 함'으로 둔다
-  return project.status === 'CLOSED' ? 'MISSED' : 'TODO';
-}
-/** 발표 구성원 한 명(targetId)에 대한 내 평가 상태 */
-export function personStatus(d: RoomData, project: Project, pres: Presentation, raterId: ID, targetId: ID): MyStatus {
-  if (blockReason(d, project, pres, raterId, targetId)) return 'BLOCKED';
-  if (d.ratings.some(r => r.presentationId === pres.id && r.targetId === targetId && r.raterId === raterId)) return 'DONE';
+  if (blockReason(d, project, pres, userId)) return 'BLOCKED';
+  if (myRating(d, pres, userId)) return 'DONE';
+  // 마감된 평가룸은 모든 발표가 끝난 것으로 보고, 평가하지 않은 발표는 '평가 안 함'으로 둔다
   return project.status === 'CLOSED' ? 'MISSED' : 'TODO';
 }
 export const statusMeta = {

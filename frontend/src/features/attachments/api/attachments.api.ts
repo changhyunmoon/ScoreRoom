@@ -9,7 +9,7 @@ const path = (pid: ID, prid: ID) => `/projects/${pid}/presentations/${prid}/atta
 
 /** 파일 하나를 올린다 (multipart의 file 필드) */
 export async function uploadAttachment(pid: ID, prid: ID, file: File) {
-  if (file.size > MAX_ATTACHMENT_MB * 1024 * 1024) throw new UserError(`발표 자료는 파일당 ${MAX_ATTACHMENT_MB}MB 이하만 올릴 수 있습니다.`);
+  if (file.size > MAX_ATTACHMENT_MB * 1024 * 1024) throw new UserError(`발표 자료는 파일당 ${MAX_ATTACHMENT_MB}MB 이하만 올릴 수 있어요.`);
   const form = new FormData();
   form.append('file', file);
   return http.upload<Attachment>(path(pid, prid), form);

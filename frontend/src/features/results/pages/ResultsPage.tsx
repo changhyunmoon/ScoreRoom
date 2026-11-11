@@ -1,4 +1,4 @@
-// 결과 현황: 발표 구성원 한 명씩 인원·합계·평균·순위.
+// 결과 현황: 발표별(팀 발표도 한 줄) 인원·합계·평균·순위.
 // 룸 관리자와 전체 열람 권한자만 본다 (서버도 집계를 이 두 경우에만 보낸다). 일반 참여자는 볼 수 없다.
 import { Link, useParams } from 'react-router-dom';
 import { BoardHead, Empty } from '../../../shared/ui';

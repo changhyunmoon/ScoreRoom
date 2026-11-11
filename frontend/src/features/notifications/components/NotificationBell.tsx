@@ -1,4 +1,4 @@
-// 우측 상단 알림: 평가룸 초대, 발표 등록 요청. 수락·거절 없이 확인만 하고, 누르면 관련 화면으로 간다
+// 우측 상단 알림: 평가룸 초대, 발표 등록 요청, 평가 요청. 수락·거절 없이 확인만 하고, 누르면 관련 화면으로 간다
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDismiss } from '../../../shared/hooks/useDismiss';
@@ -11,11 +11,18 @@ import type { Notification } from '../model/types';
 function message(n: Notification) {
   const who = <b>{n.actorName || '룸 관리자'}</b>;
   if (n.type === 'PRESENTATION_REQUESTED') return <>{who}님이 <b>{n.projectName}</b> 평가룸에 발표를 등록해 달라고 요청했어요.</>;
+  if (n.type === 'RATING_REQUESTED') return n.presentationTitle
+    ? <>{who}님이 <b>{n.projectName}</b> 평가룸의 <b>'{n.presentationTitle}'</b> 발표를 평가해 달라고 요청했어요.</>
+    : <>{who}님이 <b>{n.projectName}</b> 평가룸의 발표를 평가해 달라고 요청했어요. (발표가 삭제됐어요)</>;
   return <>{who}님이 <b>{n.projectName}</b> 평가룸에 초대했어요.</>;
 }
 
-/** 알림을 누르면 갈 곳: 발표 등록 요청은 발표 등록 화면, 초대는 그 평가룸 */
-const targetOf = (n: Notification) => (n.type === 'PRESENTATION_REQUESTED' ? `/p/${n.projectId}/pres/new` : `/p/${n.projectId}`);
+/** 알림을 누르면 갈 곳: 발표 등록 요청은 발표 등록 화면, 평가 요청은 그 발표를 펼친 발표 화면, 초대는 그 평가룸 */
+function targetOf(n: Notification) {
+  if (n.type === 'PRESENTATION_REQUESTED') return `/p/${n.projectId}/pres/new`;
+  if (n.type === 'RATING_REQUESTED' && n.presentationId) return `/p/${n.projectId}?open=${n.presentationId}`;
+  return `/p/${n.projectId}`;
+}
 
 export function NotificationBell() {
   const { db } = useSession();
@@ -38,7 +45,7 @@ export function NotificationBell() {
       </button>
       {open && (
         <div className="menu notice-menu">
-          <div className="menu-head"><b>알림</b><small>초대 · 발표 등록 요청</small></div>
+          <div className="menu-head"><b>알림</b><small>초대 · 발표 등록 요청 · 평가 요청</small></div>
           {list.length === 0 && <p className="notice-empty muted small">새 알림이 없어요.</p>}
           {list.map(n => (
             <button key={n.id} className={`notice-item ${n.readAt === null ? 'unread' : ''}`}

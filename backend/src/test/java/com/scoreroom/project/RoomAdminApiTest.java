@@ -38,7 +38,7 @@ class RoomAdminApiTest extends IntegrationTest {
     }
 
     private void rate(User rater, UUID pres, User target, int score) throws Exception {
-        mvc.perform(json(put("/api/v1/projects/{p}/presentations/{pr}/ratings/{t}", room, pres, target.getId()),
+        mvc.perform(json(put("/api/v1/projects/{p}/presentations/{pr}/rating", room, pres),
                 "{\"score\":" + score + "}").with(as(rater))).andExpect(status().isNoContent());
     }
 
@@ -117,8 +117,8 @@ class RoomAdminApiTest extends IntegrationTest {
         // 켜져 있으면 (테스트 평가룸은 켜 둠) 참여자도 사람별 인원 수를 받지만 평균 점수는 받지 않는다
         mvc.perform(get("/api/v1/state").with(as(member)))
                 .andExpect(jsonPath("$.projects[0].settings.showRatingStatus").value(true))
-                .andExpect(jsonPath("$.summaries[?(@.targetId == '" + presenter.getId() + "')].scored").value(1))
-                .andExpect(jsonPath("$.summaries[?(@.targetId == '" + presenter.getId() + "')].total").value(4))
+                .andExpect(jsonPath("$.summaries[?(@.presentationId == '" + pres + "')].scored").value(1))
+                .andExpect(jsonPath("$.summaries[?(@.presentationId == '" + pres + "')].total").value(4))
                 .andExpect(jsonPath("$.summaries[0].avg").doesNotExist());
 
         mvc.perform(json(put("/api/v1/projects/{p}/settings", room), "{\"min\":0,\"max\":100,\"showRatingStatus\":false}")
@@ -128,7 +128,7 @@ class RoomAdminApiTest extends IntegrationTest {
                 .andExpect(jsonPath("$.summaries.length()").value(0));
         // 룸 관리자는 꺼져 있어도 점수까지 받는다
         mvc.perform(get("/api/v1/state").with(as(owner)))
-                .andExpect(jsonPath("$.summaries[?(@.targetId == '" + presenter.getId() + "')].avg").value(80.0));
+                .andExpect(jsonPath("$.summaries[?(@.presentationId == '" + pres + "')].avg").value(80.0));
         // 다른 설정만 바꿀 때 값을 보내지 않으면 그대로 유지한다
         mvc.perform(json(put("/api/v1/projects/{p}/settings", room), "{\"min\":0,\"max\":100,\"allowEdit\":false}")
                 .with(as(owner))).andExpect(status().isOk());
@@ -139,7 +139,7 @@ class RoomAdminApiTest extends IntegrationTest {
     void 평가_현황_사람_목록은_룸_관리자는_항상_받고_참여자는_설정을_켰을_때만_받는다() throws Exception {
         UUID pres = fixtures.teamPresentation(room, leader, List.of(presenter), List.of());
         rate(owner, pres, presenter, 80);
-        String row = "$.summaries[?(@.targetId == '" + presenter.getId() + "')].";
+        String row = "$.summaries[?(@.presentationId == '" + pres + "')].";
 
         // 룸 관리자: 누가 평가했는지 받는다
         mvc.perform(get("/api/v1/state").with(as(owner)))

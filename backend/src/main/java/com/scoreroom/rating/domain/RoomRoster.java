@@ -59,29 +59,38 @@ public final class RoomRoster {
         return crewByPresentation.getOrDefault(presentationId, Set.of());
     }
 
+    /** 발표 구성원들의 참여 당시 회사 팀 (팀이 없는 사람은 빠진다) */
+    private Set<UUID> crewTeams(UUID presentationId) {
+        Set<UUID> teams = new java.util.HashSet<>();
+        for (UUID userId : crewOf(presentationId)) {
+            UUID team = teamByUser.get(userId);
+            if (team != null) {
+                teams.add(team);
+            }
+        }
+        return teams;
+    }
+
     /**
-     * 이 점수를 집계(평균·순위)에 넣을지. 본인 점수는 본인 설정만 따르고,
-     * 그 밖에는 같은 발표 팀원·같은 회사 팀원 설정 중 하나라도 빼라고 하면 뺀다. 룸 관리자 점수를 빼기로 했으면 관리자 점수는 뺀다
+     * 이 점수를 집계(평균·순위)에 넣을지. 본인 발표(구성원이 준 점수)는 본인 설정만 따르고,
+     * 그 밖에는 구성원 중 같은 회사 팀인 사람이 있으면 같은 팀 설정을 따른다. 룸 관리자 점수를 빼기로 했으면 관리자 점수는 뺀다
      */
-    public boolean counts(ProjectSettings settings, UUID presentationId, UUID raterId, UUID targetId) {
+    public boolean counts(ProjectSettings settings, UUID presentationId, UUID raterId) {
         if (!settings.countAdmin() && adminIds.contains(raterId)) {
             return false;
         }
-        if (raterId.equals(targetId)) {
+        if (crewOf(presentationId).contains(raterId)) {
             return settings.countSelf();
         }
-        if (!settings.countSameCrew() && crewOf(presentationId).contains(raterId)) {
-            return false;
-        }
         UUID raterTeam = teamByUser.get(raterId);
-        return settings.countSameTeam() || raterTeam == null || !raterTeam.equals(teamByUser.get(targetId));
+        return settings.countSameTeam() || raterTeam == null || !crewTeams(presentationId).contains(raterTeam);
     }
 
-    public Optional<BlockReason> check(ProjectSettings settings, UUID presentationId, UUID raterId, UUID targetId) {
+    public Optional<BlockReason> check(ProjectSettings settings, UUID presentationId, UUID raterId) {
         if (!settings.allowAdminRating() && adminIds.contains(raterId)) {
             return Optional.of(BlockReason.ADMIN);
         }
-        return RatingEligibilityPolicy.check(settings, raterId, targetId, crewOf(presentationId),
-                teamByUser.get(raterId), teamByUser.get(targetId));
+        return RatingEligibilityPolicy.check(settings, raterId, crewOf(presentationId), teamByUser.get(raterId),
+                crewTeams(presentationId));
     }
 }

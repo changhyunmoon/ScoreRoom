@@ -157,18 +157,18 @@ public class PresentationService {
         if (!roomMembers.containsAll(everyone)) {
             throw ApiException.badRequest("평가룸 참여자만 구성원으로 등록할 수 있습니다.");
         }
-        // 룸 관리자는 발표하지 않는다. 예전에 이미 구성원이던 관리자는 이 발표를 고칠 때 그대로 둘 수 있다
+        // 룸 관리자 발표를 끈 평가룸이면 관리자는 구성원이 될 수 없다. 예전에 이미 구성원이던 관리자는 이 발표를 고칠 때 그대로 둘 수 있다
         Set<UUID> already = presentationId == null ? Set.of() : presentationMembers.findByProjectId(room.projectId()).stream()
                 .filter(m -> m.getPresentationId().equals(presentationId))
                 .map(PresentationMember::getUserId).collect(Collectors.toSet());
-        boolean adminAdded = roomMemberships.stream()
+        boolean adminAdded = !room.project().settings().allowAdminPresent() && roomMemberships.stream()
                 .anyMatch(m -> m.isAdmin() && everyone.contains(m.getUserId()) && !already.contains(m.getUserId()));
         if (adminAdded) {
-            throw ApiException.badRequest("룸 관리자는 발표 구성원이 될 수 없습니다.");
+            throw ApiException.badRequest("룸 관리자는 발표 구성원이 될 수 없습니다. 설정에서 룸 관리자 발표를 켜 주세요.");
         }
         UUID actorId = room.membership().getUserId();
         if (!room.membership().isAdmin() && !everyone.contains(actorId)) {
-            throw ApiException.badRequest("본인을 구성원에서 뺄 수 없습니다. 대표·발표자·팀원 중 하나를 선택해 주세요.");
+            throw ApiException.badRequest("본인을 구성원에서 뺄 수 없습니다. 대표나 팀원으로 넣어 주세요.");
         }
         ensureNotInOtherPresentation(room.projectId(), everyone, presentationId);
         return crew;
