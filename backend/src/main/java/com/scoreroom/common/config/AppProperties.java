@@ -11,7 +11,8 @@ public record AppProperties(
         @DefaultValue Auth auth,
         @DefaultValue Session session,
         @DefaultValue Storage storage,
-        @DefaultValue BootstrapAdmin bootstrapAdmin) {
+        @DefaultValue BootstrapAdmin bootstrapAdmin,
+        @DefaultValue Logs logs) {
 
     /** signupEnabled: 공개 회원가입 허용 여부. 운영 가입 정책이 정해지기 전에는 끈다 */
     public record Auth(@DefaultValue("false") boolean signupEnabled) {
@@ -25,6 +26,10 @@ public record AppProperties(
     public record Storage(
             @DefaultValue("./data/uploads") String uploadDir,
             @DefaultValue("PT1H") Duration stagingTimeout) {
+    }
+
+    /** retentionDays: 시스템 관리자 로그 보관 일수. 지난 로그는 매일 지운다 (LogRetentionJob) */
+    public record Logs(@DefaultValue("30") int retentionDays) {
     }
 
     /** 최초 시스템 관리자. 값이 있고 시스템 관리자가 한 명도 없을 때만 한 번 만든다 */

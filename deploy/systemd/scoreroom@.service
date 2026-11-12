@@ -1,5 +1,7 @@
 [Unit]
-Description=ScoreRoom API (Spring Boot)
+# 무중단 배포용 슬롯. 인스턴스 이름이 포트다: scoreroom@8081, scoreroom@8082
+# 새 릴리스를 쉬고 있는 슬롯에 띄우고, 헬스체크가 통과하면 Nginx가 그쪽으로 넘어간 뒤 이전 슬롯을 멈춘다 (remote-deploy.sh)
+Description=ScoreRoom API (Spring Boot, port %i)
 After=network-online.target postgresql.service
 Wants=network-online.target
 
@@ -9,11 +11,13 @@ Group=scoreroom
 # DB 접속 정보 등 비밀값. 저장소에 넣지 않고 서버에만 둔다 (root 전용 600)
 EnvironmentFile=/etc/scoreroom/scoreroom.env
 WorkingDirectory=/var/lib/scoreroom
-ExecStart=/usr/bin/java $JAVA_OPTS -jar /opt/scoreroom/current/app.jar
+# 슬롯 링크(/opt/scoreroom/slots/<포트>)가 이 슬롯에서 돌릴 릴리스를 가리킨다. 포트는 설정 파일의 SERVER_PORT보다 우선한다
+ExecStart=/usr/bin/java $JAVA_OPTS -jar /opt/scoreroom/slots/%i/app.jar --server.port=%i
 # Spring Boot는 SIGTERM에 143으로 끝난다 (정상 종료로 본다)
 SuccessExitStatus=143
 Restart=on-failure
 RestartSec=5
+# server.shutdown=graceful: 멈출 때 처리 중인 요청을 끝낸 뒤 종료한다
 TimeoutStopSec=40
 
 # 권한 최소화: 쓰기는 /var/lib/scoreroom(업로드)만

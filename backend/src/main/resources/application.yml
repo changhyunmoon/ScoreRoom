@@ -55,6 +55,9 @@ scoreroom:
   bootstrap-admin:
     login-id: ${SCOREROOM_ADMIN_LOGIN_ID:}
     password: ${SCOREROOM_ADMIN_PASSWORD:}
+  logs:
+    # 시스템 관리자 로그 보관 일수
+    retention-days: 30
 
 logging:
   pattern:

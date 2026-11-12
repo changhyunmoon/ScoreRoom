@@ -1,14 +1,17 @@
 package com.scoreroom.organization.service;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.scoreroom.audit.service.AuditService;
 import com.scoreroom.common.error.ApiException;
 import com.scoreroom.common.security.SysAdminGuard;
+import com.scoreroom.log.domain.LogAction;
+import com.scoreroom.log.service.LogService;
 import com.scoreroom.organization.domain.Team;
 import com.scoreroom.organization.dto.SaveTeamRequest;
 import com.scoreroom.organization.dto.TeamResponse;
@@ -20,12 +23,12 @@ public class TeamService {
 
     private final TeamRepository teams;
     private final SysAdminGuard sysAdminGuard;
-    private final AuditService audit;
+    private final LogService logs;
 
-    public TeamService(TeamRepository teams, SysAdminGuard sysAdminGuard, AuditService audit) {
+    public TeamService(TeamRepository teams, SysAdminGuard sysAdminGuard, LogService logs) {
         this.teams = teams;
         this.sysAdminGuard = sysAdminGuard;
-        this.audit = audit;
+        this.logs = logs;
     }
 
     @Transactional(readOnly = true)
@@ -49,7 +52,8 @@ public class TeamService {
         }
         int order = (parentId == null ? teams.findMaxRootSortOrder() : teams.findMaxChildSortOrder(parentId)) + 1;
         Team team = teams.save(new Team(request.name().trim(), parentId, order));
-        audit.record(actorId, null, "TEAM_CREATED", 1);
+        logs.activity(actorId, null, LogAction.TEAM_CREATED, "'" + team.getName() + "' 팀 생성"
+                + (parentId == null ? "" : " (상위: " + nameOf(parentId) + ")"));
         return team.getId();
     }
 
@@ -63,9 +67,24 @@ public class TeamService {
                 throw ApiException.badRequest("하위 팀을 상위 팀으로 지정할 수 없습니다.");
             }
         }
+        String beforeName = team.getName();
+        UUID beforeParent = team.getParentId();
         team.rename(request.name().trim());
         team.moveUnder(request.parentId());
-        audit.record(actorId, null, "TEAM_UPDATED", 1);
+        List<String> changes = new ArrayList<>();
+        if (!beforeName.equals(team.getName())) {
+            changes.add("이름 '" + beforeName + "' → '" + team.getName() + "'");
+        }
+        if (!Objects.equals(beforeParent, request.parentId())) {
+            changes.add("상위 팀 " + nameOf(beforeParent) + " → " + nameOf(request.parentId()));
+        }
+        if (!changes.isEmpty()) {
+            logs.activity(actorId, null, LogAction.TEAM_UPDATED, "'" + team.getName() + "' 팀 수정: " + String.join(" · ", changes));
+        }
+    }
+
+    private String nameOf(UUID teamId) {
+        return teamId == null ? "(최상위)" : teams.findById(teamId).map(Team::getName).orElse("(알 수 없음)");
     }
 
     /** 하위 팀이나 소속 사용자가 있으면 거절한다. 과거 참여 기록이 가리키는 팀은 보관 처리한다 */
@@ -84,6 +103,6 @@ public class TeamService {
         } else {
             teams.delete(team);
         }
-        audit.record(actorId, null, "TEAM_DELETED", 1);
+        logs.activity(actorId, null, LogAction.TEAM_DELETED, "'" + team.getName() + "' 팀 삭제");
     }
 }

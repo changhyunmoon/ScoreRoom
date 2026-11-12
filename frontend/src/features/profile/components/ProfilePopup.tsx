@@ -1,12 +1,15 @@
 // 개인정보 수정 팝업. 오른쪽 위 계정 메뉴에서 연다
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { resetCsrf } from '../../../shared/api/client';
 import { Field, Popup, run, toast } from '../../../shared/ui';
 import { teamName, TeamSelect } from '../../organization';
-import { mutate, useSession } from '../../session';
+import { clearSession, mutate, useSession } from '../../session';
 import { updateProfile } from '../api/profile.api';
 
 export function ProfilePopup({ onClose }: { onClose: () => void }) {
   const { db, me } = useSession();
+  const nav = useNavigate();
   const [f, setF] = useState({
     loginId: me?.loginId ?? '', name: me?.name ?? '', phone: me?.phone ?? '', teamId: me?.teamId ?? null, position: me?.position ?? '',
     currentPassword: '', password: '', password2: '',
@@ -20,10 +23,23 @@ export function ProfilePopup({ onClose }: { onClose: () => void }) {
     if (changingPassword && f.password !== f.password2) return toast('새 비밀번호가 일치하지 않아요.', 'err');
     if (changingPassword && !f.currentPassword) return toast('현재 비밀번호를 입력해 주세요.', 'err');
     setSaving(true);
-    const ok = await run(() => mutate(updateProfile({
+    const form = {
       loginId: f.loginId, name: f.name, phone: f.phone, teamId: f.teamId, position: f.position,
       ...(changingPassword ? { currentPassword: f.currentPassword, newPassword: f.password } : {}),
-    })), changingPassword ? '저장했어요. 다른 기기의 로그인은 끊겼어요.' : '저장했어요.');
+    };
+    if (changingPassword) {
+      // 비밀번호를 바꾸면 서버가 이 기기를 포함한 모든 로그인을 끊는다. 화면도 비우고 로그인 화면으로 보낸다
+      const ok = await run(() => updateProfile(form));
+      setSaving(false);
+      if (!ok) return;
+      resetCsrf();
+      clearSession();
+      onClose();
+      nav('/login', { replace: true });
+      toast('비밀번호를 바꿨어요. 새 비밀번호로 다시 로그인해 주세요.');
+      return;
+    }
+    const ok = await run(() => mutate(updateProfile(form)), '저장했어요.');
     setSaving(false);
     if (ok) onClose();
   };
@@ -55,7 +71,7 @@ export function ProfilePopup({ onClose }: { onClose: () => void }) {
         </div>
       </section>
       <section className="profile-section">
-        <h3>비밀번호 변경 <small className="muted">바꿀 때만 입력하세요</small></h3>
+        <h3>비밀번호 변경 <small className="muted">바꿀 때만 입력하세요 · 바꾸면 모든 기기에서 로그아웃돼요</small></h3>
         <div className="portal-form">
           <Field label="현재 비밀번호"><input type="password" autoComplete="current-password" value={f.currentPassword} onChange={set('currentPassword')} /></Field>
           <Field label="새 비밀번호" hint="8자 이상"><input type="password" autoComplete="new-password" value={f.password} onChange={set('password')} /></Field>

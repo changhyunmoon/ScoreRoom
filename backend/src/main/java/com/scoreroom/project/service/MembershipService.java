@@ -1,6 +1,7 @@
 package com.scoreroom.project.service;
 
 import java.time.Clock;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -13,8 +14,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.scoreroom.audit.service.AuditService;
 import com.scoreroom.common.error.ApiException;
+import com.scoreroom.log.domain.LogAction;
+import com.scoreroom.log.service.LogService;
 import com.scoreroom.notification.service.NotificationService;
 import com.scoreroom.organization.repository.TeamRepository;
 import com.scoreroom.presentation.domain.Presentation;
@@ -43,13 +45,13 @@ public class MembershipService {
     private final RoomGuard roomGuard;
     private final UserAccessService userAccess;
     private final NotificationService notifications;
-    private final AuditService audit;
+    private final LogService logs;
     private final Clock clock;
 
     public MembershipService(MembershipRepository memberships, TeamRepository teams,
             PresentationRepository presentations, PresentationMemberRepository presentationMembers,
             RatingRepository ratings, PresentationRemover presentationRemover, RoomGuard roomGuard,
-            UserAccessService userAccess, NotificationService notifications, AuditService audit, Clock clock) {
+            UserAccessService userAccess, NotificationService notifications, LogService logs, Clock clock) {
         this.memberships = memberships;
         this.teams = teams;
         this.presentations = presentations;
@@ -59,25 +61,26 @@ public class MembershipService {
         this.roomGuard = roomGuard;
         this.userAccess = userAccess;
         this.notifications = notifications;
-        this.audit = audit;
+        this.logs = logs;
         this.clock = clock;
     }
 
     /**
-     * 평가룸에 참여시킨다. 지금 회사 팀을 참여 당시 소속으로 기록한다. 이미 참여 중이면 그대로 둔다.
+     * 평가룸에 참여시킨다. 지금 회사 팀을 참여 당시 소속으로 기록한다. 이미 참여 중이면 그대로 두고 false를 돌려준다.
      * 호출하는 쪽이 평가룸을 잠근 상태여야 한다.
      */
     @Transactional(propagation = Propagation.MANDATORY)
-    public void join(Project project, User user, boolean admin) {
+    public boolean join(Project project, User user, boolean admin) {
         if (user.isSysAdmin()) {
             throw ApiException.forbidden("시스템 관리자는 평가룸에 참여할 수 없습니다.");
         }
         if (memberships.existsByProjectIdAndUserId(project.getId(), user.getId())) {
-            return;
+            return false;
         }
         String teamName = user.getTeamId() == null ? null
                 : teams.findById(user.getTeamId()).map(t -> t.getName()).orElse(null);
         memberships.save(new Membership(project.getId(), user.getId(), user.getTeamId(), teamName, admin, clock.instant()));
+        return true;
     }
 
     /**
@@ -92,6 +95,7 @@ public class MembershipService {
             throw ApiException.badRequest("초대할 사람을 선택해 주세요.");
         }
         int added = 0;
+        List<String> names = new ArrayList<>();
         for (UUID userId : ids) {
             User user = userAccess.requireOther(userId);
             if (user.isSysAdmin()) {
@@ -103,9 +107,11 @@ public class MembershipService {
             join(room.project(), user, false);
             notifications.roomInvited(userId, projectId, actorId);
             added++;
+            names.add(user.getName());
         }
         if (added > 0) {
-            audit.record(actorId, projectId, "MEMBERS_ADDED", added);
+            logs.activity(actorId, projectId, LogAction.MEMBERS_ADDED,
+                    "참여자 " + added + "명 추가: " + String.join(", ", names));
         }
         return added;
     }
@@ -138,11 +144,19 @@ public class MembershipService {
             if (!involved.isEmpty() || !doomed.isEmpty()) {
                 room.requireVersion(expectedVersion);
             }
+            if (!doomed.isEmpty()) {
+                logs.ratingsDeleted(actorId, projectId, "룸 관리자 지정", ratings.findAllById(doomed));
+            }
             removedRatings = doomed.isEmpty() ? 0 : ratings.deleteByIds(doomed);
             removedRatings += leavePresentations(involved, userId);
         }
+        if (target.isAdmin() == admin) {
+            return;
+        }
         target.setAdmin(admin);
-        audit.record(actorId, projectId, admin ? "ROOM_ADMIN_GRANTED" : "ROOM_ADMIN_REVOKED", removedRatings);
+        logs.activity(actorId, projectId, admin ? LogAction.ROOM_ADMIN_GRANTED : LogAction.ROOM_ADMIN_REVOKED,
+                logs.userName(userId) + " 룸 관리자 " + (admin ? "지정" : "해제")
+                        + (removedRatings > 0 ? " (평가 " + removedRatings + "건 삭제)" : ""));
     }
 
     /** 발표 구성원으로 들어 있는 룸 관리자 (룸 관리자 발표를 끌 때 영향 확인용) */
@@ -168,6 +182,9 @@ public class MembershipService {
             List<UUID> doomed = ratings.findByProjectId(projectId).stream()
                     .filter(r -> r.getRaterId().equals(userId) && own.contains(r.getPresentationId()))
                     .map(r -> r.getId()).toList();
+            if (!doomed.isEmpty()) {
+                logs.ratingsDeleted(null, projectId, "룸 관리자 발표 끄기", ratings.findAllById(doomed));
+            }
             removedRatings += doomed.isEmpty() ? 0 : ratings.deleteByIds(doomed);
             // 앞에서 다른 관리자가 빠지며 발표가 지워졌을 수 있으므로 다시 읽는다
             removedRatings += leavePresentations(presentationMembers.findByProjectIdAndUserId(projectId, userId), userId);
@@ -198,10 +215,14 @@ public class MembershipService {
             room.requireVersion(expectedVersion);
         }
 
+        String name = logs.userName(userId);
+        logs.ratingsDeleted(actorId, projectId, name + " 참여자 제거", ratings.findByProjectId(projectId).stream()
+                .filter(r -> r.getRaterId().equals(userId)).toList());
         int removedRatings = ratings.deleteGivenBy(projectId, userId);
         removedRatings += leavePresentations(involved, userId);
         memberships.deleteMember(projectId, userId);
-        audit.record(actorId, projectId, "MEMBER_REMOVED", removedRatings);
+        logs.activity(actorId, projectId, LogAction.MEMBER_REMOVED, name + " 참여자 제거"
+                + (removedRatings > 0 ? " (평가 " + removedRatings + "건 삭제)" : ""));
     }
 
     /** 혼자 하는 발표는 삭제하고, 함께 하는 발표에서는 빼고 대표였으면 새 대표를 정한다. 발표 삭제로 지운 평가 수를 돌려준다 */
@@ -211,7 +232,7 @@ public class MembershipService {
             Presentation presentation = presentations.findById(row.getPresentationId()).orElseThrow();
             List<PresentationMember> crew = presentationMembers.findByPresentationId(presentation.getId());
             if (crew.size() == 1) {
-                removedRatings += presentationRemover.remove(presentation);
+                removedRatings += presentationRemover.remove(presentation, "유일한 구성원 " + logs.userName(userId) + " 빠짐");
                 continue;
             }
             if (presentation.getLeaderId().equals(userId)) {

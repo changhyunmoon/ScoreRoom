@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ApiError } from '../api/client';
+import { reportError } from '../lib/errorReporter';
 
 /* ---------- 토스트 ---------- */
 type ToastItem = { id: number; text: string; tone: 'ok' | 'err' };
@@ -27,7 +28,7 @@ export async function run(fn: () => unknown, okText?: string): Promise<boolean> 
     return true;
   } catch (e) {
     toast(errorMessage(e), 'err');
-    if (!(e instanceof ApiError) && !(e instanceof UserError)) console.error(e);
+    if (!(e instanceof ApiError) && !(e instanceof UserError)) { console.error(e); reportError(e); }
     return false;
   }
 }
@@ -36,5 +37,7 @@ export async function run(fn: () => unknown, okText?: string): Promise<boolean> 
 export class UserError extends Error {}
 
 export function errorMessage(e: unknown) {
+  // 서버 오류(5xx)는 오류 번호를 함께 보여 준다. 사용자가 알려 주면 시스템 관리자 로그에서 바로 찾을 수 있다
+  if (e instanceof ApiError && e.status >= 500 && e.requestId) return `${e.message} (오류 번호 ${e.requestId})`;
   return e instanceof ApiError || e instanceof UserError ? e.message : '오류가 발생했어요.';
 }

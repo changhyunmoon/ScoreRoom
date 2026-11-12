@@ -44,7 +44,7 @@ class ProjectDeleteTest extends IntegrationTest {
                 "notifications")) {
             assertThat(count("select count(*) from " + table)).as(table).isZero();
         }
-        assertThat(count("select count(*) from audit_events where action = 'PROJECT_DELETED'")).isEqualTo(1);
+        assertThat(count("select count(*) from system_logs where action = 'PROJECT_DELETED'")).isEqualTo(1);
     }
 
     @Test

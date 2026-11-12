@@ -14,6 +14,8 @@ import com.scoreroom.common.error.ApiException;
 import com.scoreroom.common.error.ErrorCode;
 import com.scoreroom.invitation.domain.InviteCode;
 import com.scoreroom.invitation.repository.InviteCodeRepository;
+import com.scoreroom.log.domain.LogAction;
+import com.scoreroom.log.service.LogService;
 import com.scoreroom.project.domain.Project;
 import com.scoreroom.project.repository.ProjectRepository;
 import com.scoreroom.project.service.MembershipService;
@@ -32,16 +34,18 @@ public class InviteCodeService {
     private final MembershipService membershipService;
     private final UserAccessService userAccess;
     private final RoomGuard roomGuard;
+    private final LogService logs;
     private final Clock clock;
     private final SecureRandom random = new SecureRandom();
 
     public InviteCodeService(InviteCodeRepository inviteCodes, ProjectRepository projects,
-            MembershipService membershipService, UserAccessService userAccess, RoomGuard roomGuard, Clock clock) {
+            MembershipService membershipService, UserAccessService userAccess, RoomGuard roomGuard, LogService logs, Clock clock) {
         this.inviteCodes = inviteCodes;
         this.projects = projects;
         this.membershipService = membershipService;
         this.userAccess = userAccess;
         this.roomGuard = roomGuard;
+        this.logs = logs;
         this.clock = clock;
     }
 
@@ -56,6 +60,8 @@ public class InviteCodeService {
         InviteCode inviteCode = inviteCodes.findById(projectId).orElseGet(() -> new InviteCode(projectId));
         inviteCode.reissue(newUniqueCode(), actorId, now, minutes == null ? null : now.plus(Duration.ofMinutes(minutes)));
         inviteCodes.save(inviteCode);
+        logs.activity(actorId, projectId, LogAction.INVITE_CODE_ISSUED, "입장 코드 발급 ("
+                + (minutes == null ? "무제한" : minutes + "분") + ")");
     }
 
     /** 코드 사용 중지: 새 참여를 바로 막는다. 이미 참여한 사람은 그대로 남는다 */
@@ -67,6 +73,7 @@ public class InviteCodeService {
                 .filter(c -> c.isActive(now))
                 .orElseThrow(() -> ApiException.badRequest("사용 중인 입장 코드가 없습니다."));
         inviteCode.revoke(now);
+        logs.activity(actorId, projectId, LogAction.INVITE_CODE_REVOKED, "입장 코드 사용 중지");
     }
 
     /** 코드로 입장한다. 이미 참여 중이면 그대로 그 평가룸으로 보낸다. 만료 판정은 요청 시각 기준이다 */
@@ -92,7 +99,9 @@ public class InviteCodeService {
             throw new ApiException(ErrorCode.PROJECT_CLOSED, "마감된 평가룸입니다.");
         }
         project.bumpVersion();
-        membershipService.join(project, user, false);
+        if (membershipService.join(project, user, false)) {
+            logs.activity(actorId, project.getId(), LogAction.MEMBER_JOINED, user.getName() + " 입장 코드로 참여");
+        }
         return project.getId();
     }
 

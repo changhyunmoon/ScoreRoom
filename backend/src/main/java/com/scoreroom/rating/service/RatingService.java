@@ -10,6 +10,9 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.scoreroom.common.error.ApiException;
+import com.scoreroom.log.domain.LogAction;
+import com.scoreroom.log.service.LogService;
+import com.scoreroom.presentation.domain.Presentation;
 import com.scoreroom.presentation.repository.PresentationMemberRepository;
 import com.scoreroom.presentation.repository.PresentationRepository;
 import com.scoreroom.project.domain.ProjectSettings;
@@ -32,16 +35,18 @@ public class RatingService {
     private final PresentationMemberRepository presentationMembers;
     private final MembershipRepository memberships;
     private final RoomGuard roomGuard;
+    private final LogService logs;
     private final Clock clock;
 
     public RatingService(RatingRepository ratings, PresentationRepository presentations,
             PresentationMemberRepository presentationMembers, MembershipRepository memberships, RoomGuard roomGuard,
-            Clock clock) {
+            LogService logs, Clock clock) {
         this.ratings = ratings;
         this.presentations = presentations;
         this.presentationMembers = presentationMembers;
         this.memberships = memberships;
         this.roomGuard = roomGuard;
+        this.logs = logs;
         this.clock = clock;
     }
 
@@ -52,7 +57,7 @@ public class RatingService {
     @Transactional
     public void submit(UUID raterId, UUID projectId, UUID presentationId, SubmitRatingRequest request) {
         RoomWrite room = roomGuard.lockAsMember(projectId, raterId);
-        presentations.findByIdAndProjectId(presentationId, projectId)
+        Presentation presentation = presentations.findByIdAndProjectId(presentationId, projectId)
                 .orElseThrow(() -> ApiException.notFound("발표를 찾을 수 없습니다."));
         RoomRoster roster = new RoomRoster(memberships.findByProjectId(projectId),
                 presentationMembers.findByPresentationId(presentationId));
@@ -67,8 +72,11 @@ public class RatingService {
         String feedback = normalizeFeedback(request.feedback());
 
         Optional<Rating> existing = ratings.findByPresentationIdAndRaterId(presentationId, raterId);
+        String target = "'" + presentation.getTitle() + "' 발표 ";
         if (existing.isEmpty()) {
             ratings.save(new Rating(projectId, presentationId, raterId, score, feedback, clock.instant()));
+            logs.activity(raterId, projectId, LogAction.RATING_SUBMITTED, target + score + "점 제출",
+                    "점수: " + score + "점\n피드백: " + orNone(feedback));
             return;
         }
         Rating rating = existing.get();
@@ -78,7 +86,13 @@ public class RatingService {
         if (!settings.allowEdit()) {
             throw ApiException.conflict("이 평가룸은 제출한 점수를 수정할 수 없습니다.");
         }
+        int beforeScore = rating.getScore();
+        String beforeFeedback = rating.getFeedback();
         rating.overwrite(score, feedback, clock.instant());
+        logs.activity(raterId, projectId, LogAction.RATING_UPDATED,
+                target + (beforeScore == score ? score + "점 (피드백 수정)" : beforeScore + "점 → " + score + "점 수정"),
+                "점수: " + beforeScore + "점 → " + score + "점\n이전 피드백: " + orNone(beforeFeedback)
+                        + "\n새 피드백: " + orNone(feedback));
     }
 
     /** 새 설정의 평가 규칙(본인 발표·같은 팀·관리자)에 맞지 않게 되는 기존 평가 */
@@ -90,6 +104,10 @@ public class RatingService {
                 .filter(r -> roster.check(next, r.getPresentationId(), r.getRaterId()).isPresent())
                 .map(Rating::getId)
                 .toList();
+    }
+
+    private static String orNone(String feedback) {
+        return feedback == null ? "(없음)" : feedback;
     }
 
     private static String normalizeFeedback(String raw) {

@@ -2,13 +2,17 @@ package com.scoreroom.project.service;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.scoreroom.audit.service.AuditService;
+import com.scoreroom.log.domain.LogAction;
+import com.scoreroom.log.service.LogService;
+import com.scoreroom.log.service.SettingsDiff;
 import com.scoreroom.common.error.ApiException;
 import com.scoreroom.invitation.repository.InviteCodeRepository;
 import com.scoreroom.project.domain.Project;
@@ -34,12 +38,12 @@ public class ProjectService {
     private final MembershipService membershipService;
     private final UserAccessService userAccess;
     private final RoomGuard roomGuard;
-    private final AuditService audit;
+    private final LogService logs;
     private final Clock clock;
 
     public ProjectService(ProjectRepository projects, RatingRepository ratings, RatingService ratingService,
             InviteCodeRepository inviteCodes, MembershipService membershipService,
-            UserAccessService userAccess, RoomGuard roomGuard, AuditService audit, Clock clock) {
+            UserAccessService userAccess, RoomGuard roomGuard, LogService logs, Clock clock) {
         this.projects = projects;
         this.ratings = ratings;
         this.ratingService = ratingService;
@@ -47,7 +51,7 @@ public class ProjectService {
         this.membershipService = membershipService;
         this.userAccess = userAccess;
         this.roomGuard = roomGuard;
-        this.audit = audit;
+        this.logs = logs;
         this.clock = clock;
     }
 
@@ -64,6 +68,8 @@ public class ProjectService {
         String description = request.description() == null ? "" : request.description().trim();
         Project project = projects.save(new Project(request.name().trim(), description, actorId));
         membershipService.join(project, actor, true);
+        logs.activity(actorId, project.getId(), LogAction.PROJECT_CREATED, "'" + project.getName() + "' 평가룸 생성",
+                description.isEmpty() ? null : "설명: " + description);
         return project.getId();
     }
 
@@ -97,17 +103,25 @@ public class ProjectService {
             if (ratings.countByProjectId(projectId) > 0) {
                 room.requireVersion(request.expectedVersion());
             }
+            logs.ratingsDeleted(actorId, projectId, "점수 입력 범위 변경", ratings.findByProjectId(projectId));
             removed = ratings.deleteAllInProject(projectId);
         } else {
             List<UUID> blocked = ratingService.findBlockedBy(projectId, next);
             if (!blocked.isEmpty()) {
                 room.requireVersion(request.expectedVersion());
+                logs.ratingsDeleted(actorId, projectId, "평가 규칙 변경", ratings.findAllById(blocked));
             }
             removed = blocked.isEmpty() ? 0 : ratings.deleteByIds(blocked);
         }
         removed += removedByAdminPresent;
         project.applySettings(next);
-        audit.record(actorId, projectId, "SETTINGS_CHANGED", removed);
+        List<String> changes = SettingsDiff.of(current, next);
+        if (!changes.isEmpty() || removed > 0) {
+            logs.activity(actorId, projectId, LogAction.SETTINGS_CHANGED,
+                    "설정 변경: " + (changes.isEmpty() ? "변경 없음" : String.join(" · ", changes))
+                            + (removed > 0 ? " (평가 " + removed + "건 삭제)" : ""),
+                    String.join("\n", changes));
+        }
         return removed;
     }
 
@@ -120,8 +134,19 @@ public class ProjectService {
             throw ApiException.badRequest("평가룸 이름을 입력해 주세요.");
         }
         String description = request.description() == null ? "" : request.description().trim();
+        String beforeName = room.project().getName();
+        String beforeDescription = room.project().getDescription();
         room.project().describe(name, description);
-        audit.record(actorId, projectId, "PROJECT_INFO_CHANGED", 0);
+        List<String> changes = new ArrayList<>();
+        if (!beforeName.equals(name)) {
+            changes.add("이름 '" + beforeName + "' → '" + name + "'");
+        }
+        if (!Objects.equals(beforeDescription, description)) {
+            changes.add("설명 '" + beforeDescription + "' → '" + description + "'");
+        }
+        if (!changes.isEmpty()) {
+            logs.activity(actorId, projectId, LogAction.PROJECT_INFO_CHANGED, "정보 수정: " + String.join(" · ", changes));
+        }
     }
 
     /** 마감하면 평가를 받지 않고, 입장 코드를 무효로 한다. 다시 열 수 없다 */
@@ -131,6 +156,6 @@ public class ProjectService {
         Instant now = clock.instant();
         room.project().close(now);
         inviteCodes.revokeFor(projectId, now);
-        audit.record(actorId, projectId, "PROJECT_CLOSED", 0);
+        logs.activity(actorId, projectId, LogAction.PROJECT_CLOSED, "'" + room.project().getName() + "' 평가룸 마감");
     }
 }

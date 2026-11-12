@@ -4,8 +4,8 @@
 # 전제: Java 21, Nginx, PostgreSQL은 이미 설치돼 있다.
 # 하는 일
 # - 서비스 계정(scoreroom)과 폴더: /opt/scoreroom(릴리스), /var/lib/scoreroom/uploads(발표 자료), /etc/scoreroom(설정)
-# - systemd 서비스 등록 (매번 저장소 버전으로 갱신)
-# - Nginx 사이트 등록 (처음 한 번만. 이후 서버에서 고친 내용은 덮어쓰지 않는다)
+# - systemd 슬롯 서비스(scoreroom@<포트>) 등록 (매번 저장소 버전으로 갱신)
+# - Nginx 사이트 등록 (저장소 설정과 다르면 백업 후 교체)와 앱 포트 파일(/etc/nginx/scoreroom-upstream.conf, 없을 때만)
 # 비밀값(/etc/scoreroom/scoreroom.env)은 GitHub Secrets로 배포 때 만들어진다.
 set -euo pipefail
 
@@ -28,12 +28,25 @@ install -d -o root -g root -m 755 /opt/scoreroom /opt/scoreroom/releases
 install -d -o "$APP_USER" -g "$APP_USER" -m 750 /var/lib/scoreroom /var/lib/scoreroom/uploads
 install -d -o root -g root -m 755 /etc/scoreroom
 
-if ! cmp -s "$HERE/systemd/scoreroom.service" /etc/systemd/system/scoreroom.service; then
-  install -o root -g root -m 644 "$HERE/systemd/scoreroom.service" /etc/systemd/system/scoreroom.service
+install -d -o root -g root -m 755 /opt/scoreroom/slots
+
+# 무중단 배포용 슬롯 서비스(scoreroom@<포트>). 어느 슬롯을 켤지는 remote-deploy.sh가 정한다
+unit=/etc/systemd/system/scoreroom@.service
+if ! cmp -s "$HERE/systemd/scoreroom@.service" "$unit"; then
+  install -o root -g root -m 644 "$HERE/systemd/scoreroom@.service" "$unit"
   systemctl daemon-reload
-  log "systemd 서비스 갱신"
+  log "systemd 슬롯 서비스 갱신"
 fi
-systemctl enable scoreroom >/dev/null 2>&1
+
+# Nginx가 지금 보낼 앱 포트. 배포가 바꾸므로 없을 때만 만든다
+# (무중단 배포 이전의 단일 서비스 scoreroom.service가 8080에서 돌고 있으면 그쪽을 가리켜 전환 전까지 서비스가 이어지게 한다)
+upstream=/etc/nginx/scoreroom-upstream.conf
+if [ ! -f "$upstream" ]; then
+  if systemctl is-active --quiet scoreroom 2>/dev/null; then port=8080; else port=8081; fi
+  printf 'server 127.0.0.1:%s;\n' "$port" > "$upstream"
+  chmod 644 "$upstream"
+  log "Nginx 앱 포트 파일 생성: $port"
+fi
 
 # Nginx 사이트는 저장소 설정(deploy/nginx/scoreroom.conf)으로 맞춘다. 서버에 다른 내용이 있으면 백업 후 교체한다
 site=/etc/nginx/sites-available/scoreroom

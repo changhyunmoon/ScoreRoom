@@ -7,9 +7,10 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.scoreroom.audit.service.AuditService;
 import com.scoreroom.common.error.ApiException;
 import com.scoreroom.common.security.SysAdminGuard;
+import com.scoreroom.log.domain.LogAction;
+import com.scoreroom.log.service.LogService;
 import com.scoreroom.presentation.domain.Presentation;
 import com.scoreroom.presentation.repository.PresentationRepository;
 import com.scoreroom.presentation.service.PresentationRemover;
@@ -17,6 +18,8 @@ import com.scoreroom.project.domain.Project;
 import com.scoreroom.project.dto.RoomOverviewResponse;
 import com.scoreroom.project.repository.MembershipRepository;
 import com.scoreroom.project.repository.ProjectRepository;
+import com.scoreroom.rating.domain.Rating;
+import com.scoreroom.rating.repository.RatingRepository;
 import com.scoreroom.user.service.UserAccessService;
 
 /**
@@ -32,21 +35,24 @@ public class ProjectRemovalService {
     private final MembershipRepository memberships;
     private final PresentationRepository presentations;
     private final PresentationRemover presentationRemover;
+    private final RatingRepository ratings;
     private final UserAccessService userAccess;
     private final SysAdminGuard sysAdminGuard;
-    private final AuditService audit;
+    private final LogService logs;
     private final JdbcTemplate jdbc;
 
     public ProjectRemovalService(ProjectRepository projects, MembershipRepository memberships, PresentationRepository presentations,
-            PresentationRemover presentationRemover, UserAccessService userAccess, SysAdminGuard sysAdminGuard, AuditService audit,
+            PresentationRemover presentationRemover, RatingRepository ratings, UserAccessService userAccess,
+            SysAdminGuard sysAdminGuard, LogService logs,
             JdbcTemplate jdbc) {
         this.projects = projects;
         this.memberships = memberships;
         this.presentations = presentations;
         this.presentationRemover = presentationRemover;
+        this.ratings = ratings;
         this.userAccess = userAccess;
         this.sysAdminGuard = sysAdminGuard;
-        this.audit = audit;
+        this.logs = logs;
         this.jdbc = jdbc;
     }
 
@@ -59,17 +65,23 @@ public class ProjectRemovalService {
         if (!sysAdmin && !roomAdmin) {
             throw ApiException.forbidden("룸 관리자 또는 시스템 관리자만 평가룸을 삭제할 수 있습니다.");
         }
-        int removedRatings = 0;
-        for (Presentation p : presentations.findByProjectIdIn(List.of(projectId))) {
-            removedRatings += presentationRemover.remove(p);
+        // 지우기 전에 남긴다 (로그는 FK가 없어 평가룸이 지워져도 남는다)
+        List<Presentation> all = presentations.findByProjectIdIn(List.of(projectId));
+        List<Rating> allRatings = ratings.findByProjectId(projectId);
+        logs.activity(actorId, projectId, LogAction.PROJECT_DELETED,
+                "'" + project.getName() + "' 평가룸 삭제 (" + (sysAdmin ? "시스템 관리자" : "룸 관리자") + ") · 참여자 "
+                        + memberships.findByProjectId(projectId).size() + "명 · 발표 " + all.size() + "개 · 평가 "
+                        + allRatings.size() + "건",
+                allRatings.isEmpty() ? null : "삭제된 평가\n" + logs.describeRatings(allRatings));
+        for (Presentation p : all) {
+            presentationRemover.remove(p, null);
         }
-        removedRatings += jdbc.update("delete from ratings where project_id = ?", projectId);
+        jdbc.update("delete from ratings where project_id = ?", projectId);
         jdbc.update("delete from invite_codes where project_id = ?", projectId);
         jdbc.update("delete from notifications where project_id = ?", projectId);
         jdbc.update("update audit_events set project_id = null where project_id = ?", projectId);
         jdbc.update("delete from memberships where project_id = ?", projectId);
         jdbc.update("delete from projects where id = ?", project.getId());
-        audit.record(actorId, null, "PROJECT_DELETED", removedRatings);
     }
 
     /** 시스템 관리자: 모든 평가룸 (최근 만든 순) */

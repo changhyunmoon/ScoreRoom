@@ -4,8 +4,11 @@
 # 전제: GitHub Actions가 Secrets로 만든 설정을 /etc/scoreroom/scoreroom.env.next 로 먼저 올려 둔다.
 # 1) 릴리스를 /opt/scoreroom/releases/<id>에 풀고 서버 기본 구성(server-setup.sh)을 맞춘다
 # 2) 새 설정을 적용하고, 같은 서버의 PostgreSQL이면 DB·계정을 만들고 비밀번호를 Secret과 맞춘다
-# 3) current 링크를 새 릴리스로 바꿔 재시작하고, 헬스체크가 실패하면 이전 릴리스·설정으로 되돌린다
-# 주의: DB 마이그레이션(Flyway)은 되돌리지 않는다. 마이그레이션은 이전 버전과 함께 동작하도록 작성한다.
+# 3) 무중단 전환(blue-green): 지금 서비스 중인 앱은 그대로 두고 쉬고 있는 슬롯(8081/8082)에 새 앱을 띄운다.
+#    헬스체크가 통과하면 Nginx를 새 포트로 바꿔 reload하고(연결은 끊기지 않는다), 화면 파일을 바꾼 뒤 이전 앱을 멈춘다.
+#    헬스체크가 실패하면 새 앱만 멈춘다. 이전 앱은 계속 서비스 중이라 사용자는 영향을 받지 않는다.
+# 주의: 새 앱이 뜨면서 DB 마이그레이션(Flyway)을 먼저 적용하므로, 전환하는 동안 이전 앱이 새 스키마에서 잠깐 돈다.
+#       마이그레이션은 이전 버전과 함께 동작하도록(컬럼·표 추가 → 사용 → 나중에 정리) 작성한다. 되돌리지도 않는다.
 set -euo pipefail
 
 RELEASE_ID="${1:?release id required}"
@@ -17,8 +20,13 @@ CURRENT="$APP_ROOT/current"
 ENV_FILE=/etc/scoreroom/scoreroom.env
 ENV_NEXT="$ENV_FILE.next"
 ENV_PREV="$ENV_FILE.prev"
-SERVICE=scoreroom
-HEALTH_URL="http://127.0.0.1:8080/actuator/health"
+SLOTS="$APP_ROOT/slots"
+UPSTREAM=/etc/nginx/scoreroom-upstream.conf
+# 무중단 배포 이전의 단일 서비스(scoreroom.service, 8080). 첫 전환 때 멈추고 지운다
+LEGACY_SERVICE=scoreroom
+LEGACY_PORT=8080
+# 이전 앱이 처리 중인 요청을 마치도록 Nginx 전환 뒤 기다리는 시간
+DRAIN_SECONDS=30
 HEALTH_TIMEOUT_SECONDS=120
 KEEP_RELEASES=5
 
@@ -37,15 +45,46 @@ env_get() {
   line="${line#*=}"; line="${line#\"}"; printf '%s' "${line%\"}"
 }
 
+# wait_healthy <포트>
 wait_healthy() {
+  local url="http://127.0.0.1:$1/actuator/health"
   local deadline=$((SECONDS + HEALTH_TIMEOUT_SECONDS))
   while [ "$SECONDS" -lt "$deadline" ]; do
-    if curl -fsS --max-time 3 "$HEALTH_URL" 2>/dev/null | grep -q '"UP"'; then
+    if curl -fsS --max-time 3 "$url" 2>/dev/null | grep -q '"UP"'; then
       return 0
     fi
     sleep 2
   done
   return 1
+}
+
+# Nginx가 지금 보내는 앱 포트 (없으면 빈 값)
+active_port() {
+  grep -oE '127\.0\.0\.1:[0-9]+' "$UPSTREAM" 2>/dev/null | head -n1 | cut -d: -f2 || true
+}
+
+point_nginx_to() {
+  printf 'server 127.0.0.1:%s;\n' "$1" > "$UPSTREAM.next"
+  chmod 644 "$UPSTREAM.next"
+  mv -f "$UPSTREAM.next" "$UPSTREAM"
+}
+
+# 이전 앱을 멈추고 서버를 다시 켜도 뜨지 않게 한다
+retire_port() {
+  if [ "$1" = "$LEGACY_PORT" ]; then
+    systemctl disable --now "$LEGACY_SERVICE" >/dev/null 2>&1 || true
+    if [ -f "/etc/systemd/system/$LEGACY_SERVICE.service" ]; then
+      rm -f "/etc/systemd/system/$LEGACY_SERVICE.service"
+      systemctl daemon-reload
+      log "무중단 배포 이전의 단일 서비스($LEGACY_SERVICE.service)를 정리했습니다."
+    fi
+  else
+    systemctl disable --now "scoreroom@$1" >/dev/null 2>&1 || true
+  fi
+}
+
+restore_env() {
+  if [ -f "$ENV_PREV" ]; then install -o root -g root -m 600 "$ENV_PREV" "$ENV_FILE"; fi
 }
 
 switch_to() {
@@ -107,29 +146,52 @@ install -o root -g root -m 600 "$ENV_NEXT" "$ENV_FILE"
 rm -f "$ENV_NEXT"
 provision_database
 
-log "current → $target, 서비스 재시작"
-switch_to "$target"
-systemctl restart "$SERVICE"
+# --- 무중단 전환 ---
+old_port="$(active_port)"
+if [ "$old_port" = 8081 ]; then new_port=8082; else new_port=8081; fi
+new_service="scoreroom@$new_port"
+log "새 앱을 $new_port 포트에 띄웁니다 (지금 서비스 중: ${old_port:-없음})"
+install -d -o root -g root -m 755 "$SLOTS"
+systemctl stop "$new_service" >/dev/null 2>&1 || true   # 지난 배포에서 남은 것이 있으면 정리
+ln -sfn "$target" "$SLOTS/$new_port.next"
+mv -Tf "$SLOTS/$new_port.next" "$SLOTS/$new_port"
+systemctl start "$new_service"
 
-if wait_healthy; then
-  log "헬스체크 통과"
-else
-  log "헬스체크 실패. 최근 로그:"
-  journalctl -u "$SERVICE" -n 80 --no-pager || true
-  if [ -n "$previous" ] && [ -d "$previous" ] && [ "$previous" != "$target" ]; then
-    log "이전 릴리스와 설정으로 되돌립니다: $previous"
-    [ -f "$ENV_PREV" ] && install -o root -g root -m 600 "$ENV_PREV" "$ENV_FILE"
-    switch_to "$previous"
-    systemctl restart "$SERVICE"
-    wait_healthy && log "이전 릴리스로 복구됨" || log "이전 릴리스도 헬스체크에 실패했습니다. 서버를 확인하세요."
-  else
-    log "되돌아갈 이전 릴리스가 없어 서비스를 멈춥니다."
-    systemctl stop "$SERVICE" || true
-    rm -f "$CURRENT"
-  fi
+if ! wait_healthy "$new_port"; then
+  log "새 앱 헬스체크 실패. 최근 로그:"
+  journalctl -u "$new_service" -n 80 --no-pager || true
+  systemctl stop "$new_service" || true
+  rm -f "$SLOTS/$new_port"
+  restore_env
   rm -rf "$target"
   rm -f "$ARCHIVE"
-  fail "배포 실패: $RELEASE_ID"
+  fail "배포 실패: $RELEASE_ID (지금 서비스 중인 앱 ${old_port:-없음}은 그대로입니다)"
+fi
+log "새 앱 헬스체크 통과"
+
+# 화면 파일: 이미 열려 있는 이전 화면이 나중에 불러올 파일(이름에 해시가 붙어 있음)이 사라지지 않게 이전 릴리스의 assets를 함께 둔다.
+# 새 파일은 덮어쓰지 않는다 (cp -n은 건너뛴 파일이 있으면 실패 코드를 낼 수 있어 결과를 무시한다)
+if [ -n "$previous" ] && [ -d "$previous/web/assets" ] && [ "$previous" != "$target" ]; then
+  cp -rn "$previous/web/assets/." "$target/web/assets/" 2>/dev/null || true
+  chmod -R u=rwX,go=rX "$target/web/assets"
+fi
+
+log "Nginx를 $new_port 포트로 전환"
+point_nginx_to "$new_port"
+if ! nginx -t 2>/dev/null; then
+  [ -n "$old_port" ] && point_nginx_to "$old_port"
+  systemctl stop "$new_service" || true
+  restore_env
+  fail "Nginx 설정 확인 실패. 이전 앱(${old_port:-없음})으로 그대로 둡니다."
+fi
+systemctl reload nginx
+switch_to "$target"
+systemctl enable "$new_service" >/dev/null 2>&1
+
+if [ -n "$old_port" ] && [ "$old_port" != "$new_port" ]; then
+  log "이전 앱($old_port)이 처리 중인 요청을 마치도록 ${DRAIN_SECONDS}초 기다린 뒤 멈춥니다"
+  sleep "$DRAIN_SECONDS"
+  retire_port "$old_port"
 fi
 
 # 오래된 릴리스 정리 (현재 것은 항상 남긴다)

@@ -15,6 +15,8 @@ import com.scoreroom.common.config.AppProperties;
 import com.scoreroom.common.error.ApiException;
 import com.scoreroom.common.error.ErrorCode;
 import com.scoreroom.common.security.AuthenticatedUser;
+import com.scoreroom.log.domain.LogAction;
+import com.scoreroom.log.service.LogService;
 import com.scoreroom.user.domain.User;
 import com.scoreroom.user.service.UserRegistrar;
 
@@ -25,12 +27,14 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final UserRegistrar registrar;
     private final AppProperties properties;
+    private final LogService logs;
 
     public AuthService(CredentialsAuthenticationProvider credentialsProvider, UserRegistrar registrar,
-            AppProperties properties) {
+            AppProperties properties, LogService logs) {
         this.authenticationManager = new ProviderManager(credentialsProvider);
         this.registrar = registrar;
         this.properties = properties;
+        this.logs = logs;
     }
 
     public Authentication authenticate(String loginId, String password) {
@@ -53,6 +57,7 @@ public class AuthService {
         }
         User user = registrar.registerMember(request.loginId(), request.password(), request.name(), request.phone(),
                 request.teamId(), request.position());
+        logs.activity(user.getId(), null, LogAction.SIGNUP, user.getName() + " 회원가입 (" + user.getLoginId() + ")");
         return UsernamePasswordAuthenticationToken.authenticated(new AuthenticatedUser(user.getId()), null, List.of());
     }
 }

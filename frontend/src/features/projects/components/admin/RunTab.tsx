@@ -39,7 +39,7 @@ export function RunTab({ project }: { project: Project }) {
           <span className="muted small grow">{view === 'created'
             ? '먼저 등록한 발표부터 보여 줘요. 확인용이라 발표 순서는 바뀌지 않아요.'
             : open ? '행을 끌거나 ▲▼ 버튼으로 순서를 바꿔요. 모바일은 길게 누른 뒤 끌어요.' : '마감된 평가룸의 발표 순서예요.'}</span>
-          {open && <Link to={`/p/${project.id}/pres/new`} className="btn primary"><IconText icon="plus">발표 추가</IconText></Link>}
+          {open && <Link to={`/p/${project.id}/pres/new?from=admin`} className="btn primary"><IconText icon="plus">발표 추가</IconText></Link>}
         </div>
         <div className="btable admin">
           <div className="bhead">

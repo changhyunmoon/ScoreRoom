@@ -21,12 +21,19 @@ import org.springframework.web.multipart.support.MissingServletRequestPartExcept
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import com.scoreroom.common.web.RequestIdFilter;
+import com.scoreroom.log.service.LogService;
 
 /** 예외를 { code, message, fieldErrors, requestId } 응답으로 바꾼다 */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    private final LogService logs;
+
+    public GlobalExceptionHandler(LogService logs) {
+        this.logs = logs;
+    }
 
     @ExceptionHandler(ApiException.class)
     ResponseEntity<ApiError> handleApi(ApiException e, HttpServletRequest request) {
@@ -61,12 +68,15 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(DataIntegrityViolationException.class)
     ResponseEntity<ApiError> handleIntegrity(DataIntegrityViolationException e, HttpServletRequest request) {
         log.warn("데이터 제약조건 위반: {}", e.getMostSpecificCause().getMessage());
+        logs.dataConflict(e, e.getMostSpecificCause());
         return respond(request, ErrorCode.CONFLICT, "다른 변경과 충돌했습니다. 새로 고침한 뒤 다시 시도해 주세요.", List.of());
     }
 
     @ExceptionHandler(NoResourceFoundException.class)
     ResponseEntity<ApiError> handleNoResource(NoResourceFoundException e, HttpServletRequest request) {
-        return respond(request, ErrorCode.NOT_FOUND, "요청한 주소를 찾을 수 없습니다.", List.of());
+        // 없는 주소 요청(정적 파일, 크롤러 등)은 로그를 어지럽히므로 남기지 않는다
+        return ResponseEntity.status(ErrorCode.NOT_FOUND.status()).body(new ApiError(ErrorCode.NOT_FOUND.name(),
+                "요청한 주소를 찾을 수 없습니다.", List.of(), RequestIdFilter.of(request)));
     }
 
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
@@ -77,11 +87,13 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     ResponseEntity<ApiError> handleUnknown(Exception e, HttpServletRequest request) {
         log.error("처리하지 못한 오류", e);
+        logs.serverError(e);
         return respond(request, ErrorCode.INTERNAL_ERROR, "오류가 발생했습니다. 잠시 후 다시 시도해 주세요.", List.of());
     }
 
-    private static ResponseEntity<ApiError> respond(HttpServletRequest request, ErrorCode code, String message,
+    private ResponseEntity<ApiError> respond(HttpServletRequest request, ErrorCode code, String message,
             List<ApiError.FieldError> fields) {
+        logs.rejected(code, message);
         return ResponseEntity.status(code.status())
                 .body(new ApiError(code.name(), message, fields, RequestIdFilter.of(request)));
     }

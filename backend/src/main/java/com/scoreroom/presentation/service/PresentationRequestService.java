@@ -1,5 +1,6 @@
 package com.scoreroom.presentation.service;
 
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -9,8 +10,9 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.scoreroom.audit.service.AuditService;
 import com.scoreroom.common.error.ApiException;
+import com.scoreroom.log.domain.LogAction;
+import com.scoreroom.log.service.LogService;
 import com.scoreroom.notification.service.NotificationService;
 import com.scoreroom.presentation.domain.PresentationMember;
 import com.scoreroom.presentation.repository.PresentationMemberRepository;
@@ -26,15 +28,15 @@ public class PresentationRequestService {
     private final MembershipRepository memberships;
     private final PresentationMemberRepository presentationMembers;
     private final NotificationService notifications;
-    private final AuditService audit;
+    private final LogService logs;
 
     public PresentationRequestService(RoomGuard roomGuard, MembershipRepository memberships,
-            PresentationMemberRepository presentationMembers, NotificationService notifications, AuditService audit) {
+            PresentationMemberRepository presentationMembers, NotificationService notifications, LogService logs) {
         this.roomGuard = roomGuard;
         this.memberships = memberships;
         this.presentationMembers = presentationMembers;
         this.notifications = notifications;
-        this.audit = audit;
+        this.logs = logs;
     }
 
     /**
@@ -55,15 +57,18 @@ public class PresentationRequestService {
         Set<UUID> registered = presentationMembers.findByProjectId(projectId).stream()
                 .map(PresentationMember::getUserId).collect(Collectors.toSet());
         int sent = 0;
+        List<String> names = new ArrayList<>();
         for (UUID userId : ids) {
             if (!roomMembers.contains(userId) || registered.contains(userId) || userId.equals(actorId)) {
                 continue;
             }
             notifications.presentationRequested(userId, projectId, actorId);
+            names.add(logs.userName(userId));
             sent++;
         }
         if (sent > 0) {
-            audit.record(actorId, projectId, "PRESENTATION_REQUESTED", sent);
+            logs.activity(actorId, projectId, LogAction.PRESENTATION_REQUESTED,
+                    "발표 등록 요청 알림 " + sent + "명: " + String.join(", ", names));
         }
         return sent;
     }

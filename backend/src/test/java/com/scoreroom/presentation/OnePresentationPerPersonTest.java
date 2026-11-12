@@ -45,6 +45,32 @@ class OnePresentationPerPersonTest extends IntegrationTest {
     }
 
     @Test
+    void 개인_발표는_등록하는_사람이_대표이고_다른_사람을_대표로_보낼_수_없다() throws Exception {
+        // 다른 사람을 대표로 보내도 등록하는 사람이 대표가 된다
+        mvc.perform(json(post("/api/v1/projects/{p}/presentations", room), PERSONAL.formatted("내 발표", mate.getId()))
+                .with(as(solo))).andExpect(status().isCreated());
+        UUID mine = jdbc.queryForObject("select id from presentations where title = '내 발표'", UUID.class);
+        assertThat(jdbc.queryForObject("select leader_id from presentations where id = ?", UUID.class, mine)).isEqualTo(solo.getId());
+        assertThat(count("select count(*) from presentation_members where user_id = ?", mate.getId())).isZero();
+
+        // 룸 관리자가 고쳐도 개인 발표의 대표는 바뀌지 않는다
+        mvc.perform(json(put("/api/v1/projects/{p}/presentations/{pr}", room, mine), PERSONAL.formatted("내 발표 수정", mate.getId()))
+                .with(as(owner))).andExpect(status().isOk());
+        assertThat(jdbc.queryForObject("select leader_id from presentations where id = ?", UUID.class, mine)).isEqualTo(solo.getId());
+
+    }
+
+    @Test
+    void 룸_관리자가_대신_등록한_개인_발표는_고른_사람이_대표이자_주인이다() throws Exception {
+        mvc.perform(json(post("/api/v1/projects/{p}/presentations", room), PERSONAL.formatted("대신 등록", mate.getId()))
+                .with(as(owner))).andExpect(status().isCreated());
+        var row = jdbc.queryForMap("select leader_id, created_by from presentations where title = '대신 등록'");
+        assertThat(row.get("leader_id")).isEqualTo(mate.getId());
+        assertThat(row.get("created_by")).isEqualTo(mate.getId());
+        assertThat(count("select count(*) from presentation_members where user_id = ?", owner.getId())).isZero();
+    }
+
+    @Test
     void 다른_발표에_등록된_사람은_새_발표에_넣을_수_없다() throws Exception {
         fixtures.teamPresentation(room, leader, List.of(), List.of(mate));
 

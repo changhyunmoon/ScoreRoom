@@ -6,9 +6,10 @@ import java.util.Locale;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.scoreroom.audit.service.AuditService;
 import com.scoreroom.common.error.ApiException;
 import com.scoreroom.common.security.UserSessionRevoker;
+import com.scoreroom.log.domain.LogAction;
+import com.scoreroom.log.service.LogService;
 import com.scoreroom.user.domain.LoginIds;
 import com.scoreroom.user.domain.User;
 import com.scoreroom.user.repository.UserRepository;
@@ -29,14 +30,14 @@ public class AccountRecoveryService {
     private final UserRepository users;
     private final UserRegistrar registrar;
     private final UserSessionRevoker sessionRevoker;
-    private final AuditService audit;
+    private final LogService logs;
 
     public AccountRecoveryService(UserRepository users, UserRegistrar registrar, UserSessionRevoker sessionRevoker,
-            AuditService audit) {
+            LogService logs) {
         this.users = users;
         this.registrar = registrar;
         this.sessionRevoker = sessionRevoker;
-        this.audit = audit;
+        this.logs = logs;
     }
 
     /** 이름·전화번호가 맞는 계정의 이메일 (일부 가림). 없으면 빈 목록 */
@@ -62,7 +63,7 @@ public class AccountRecoveryService {
                 .orElseThrow(() -> ApiException.badRequest("입력한 정보와 일치하는 계정이 없습니다."));
         user.changePassword(registrar.encode(newPassword));
         sessionRevoker.revokeAll(user.getId(), null);
-        audit.record(user.getId(), null, "PASSWORD_RESET_SELF", 1);
+        logs.activity(user.getId(), null, LogAction.PASSWORD_RESET_SELF, user.getName() + " 비밀번호 찾기로 재설정");
     }
 
     /** chbigmoon@datasolution.kr → ch*******@datasolution.kr */

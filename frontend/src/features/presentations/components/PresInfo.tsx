@@ -63,8 +63,8 @@ export function PresInfo({ project, pres, showMyRole }: { project: Project; pres
           {pres.intro ? <p className="intro">{pres.intro}</p> : <span className="muted small">등록된 소개가 없어요.</span>}
         </dd>
       </div>
-      {/* 구성원: 개인 발표는 대표 한 명 */}
-      <div className="info-row">
+      {/* 구성원: 팀 발표만 보여 준다 (개인 발표는 발표 목록에 발표자 이름이 이미 보인다) */}
+      {pres.type !== 'PERSONAL' && <div className="info-row">
         <dt>구성원</dt>
         <dd>
           <Presenters db={db} project={project} pres={pres} />
@@ -76,7 +76,7 @@ export function PresInfo({ project, pres, showMyRole }: { project: Project; pres
             </div>
           )}
         </dd>
-      </div>
+      </div>}
       {hasMaterials && (
         <div className="info-row">
           <dt>발표 자료</dt>

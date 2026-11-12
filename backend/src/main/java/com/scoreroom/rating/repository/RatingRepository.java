@@ -17,6 +17,8 @@ public interface RatingRepository extends JpaRepository<Rating, UUID> {
 
     List<Rating> findByProjectId(UUID projectId);
 
+    List<Rating> findByPresentationId(UUID presentationId);
+
     List<Rating> findByProjectIdIn(Collection<UUID> projectIds);
 
     long countByProjectId(UUID projectId);

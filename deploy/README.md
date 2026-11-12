@@ -6,8 +6,24 @@ main 브랜치에 merge(push)되면 GitHub Actions가 테스트·빌드한 뒤 E
 PR → main          : CI (백엔드 테스트 + jar, 프런트 타입 검사 + 빌드)
 main에 push/merge  : CI → 서버 설정 파일 생성(Secrets) → 릴리스 업로드
                      → 서버 기본 구성 확인(계정·폴더·systemd·Nginx) → DB·계정 준비
-                     → 서비스 재시작 → 헬스체크 (실패 시 이전 릴리스·설정으로 자동 복구)
+                     → 쉬는 슬롯에 새 앱 시작 → 헬스체크 → Nginx 전환 → 이전 앱 정리 (무중단)
 ```
+
+### 무중단 배포 (blue-green)
+
+같은 EC2에서 앱 두 개(`scoreroom@8081`, `scoreroom@8082`) 중 하나만 서비스합니다. 배포하면
+
+1. 쉬고 있는 포트에 새 앱을 띄우고 헬스체크를 기다립니다 (이전 앱은 계속 서비스 중)
+2. 통과하면 `/etc/nginx/scoreroom-upstream.conf`를 새 포트로 바꾸고 Nginx를 reload합니다. reload는 연결을 끊지 않습니다
+3. 화면 파일(`current`)을 바꾸고, 이전 앱은 30초 동안 처리 중인 요청을 마친 뒤 멈춥니다
+
+헬스체크가 실패하면 새 앱만 멈추고 끝납니다. 사용자는 이전 앱을 그대로 씁니다. 로그인은 DB(세션 표)에 있어 앱이 바뀌어도 유지됩니다.
+
+지켜야 할 것
+- **DB 마이그레이션은 추가만**: 새 앱이 뜨면서 먼저 적용되므로, 전환하는 30초 남짓 이전 앱이 새 스키마에서 돕니다. 컬럼·표는 추가 → 사용 → 다음 배포에서 정리 순서로 바꿉니다.
+- **API는 하위 호환으로**: 이미 열려 있는 이전 화면이 새 앱을 부릅니다 (새로 고침하면 새 화면). 이전 화면이 쓰는 파일이 사라지지 않게 배포가 이전 릴리스의 `web/assets`를 함께 둡니다.
+- **메모리**: 전환하는 동안 JVM 두 개가 함께 뜹니다. `JAVA_OPTS`(기본 `-Xmx1g`) × 2가 서버 메모리에 들어가는지 확인하세요.
+- 첫 무중단 배포 때 예전 단일 서비스(`scoreroom.service`, 8080)에서 슬롯으로 넘어가고, 예전 서비스는 자동으로 멈추고 지워집니다. 설정 파일의 `SERVER_PORT`는 슬롯 포트가 우선합니다.
 
 - 워크플로: [`.github/workflows/ci.yml`](../.github/workflows/ci.yml), [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml)
 - 문서(`*.md`, `docs/`)만 바뀐 push는 배포하지 않습니다. **Actions → Deploy → Run workflow**로 수동 배포할 수 있습니다.
@@ -62,16 +78,19 @@ Java 21, Nginx, PostgreSQL만 설치돼 있으면 됩니다. 나머지(서비스
 | `/opt/scoreroom/current` | 지금 쓰는 릴리스 링크 |
 | `/var/lib/scoreroom/uploads` | 발표 자료 (DB와 함께 백업) |
 | `/etc/scoreroom/scoreroom.env` | GitHub Secrets로 만든 설정 (root 600, 배포마다 덮어씀) |
-| `scoreroom.service` | Spring Boot (`scoreroom` 계정, 127.0.0.1:8080) |
-| Nginx `scoreroom` 사이트 | 80 포트: 화면 정적 파일 + `/api` → 8080 |
+| `/opt/scoreroom/slots/<포트>` | 그 슬롯에서 돌리는 릴리스 링크 |
+| `scoreroom@8081`, `scoreroom@8082` | Spring Boot 슬롯 (`scoreroom` 계정, 127.0.0.1). 한 번에 하나만 켜져 있다 |
+| `/etc/nginx/scoreroom-upstream.conf` | Nginx가 `/api`를 보낼 슬롯 포트 (배포가 바꾼다) |
+| Nginx `scoreroom` 사이트 | 80 포트: 화면 정적 파일 + `/api` → 지금 슬롯 |
 
 ## 확인과 되돌리기
 
 ```bash
-sudo systemctl status scoreroom
-sudo journalctl -u scoreroom -f
-curl -s http://127.0.0.1:8080/actuator/health
-readlink -f /opt/scoreroom/current            # 지금 릴리스
+cat /etc/nginx/scoreroom-upstream.conf        # 지금 서비스 중인 포트
+sudo systemctl status 'scoreroom@*'
+sudo journalctl -u scoreroom@8081 -f          # 포트는 위에서 확인한 값
+curl -s http://127.0.0.1:8081/actuator/health
+readlink -f /opt/scoreroom/current            # 지금 화면 릴리스
 ```
 
-이전 버전으로 돌리려면 GitHub에서 해당 커밋을 되돌리는(revert) PR을 main에 merge하거나, Actions의 이전 성공 실행을 **Re-run**합니다. 자동 복구와 되돌리기는 앱과 화면 파일만 되돌리며 DB 마이그레이션은 되돌리지 않으므로, 마이그레이션은 이전 버전 앱과도 함께 동작하도록(컬럼 추가 → 사용 → 나중에 정리) 작성하세요.
+이전 버전으로 돌리려면 GitHub에서 해당 커밋을 되돌리는(revert) PR을 main에 merge하거나, Actions의 이전 성공 실행을 **Re-run**합니다. 되돌리기도 같은 무중단 전환으로 진행됩니다. 앱과 화면 파일만 되돌리며 DB 마이그레이션은 되돌리지 않으므로, 마이그레이션은 이전 버전 앱과도 함께 동작하도록(컬럼 추가 → 사용 → 나중에 정리) 작성하세요.

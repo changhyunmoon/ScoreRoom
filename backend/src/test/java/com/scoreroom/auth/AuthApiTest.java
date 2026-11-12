@@ -101,6 +101,25 @@ class AuthApiTest extends IntegrationTest {
     }
 
     @Test
+    void 비밀번호를_바꾸면_지금_기기와_다른_기기_모두_로그아웃된다() throws Exception {
+        fixtures.user("kim", null);
+        Cookie here = mvc.perform(json(post("/api/v1/auth/login"), LOGIN).with(csrf()))
+                .andExpect(status().isOk()).andReturn().getResponse().getCookie("SCOREROOM_SESSION");
+        Cookie other = mvc.perform(json(post("/api/v1/auth/login"), LOGIN).with(csrf()))
+                .andExpect(status().isOk()).andReturn().getResponse().getCookie("SCOREROOM_SESSION");
+
+        String body = "{\"loginId\":\"kim@example.com\",\"name\":\"김\",\"phone\":\"010\",\"currentPassword\":\""
+                + TestFixtures.PASSWORD + "\",\"newPassword\":\"new-password1\"}";
+        mvc.perform(json(put("/api/v1/me"), body).cookie(here).with(csrf())).andExpect(status().isNoContent());
+
+        mvc.perform(get("/api/v1/me").cookie(here)).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/v1/me").cookie(other)).andExpect(status().isUnauthorized());
+        mvc.perform(json(post("/api/v1/auth/login"), "{\"loginId\":\"kim@example.com\",\"password\":\"new-password1\"}")
+                .with(csrf())).andExpect(status().isOk());
+        assertThat(count("select count(*) from system_logs where action = 'PASSWORD_CHANGED'")).isEqualTo(1);
+    }
+
+    @Test
     void 시스템_관리자_기능은_일반_사용자에게_403() throws Exception {
         User user = fixtures.user("kim", null);
         mvc.perform(json(post("/api/v1/admin/teams"), "{\"name\":\"새 팀\"}").with(as(user)))

@@ -1,6 +1,6 @@
 // 발표 등록·편집: 제목/소개/유형, 발표 자료, 배포 URL, 구성원(대표·팀원). 발표자 구분은 없다
 import { useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Icon, type IconName } from '../../../shared/icons/Icon';
 import { fileSize } from '../../../shared/lib/format';
 import type { ID } from '../../../shared/lib/types';
@@ -15,7 +15,7 @@ import { canEditPresentation, involvedIds, presentationOfUser, presTypeText } fr
 import type { Presentation, PresType } from '../model/types';
 
 const TYPE_INFO: Record<PresType, { icon: IconName; desc: string }> = {
-  PERSONAL: { icon: 'user', desc: '혼자 발표' },
+  PERSONAL: { icon: 'user', desc: '혼자 발표 · 등록하는 사람이 대표' },
   TEAM: { icon: 'users', desc: '여러 명이 함께' },
 };
 /** 팀 발표 구성원을 고르는 방법. 저장되지 않는 화면 편의 기능이다 */
@@ -45,6 +45,9 @@ export default function PresentationFormPage() {
   const nav = useNavigate();
   const project = db.projects.find(p => p.id === pid);
   const existing = prid ? db.presentations.find(p => p.id === prid) : undefined;
+  // 룸 관리자가 발표 관리의 '발표 추가'로 들어오면 개인 발표의 발표자를 직접 고른다 (고른 사람이 대표이자 주인)
+  const [sp] = useSearchParams();
+  const adminAdd = !prid && sp.get('from') === 'admin' && !!me && !!pid && !!membership(db, pid, me.id)?.isAdmin;
   const [f, setF] = useState(() => {
     // 예전 데이터의 발표자도 팀원으로 불러온다
     const roles: Record<ID, 'MEMBER'> = {};
@@ -52,8 +55,8 @@ export default function PresentationFormPage() {
       .filter(id => id !== existing?.leaderId).forEach(id => { roles[id] = 'MEMBER'; });
     return {
       title: existing?.title ?? '', intro: existing?.intro ?? '', type: (existing?.type ?? 'PERSONAL') as PresType,
-      // 새 발표는 만든 사람을 대표로 시작하고, 원하면 바꾼다. 이미 다른 발표에 있거나 룸 관리자(발표하지 않음)면 비워 둔다
-      leaderId: existing?.leaderId ?? (me && pid && !presentationOfUser(db, pid, me.id) && !membership(db, pid, me.id)?.isAdmin ? me.id : ''),
+      // 새 발표는 개인 발표로 시작하고, 개인 발표는 등록하는 사람(나)이 대표다. 관리자가 대신 등록할 때는 비워 두고 고른다
+      leaderId: existing?.leaderId ?? (adminAdd ? '' : me?.id ?? ''),
       roles,
       deployUrl: existing?.deployUrl ?? '',
     };
@@ -103,15 +106,16 @@ export default function PresentationFormPage() {
   const byName = (a: ID, b: ID) => userName(db, a).localeCompare(userName(db, b));
   // 개인 발표: 본인(편집이면 기존 대표) 한 명
   // 팀 발표: 우리 회사 팀이면 내 팀 참여자(조직도 순), 직접 고르기면 참여자 전원(나 먼저)
-  // 룸 관리자가 대신 등록하는 개인 발표는 참여자 중 한 명을 대표로 고른다
-  const personalLeader = existing?.type === 'PERSONAL' ? existing.leaderId : m.isAdmin ? null : me.id;
+  // 개인 발표의 대표 (서버도 같은 규칙): 원래 개인 발표면 그 대표, 관리자가 '발표 추가'로 대신 등록하면 고른 사람(null = 고르는 중),
+  // 그 밖에 새로 만들거나 팀 발표에서 바꾸면 나
+  const personalLeader: ID | null = existing?.type === 'PERSONAL' ? existing.leaderId : adminAdd ? null : me.id;
   const fromMyTeam = f.type === 'TEAM' && pick === 'MY_TEAM';
   const people = ms
     .filter(x => (f.type === 'PERSONAL' ? (personalLeader === null ? !takenBy(x.userId) : x.userId === personalLeader) : fromMyTeam ? x.teamIdAtJoin === myTeam : true))
     .sort((a, b) => fromMyTeam
       ? rankOf(a.userId) - rankOf(b.userId) || byName(a.userId, b.userId)
       : (a.userId === me.id ? -1 : b.userId === me.id ? 1 : byName(a.userId, b.userId)));
-  const back = m.isAdmin && existing ? `/p/${project.id}/admin` : `/p/${project.id}`;
+  const back = m.isAdmin && (existing || adminAdd) ? `/p/${project.id}/admin` : `/p/${project.id}`;
   // 룸 관리자는 평가룸의 모든 평가를 받으므로 삭제될 평가 수를 정확히 보여줄 수 있다
   const ratingCount = existing ? db.ratings.filter(r => r.presentationId === existing.id).length : 0;
 
@@ -161,8 +165,8 @@ export default function PresentationFormPage() {
   const changeType = (type: PresType) => {
     if (type === f.type) return;
     if (type === 'PERSONAL') {
-      // 개인 발표: 본인이 대표 (구성원 선택 없음)
-      setF({ ...f, type, roles: {}, leaderId: existing?.type === 'PERSONAL' ? existing.leaderId : proxy ? '' : me.id });
+      // 개인 발표: 등록하는 사람(나)이 대표 (구성원 선택 없음)
+      setF({ ...f, type, roles: {}, leaderId: personalLeader ?? '' });
       return;
     }
     // 팀 발표: 우리 회사 팀으로 시작
@@ -242,12 +246,20 @@ export default function PresentationFormPage() {
   const titleTaken = !!titleKey && db.presentations.some(p =>
     p.projectId === project.id && p.id !== existing?.id && p.title.trim().toLowerCase() === titleKey);
   const takenCrew = [leaderId, ...presenterIds, ...memberIds].filter(id => id && takenBy(id));
+  // 개인 발표는 등록하는 사람이 대표라, 내가 발표할 수 없으면 개인 발표를 만들 수 없다 (팀 발표로 다른 사람을 등록한다)
+  const personal = f.type === 'PERSONAL';
+  const personalBlocked = !personal ? null
+    : personalLeader === null ? (leaderId ? null : '발표할 사람을 1명 골라 주세요.')
+    : takenBy(personalLeader) ? `이미 '${takenBy(personalLeader)!.title}' 발표에 등록돼 있어 개인 발표를 등록할 수 없어요. 다른 참여자의 발표는 팀 발표로 등록해 주세요.`
+    : !leaderId ? '룸 관리자 발표가 꺼져 있어 개인 발표를 등록할 수 없어요. 다른 참여자의 발표는 팀 발표로 등록하거나, 설정에서 룸 관리자 발표를 켜 주세요.'
+    : null;
   const problems = [
     !f.title.trim() && '발표 제목을 입력해 주세요.',
-    takenCrew.length > 0 && `다른 발표에 이미 등록된 사람이 있어요: ${Array.from(new Set(takenCrew)).map(id => userName(db, id)).join(', ')}. 한 사람은 발표 하나에만 참여할 수 있어요.`,
+    personalBlocked,
+    !personal && takenCrew.length > 0 && `다른 발표에 이미 등록된 사람이 있어요: ${Array.from(new Set(takenCrew)).map(id => userName(db, id)).join(', ')}. 한 사람은 발표 하나에만 참여할 수 있어요.`,
     titleTaken && '이 평가룸에 같은 제목의 발표가 이미 있어요.',
-    !leaderId && '대표를 1명 선택해 주세요.',
-    !m.isAdmin && !meIncluded && '본인의 역할(대표·팀원)을 선택해 주세요.',
+    !personal && !leaderId && '대표를 1명 선택해 주세요.',
+    !personal && !m.isAdmin && !meIncluded && '본인의 역할(대표·팀원)을 선택해 주세요.',
     urlInvalid && '배포 URL은 http:// 또는 https://로 시작하는 주소로 입력해 주세요.',
   ].filter(Boolean) as string[];
 
@@ -317,18 +329,18 @@ export default function PresentationFormPage() {
         </Field>
       </div>
 
-      {/* 팀 발표, 또는 룸 관리자가 대신 등록하는 개인 발표면 구성원을 고른다 */}
+      {/* 팀 발표는 구성원을 고른다. 개인 발표는 등록하는 사람이 대표이고, 관리자가 '발표 추가'로 대신 등록할 때만 발표자를 고른다 */}
       {(f.type !== 'PERSONAL' || personalLeader === null) && <div className="card stack">
         <div className="row between wrap gap">
           <div>
-            <h2>발표 구성원</h2>
+            <h2>{personal ? '발표할 사람' : '발표 구성원'}</h2>
           </div>
-          <div className="row gap-sm">
+          {!personal && <div className="row gap-sm">
             <span className="crew-label lead">대표 {leaderId ? 1 : 0}</span>
             <span className="crew-label member">팀원 {memberIds.length}</span>
-          </div>
+          </div>}
         </div>
-        {f.type !== 'PERSONAL' && <div className="segmented pick-seg" role="group" aria-label="구성원 고르는 방법">
+        {!personal && <div className="segmented pick-seg" role="group" aria-label="구성원 고르는 방법">
           <button type="button" className={pick === 'MY_TEAM' ? 'on' : ''} onClick={() => changePick('MY_TEAM')}>
             <Icon name="building" size={15} />우리 회사 팀
           </button>
@@ -337,7 +349,9 @@ export default function PresentationFormPage() {
           </button>
         </div>}
         <ul className="role-guide">
-          <li><span className="crew-label lead">대표</span>꼭 1명, 나머지는 팀원으로 골라요.</li>
+          {personal
+            ? <li><span className="crew-label lead">대표</span>1명을 골라요. 고른 사람이 이 발표의 주인이 되어 직접 수정할 수 있어요.</li>
+            : <li><span className="crew-label lead">대표</span>꼭 1명, 나머지는 팀원으로 골라요.</li>}
           <li>한 사람은 발표 하나에만 참여해요. 다른 발표에 등록된 사람은 고를 수 없어요.</li>
         </ul>
         {locked && <div className="notice"><Icon name="lock" size={15} />점수를 받은 발표라 역할만 바꿀 수 있어요.</div>}
@@ -376,9 +390,12 @@ export default function PresentationFormPage() {
       </div>}
 
       <div className="card stack">
-        <h2>구성원 확인</h2>
-        <span className="hint">점수는 구성원별이 아니라 발표에 한 번 매겨져요. 빠진 사람이 없는지 확인하세요.</span>
-        {leaderId ? <Presenters db={db} project={project} pres={crewDraft} /> : <p className="muted">대표를 선택하면 구성원이 여기에 보여요.</p>}
+        {/* 구성원 확인은 팀 발표만 (개인 발표는 발표자 한 명이라 확인할 것이 없다) */}
+        {f.type !== 'PERSONAL' && <>
+          <h2>구성원 확인</h2>
+          <span className="hint">점수는 구성원별이 아니라 발표에 한 번 매겨져요. 빠진 사람이 없는지 확인하세요.</span>
+          {leaderId ? <Presenters db={db} project={project} pres={crewDraft} /> : <p className="muted">대표를 선택하면 구성원이 여기에 보여요.</p>}
+        </>}
         {problems.map(t => <div key={t} className="error"><Icon name="ban" size={15} />{t}</div>)}
         <button className="btn primary solid" disabled={problems.length > 0 || saving} onClick={save}>
           <IconText icon="check">{saving ? '저장 중…' : existing ? '변경 사항 저장' : '발표 등록'}</IconText>

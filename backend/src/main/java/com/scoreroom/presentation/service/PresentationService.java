@@ -15,9 +15,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.scoreroom.common.error.ApiException;
+import com.scoreroom.log.domain.LogAction;
+import com.scoreroom.log.service.LogService;
 import com.scoreroom.presentation.domain.Crew;
 import com.scoreroom.presentation.domain.Presentation;
 import com.scoreroom.presentation.domain.PresentationMember;
+import com.scoreroom.presentation.domain.PresentationType;
 import com.scoreroom.presentation.dto.SavePresentationRequest;
 import com.scoreroom.presentation.repository.PresentationMemberRepository;
 import com.scoreroom.presentation.repository.PresentationRepository;
@@ -40,10 +43,11 @@ public class PresentationService {
     private final RoomGuard roomGuard;
     private final PresentationRemover remover;
     private final UserRepository users;
+    private final LogService logs;
 
     public PresentationService(PresentationRepository presentations, PresentationMemberRepository presentationMembers,
             MembershipRepository memberships, RatingRepository ratings, RoomGuard roomGuard, PresentationRemover remover,
-            UserRepository users) {
+            UserRepository users, LogService logs) {
         this.presentations = presentations;
         this.presentationMembers = presentationMembers;
         this.memberships = memberships;
@@ -51,18 +55,28 @@ public class PresentationService {
         this.roomGuard = roomGuard;
         this.remover = remover;
         this.users = users;
+        this.logs = logs;
     }
 
-    /** 참여자 누구나 등록한다. 만든 사람이 발표를 수정할 수 있다 */
+    /**
+     * 참여자 누구나 등록한다. 만든 사람이 발표를 수정할 수 있다.
+     * 룸 관리자가 남의 개인 발표를 대신 등록하면 그 사람을 만든 사람(주인)으로 둔다.
+     */
     @Transactional
     public UUID create(UUID actorId, UUID projectId, SavePresentationRequest request) {
         RoomWrite room = roomGuard.lockAsMember(projectId, actorId);
         Crew crew = validateCrew(room, request, null);
         ensureTitleUnique(projectId, request.title().trim());
-        Presentation presentation = new Presentation(projectId, actorId, presentations.findMaxSortOrder(projectId) + 1);
+        boolean proxy = request.type() == PresentationType.PERSONAL && !crew.leaderId().equals(actorId);
+        UUID owner = proxy ? crew.leaderId() : actorId;
+        Presentation presentation = new Presentation(projectId, owner, presentations.findMaxSortOrder(projectId) + 1);
         describe(presentation, request, crew);
         presentations.save(presentation);
         syncMembers(presentation, crew, List.of());
+        logs.activity(actorId, projectId, LogAction.PRESENTATION_CREATED, "'" + presentation.getTitle() + "' 발표 등록 ("
+                + (presentation.getType() == PresentationType.TEAM ? "팀 " + crew.everyone().size() + "명"
+                        : proxy ? "개인 · " + logs.userName(owner) + " 대신 등록" : "개인") + ")",
+                summary(presentation, crew));
         return presentation.getId();
     }
 
@@ -81,8 +95,31 @@ public class PresentationService {
         if (!title.equalsIgnoreCase(presentation.getTitle())) {
             ensureTitleUnique(projectId, title);
         }
+        String beforeTitle = presentation.getTitle();
+        String beforeSummary = summary(presentation, Crew.fromMembers(presentation.getLeaderId(), current));
         describe(presentation, request, crew);
         syncMembers(presentation, crew, current);
+        String afterSummary = summary(presentation, crew);
+        if (!beforeSummary.equals(afterSummary)) {
+            logs.activity(actorId, projectId, LogAction.PRESENTATION_UPDATED, "'" + presentation.getTitle() + "' 발표 수정"
+                    + (beforeTitle.equals(presentation.getTitle()) ? "" : " (제목 '" + beforeTitle + "'에서 변경)"),
+                    "[변경 전]\n" + beforeSummary + "\n\n[변경 후]\n" + afterSummary);
+        }
+    }
+
+    /** 로그용 발표 내용 요약 */
+    private String summary(Presentation p, Crew crew) {
+        Map<UUID, String> names = users.findAllById(crew.everyone()).stream()
+                .collect(Collectors.toMap(User::getId, User::getName));
+        String members = crew.everyone().stream()
+                .map(id -> names.getOrDefault(id, "?") + (id.equals(crew.leaderId()) ? "(대표)"
+                        : crew.isPresenter(id) ? "(발표자)" : ""))
+                .collect(Collectors.joining(", "));
+        return "제목: " + p.getTitle()
+                + "\n유형: " + (p.getType() == PresentationType.TEAM ? "팀" : "개인")
+                + "\n구성원: " + members
+                + (p.getIntro() == null || p.getIntro().isEmpty() ? "" : "\n소개: " + p.getIntro())
+                + (p.getDeployUrl() == null ? "" : "\n배포 URL: " + p.getDeployUrl());
     }
 
     /** 수정할 수 있는 사람이 삭제한다. 점수를 받은 발표는 남의 평가가 함께 지워지므로 룸 관리자만 지운다 */
@@ -93,7 +130,7 @@ public class PresentationService {
         if (!room.membership().isAdmin() && ratings.existsByPresentationId(presentationId)) {
             throw ApiException.forbidden("점수를 받은 발표는 룸 관리자만 삭제할 수 있습니다.");
         }
-        remover.remove(presentation);
+        remover.remove(presentation, "");
     }
 
     /** 한 칸 위(-1)·아래(+1)로 옮긴다 */
@@ -110,6 +147,8 @@ public class PresentationService {
         int b = list.get(to).getSortOrder();
         list.get(from).changeSortOrder(a == b ? to + 1 : b);
         list.get(to).changeSortOrder(a == b ? from + 1 : a);
+        logs.activity(actorId, projectId, LogAction.PRESENTATION_REORDERED, "'" + list.get(from).getTitle() + "' 발표 순서 "
+                + (from + 1) + "번 → " + (to + 1) + "번");
     }
 
     /** 전체 순서를 저장한다. 그 사이 발표가 추가·삭제됐으면 409 */
@@ -124,6 +163,12 @@ public class PresentationService {
         for (int i = 0; i < orderedIds.size(); i++) {
             byId.get(orderedIds.get(i)).changeSortOrder(i + 1);
         }
+        List<String> titles = new ArrayList<>();
+        for (int i = 0; i < orderedIds.size(); i++) {
+            titles.add((i + 1) + ". " + byId.get(orderedIds.get(i)).getTitle());
+        }
+        logs.activity(actorId, projectId, LogAction.PRESENTATION_REORDERED, "발표 순서 저장 (" + titles.size() + "개)",
+                String.join("\n", titles));
     }
 
     private Presentation require(UUID projectId, UUID presentationId) {
@@ -148,9 +193,29 @@ public class PresentationService {
         }
     }
 
+    /**
+     * 개인 발표의 대표는 서버가 정한다.
+     * - 원래 개인 발표면 대표를 바꾸지 않는다
+     * - 룸 관리자가 새로 등록하면 고른 사람이 대표다 (발표 관리의 '발표 추가'에서 대신 등록)
+     * - 그 밖에는 등록하는(팀 발표에서 바꾸는) 사람 본인이 대표다
+     */
+    private UUID personalLeader(RoomWrite room, SavePresentationRequest request, UUID presentationId) {
+        if (presentationId != null) {
+            Presentation current = require(room.projectId(), presentationId);
+            if (current.getType() == PresentationType.PERSONAL) {
+                return current.getLeaderId();
+            }
+        } else if (room.membership().isAdmin() && request.leaderId() != null) {
+            return request.leaderId();
+        }
+        return room.membership().getUserId();
+    }
+
     /** presentationId: 수정 중인 발표 (새 발표면 null) */
     private Crew validateCrew(RoomWrite room, SavePresentationRequest request, UUID presentationId) {
-        Crew crew = Crew.normalize(request.type(), request.leaderId(), request.presenterIds(), request.memberIds());
+        Crew crew = request.type() == PresentationType.PERSONAL
+                ? Crew.normalize(PresentationType.PERSONAL, personalLeader(room, request, presentationId), List.of(), List.of())
+                : Crew.normalize(request.type(), request.leaderId(), request.presenterIds(), request.memberIds());
         List<Membership> roomMemberships = memberships.findByProjectId(room.projectId());
         Set<UUID> roomMembers = roomMemberships.stream().map(Membership::getUserId).collect(Collectors.toSet());
         List<UUID> everyone = crew.everyone();

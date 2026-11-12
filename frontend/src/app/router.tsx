@@ -7,6 +7,8 @@ import LoginPage from '../features/auth/pages/LoginPage';
 import SignupPage from '../features/auth/pages/SignupPage';
 import SysOrgPage from '../features/organization/pages/SysOrgPage';
 import SysCreatorsPage from '../features/organization/pages/SysCreatorsPage';
+import SysLogsPage from '../features/organization/pages/SysLogsPage';
+import SysOnlinePage from '../features/organization/pages/SysOnlinePage';
 import SysRoomsPage from '../features/organization/pages/SysRoomsPage';
 import SysViewersPage from '../features/organization/pages/SysViewersPage';
 import PresentationFormPage from '../features/presentations/pages/PresentationFormPage';
@@ -32,6 +34,8 @@ export function AppRoutes() {
             <Route path="/sys/viewers" element={<SysViewersPage />} />
             <Route path="/sys/creators" element={<SysCreatorsPage />} />
             <Route path="/sys/rooms" element={<SysRoomsPage />} />
+            <Route path="/sys/online" element={<SysOnlinePage />} />
+            <Route path="/sys/logs" element={<SysLogsPage />} />
           </Route>
           <Route path="/p/:pid" element={<PresentationListPage />} />
           <Route path="/p/:pid/pres/new" element={<PresentationFormPage />} />

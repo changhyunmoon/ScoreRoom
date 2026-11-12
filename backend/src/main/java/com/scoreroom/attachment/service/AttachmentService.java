@@ -25,6 +25,8 @@ import com.scoreroom.attachment.repository.AttachmentRepository;
 import com.scoreroom.common.error.ApiException;
 import com.scoreroom.common.error.ErrorCode;
 import com.scoreroom.infrastructure.storage.FileStorage;
+import com.scoreroom.log.domain.LogAction;
+import com.scoreroom.log.service.LogService;
 import com.scoreroom.presentation.domain.Presentation;
 import com.scoreroom.presentation.repository.PresentationMemberRepository;
 import com.scoreroom.presentation.repository.PresentationRepository;
@@ -53,12 +55,13 @@ public class AttachmentService {
     private final UserAccessService userAccess;
     private final FileStorage storage;
     private final FileCleanupService cleanup;
+    private final LogService logs;
     private final TransactionTemplate transaction;
 
     public AttachmentService(AttachmentRepository attachments, PresentationRepository presentations,
             PresentationMemberRepository presentationMembers,
             ProjectRepository projects, RoomGuard roomGuard, UserAccessService userAccess, FileStorage storage,
-            FileCleanupService cleanup, PlatformTransactionManager transactionManager) {
+            FileCleanupService cleanup, LogService logs, PlatformTransactionManager transactionManager) {
         this.attachments = attachments;
         this.presentations = presentations;
         this.presentationMembers = presentationMembers;
@@ -67,6 +70,7 @@ public class AttachmentService {
         this.userAccess = userAccess;
         this.storage = storage;
         this.cleanup = cleanup;
+        this.logs = logs;
         this.transaction = new TransactionTemplate(transactionManager);
     }
 
@@ -106,6 +110,8 @@ public class AttachmentService {
                     .filter(a -> a.getStatus() == AttachmentStatus.STAGING)
                     .map(a -> {
                         a.markReady();
+                        logs.activity(actorId, projectId, LogAction.ATTACHMENT_UPLOADED, "'" + titleOf(presentationId)
+                                + "' 발표 자료 업로드: " + a.getOriginalName() + " (" + sizeText(a.getSizeBytes()) + ")");
                         return true;
                     })
                     .orElse(false);
@@ -125,6 +131,8 @@ public class AttachmentService {
                 .orElseThrow(() -> ApiException.notFound("발표 자료를 찾을 수 없습니다."));
         cleanup.enqueue(attachment.getStorageKey());
         attachments.deleteByIdNow(attachment.getId());
+        logs.activity(actorId, projectId, LogAction.ATTACHMENT_DELETED, "'" + titleOf(presentationId)
+                + "' 발표 자료 삭제: " + attachment.getOriginalName());
     }
 
     /** 평가룸 참여자와 전체 열람 권한자가 내려받는다 */
@@ -195,6 +203,14 @@ public class AttachmentService {
         String name = original == null ? "" : original.replace('\\', '/');
         name = name.substring(name.lastIndexOf('/') + 1).strip();
         return name.isEmpty() ? "file" : truncate(name, 255);
+    }
+
+    private String titleOf(UUID presentationId) {
+        return presentations.findById(presentationId).map(p -> p.getTitle()).orElse("?");
+    }
+
+    private static String sizeText(long bytes) {
+        return bytes >= 1024 * 1024 ? String.format("%.1fMB", bytes / 1024.0 / 1024.0) : Math.max(1, bytes / 1024) + "KB";
     }
 
     private static String truncate(String value, int max) {

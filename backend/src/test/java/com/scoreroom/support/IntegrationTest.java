@@ -57,7 +57,7 @@ public abstract class IntegrationTest {
 
     @BeforeEach
     void cleanDatabase() {
-        List<String> tables = List.of("audit_events", "notifications", "file_deletion_jobs", "attachments", "ratings",
+        List<String> tables = List.of("audit_events", "system_logs", "notifications", "file_deletion_jobs", "attachments", "ratings",
                 "invite_codes", "presentation_members", "presentations", "memberships", "projects", "users", "teams",
                 "spring_session_attributes", "spring_session");
         jdbc.execute("TRUNCATE " + String.join(", ", tables) + " CASCADE");
