@@ -66,6 +66,10 @@ export default function PresentationFormPage() {
   const [removeIds, setRemoveIds] = useState<ID[]>([]);
   const fileInput = useRef<HTMLInputElement>(null);
   const [saving, setSaving] = useState(false);
+  // 저장 중 진행 상황 (자료 업로드 n/m)
+  const [progress, setProgress] = useState<string | null>(null);
+  // 방금 저장한 발표. 자료를 올리는 동안 화면이 새 데이터를 받아도 '이미 다른 발표에 등록됨'으로 보지 않게 뺀다
+  const [justSavedId, setJustSavedId] = useState<ID | null>(null);
   // 새 팀 발표는 우리 회사 팀에서 시작하고, 기존 발표는 전체 참여자에서 고른다
   const [pick, setPick] = useState<Pick>(existing ? 'ANY' : 'MY_TEAM');
   const [crewQuery, setCrewQuery] = useState('');
@@ -79,7 +83,7 @@ export default function PresentationFormPage() {
   // 한 사람은 평가룸에서 발표 하나에만 참여한다. 다른 발표에 이미 들어 있는 사람의 그 발표
   const takenBy = (id: ID) => {
     const p = presentationOfUser(db, project.id, id);
-    return p && p.id !== existing?.id ? p : undefined;
+    return p && p.id !== existing?.id && p.id !== justSavedId ? p : undefined;
   };
   const myOther = takenBy(me.id);
   if (!existing && myOther && !m.isAdmin) {
@@ -198,6 +202,7 @@ export default function PresentationFormPage() {
    */
   const save = async () => {
     setSaving(true);
+    setProgress(null);
     let savedId: ID;
     try {
       savedId = await savePresentation(project.id,
@@ -208,29 +213,36 @@ export default function PresentationFormPage() {
       setSaving(false);
       return;
     }
+    // 여기부터 서버에는 내 발표가 있다. 자료를 올리는 동안 15초 자동 새로 고침이 와도 등록 화면을 그대로 둔다
+    setJustSavedId(savedId);
     const failed: string[] = [];
     for (const id of removeIds) {
+      setProgress('자료 정리 중');
       try { await removeAttachment(project.id, savedId, id); } catch (e) {
         failed.push(`${existing?.attachments.find(a => a.id === id)?.name ?? '파일'} 삭제 (${errorMessage(e)})`);
       }
     }
     const notUploaded: File[] = [];
-    for (const file of newFiles) {
+    for (const [i, file] of newFiles.entries()) {
+      setProgress(`자료 올리는 중 ${i + 1}/${newFiles.length}`);
       try { await uploadAttachment(project.id, savedId, file); } catch (e) {
         notUploaded.push(file);
         failed.push(`${file.name} (${errorMessage(e)})`);
       }
     }
     await refresh().catch(() => undefined);
-    setSaving(false);
+    setProgress(null);
     if (failed.length) {
       setNewFiles(notUploaded);
       setRemoveIds([]);
       toast(`발표는 저장했지만 자료 일부를 처리하지 못했어요: ${failed.join(', ')}`, 'err');
+      // 새 발표였으면 편집 화면으로 옮겨 남은 자료를 다시 올리게 한다 (이동한 뒤 저장 중 표시를 끈다)
       if (!existing) nav(`/p/${project.id}/pres/${savedId}`, { replace: true });
+      setSaving(false);
       return;
     }
     toast(existing ? '발표를 수정했어요.' : '발표를 등록했어요.');
+    // 화면을 떠나므로 저장 중 표시는 그대로 둔다 (목록으로 가기 전에 '이미 등록됨' 화면이 잠깐 보이지 않게)
     nav(back);
   };
 
@@ -244,7 +256,7 @@ export default function PresentationFormPage() {
   };
   const titleKey = f.title.trim().toLowerCase();
   const titleTaken = !!titleKey && db.presentations.some(p =>
-    p.projectId === project.id && p.id !== existing?.id && p.title.trim().toLowerCase() === titleKey);
+    p.projectId === project.id && p.id !== existing?.id && p.id !== justSavedId && p.title.trim().toLowerCase() === titleKey);
   const takenCrew = [leaderId, ...presenterIds, ...memberIds].filter(id => id && takenBy(id));
   // 개인 발표는 등록하는 사람이 대표라, 내가 발표할 수 없으면 개인 발표를 만들 수 없다 (팀 발표로 다른 사람을 등록한다)
   const personal = f.type === 'PERSONAL';
@@ -398,7 +410,7 @@ export default function PresentationFormPage() {
         </>}
         {problems.map(t => <div key={t} className="error"><Icon name="ban" size={15} />{t}</div>)}
         <button className="btn primary solid" disabled={problems.length > 0 || saving} onClick={save}>
-          <IconText icon="check">{saving ? '저장 중…' : existing ? '변경 사항 저장' : '발표 등록'}</IconText>
+          <IconText icon="check">{saving ? `저장 중…${progress ? ` (${progress})` : ''}` : existing ? '변경 사항 저장' : '발표 등록'}</IconText>
         </button>
       </div>
 
