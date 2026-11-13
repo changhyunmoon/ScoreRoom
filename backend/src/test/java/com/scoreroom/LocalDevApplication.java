@@ -24,6 +24,17 @@ public class LocalDevApplication {
         boolean fresh = !Files.exists(dataDir.resolve("PG_VERSION"));
         Files.createDirectories(dataDir);
         Files.createDirectories(Path.of("build/local-pg-bin"));
+        // Windows 스마트 앱 컨트롤이 켜져 있으면 pg_ctl·initdb가 막힌다. 그때는 postgres.exe를 직접 5433에 띄워 두면 그 DB를 쓴다:
+        // build/local-pg-bin/PG-*/bin/postgres.exe -D build/local-db -p 5433
+        String running = "jdbc:postgresql://localhost:5433/postgres";
+        try (Connection c = java.sql.DriverManager.getConnection(running, "postgres", "")) {
+            System.out.println("[local] 이미 5433에서 실행 중인 PostgreSQL을 사용합니다.");
+            configure(running);
+            SpringApplication.run(ScoreRoomApplication.class, args);
+            return;
+        } catch (java.sql.SQLException notRunning) {
+            // 내장 PostgreSQL을 띄운다
+        }
         EmbeddedPostgres pg = EmbeddedPostgres.builder()
                 .setPort(5433)
                 // 사용자 폴더 경로에 한글이 있으면 initdb가 실패하므로 바이너리를 프로젝트 안에 푼다
@@ -38,17 +49,8 @@ public class LocalDevApplication {
             try { pg.close(); } catch (IOException ignored) { }
         }));
 
-        System.setProperty("spring.datasource.url", pg.getJdbcUrl("postgres", "postgres"));
-        System.setProperty("spring.datasource.username", "postgres");
-        System.setProperty("spring.datasource.password", "");
-        System.setProperty("scoreroom.storage.upload-dir", Path.of("build/local-uploads").toAbsolutePath().toString());
-        System.setProperty("scoreroom.auth.signup-enabled", "true");
-        System.setProperty("scoreroom.session.secure-cookie", "false");
+        configure(pg.getJdbcUrl("postgres", "postgres"));
         Path seed = Path.of("../docs/mock/organization-users.sql");
-        if (!Files.exists(seed)) {
-            System.setProperty("scoreroom.bootstrap-admin.login-id", "admin@local.dev");
-            System.setProperty("scoreroom.bootstrap-admin.password", "admin1234");
-        }
 
         SpringApplication.run(ScoreRoomApplication.class, args);
 
@@ -62,6 +64,19 @@ public class LocalDevApplication {
             } catch (Exception e) {
                 System.out.println("[local] seed를 넣지 못했습니다: " + e.getMessage());
             }
+        }
+    }
+
+    private static void configure(String jdbcUrl) {
+        System.setProperty("spring.datasource.url", jdbcUrl);
+        System.setProperty("spring.datasource.username", "postgres");
+        System.setProperty("spring.datasource.password", "");
+        System.setProperty("scoreroom.storage.upload-dir", Path.of("build/local-uploads").toAbsolutePath().toString());
+        System.setProperty("scoreroom.auth.signup-enabled", "true");
+        System.setProperty("scoreroom.session.secure-cookie", "false");
+        if (!Files.exists(Path.of("../docs/mock/organization-users.sql"))) {
+            System.setProperty("scoreroom.bootstrap-admin.login-id", "admin@local.dev");
+            System.setProperty("scoreroom.bootstrap-admin.password", "admin1234");
         }
     }
 }

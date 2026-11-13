@@ -45,6 +45,29 @@ class OnlineUsersTest extends IntegrationTest {
     }
 
     @Test
+    void 룸_관리자는_자기_평가룸_참여자의_접속_여부만_본다() throws Exception {
+        User owner = fixtures.user("roomowner", null);
+        User member = fixtures.user("roommember", null);
+        User outsider = fixtures.user("outsider", null);
+        var projectId = fixtures.room(owner, member);
+        login(member.getLoginId());
+        login(outsider.getLoginId());
+
+        mvc.perform(get("/api/v1/projects/" + projectId + "/online").with(as(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.members.length()").value(2))
+                .andExpect(jsonPath("$.members[0].name").value(member.getName()))
+                .andExpect(jsonPath("$.members[0].online").value(true))
+                .andExpect(jsonPath("$.members[0].active").value(true))
+                .andExpect(jsonPath("$.members[1].name").value(owner.getName()))
+                .andExpect(jsonPath("$.members[1].online").value(false))
+                .andExpect(jsonPath("$.members[1].roomAdmin").value(true));
+
+        mvc.perform(get("/api/v1/projects/" + projectId + "/online").with(as(member))).andExpect(status().isForbidden());
+        mvc.perform(get("/api/v1/projects/" + projectId + "/online").with(as(outsider))).andExpect(status().isForbidden());
+    }
+
+    @Test
     void 일반_사용자는_볼_수_없다() throws Exception {
         User user = fixtures.user("viewer", null);
         mvc.perform(get("/api/v1/admin/online").with(as(user))).andExpect(status().isForbidden());

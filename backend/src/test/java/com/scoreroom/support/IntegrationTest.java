@@ -6,6 +6,10 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -30,12 +34,17 @@ import io.zonky.test.db.postgres.embedded.EmbeddedPostgres;
  * 실제 PostgreSQL(내장)로 애플리케이션 전체를 띄우는 통합 테스트의 부모.
  * H2로 대신하지 않는다: 잠금, 지연 FK, 조건부 고유 인덱스를 실제 DB에서 확인한다.
  * 테스트마다 업무 테이블을 비운다.
+ *
+ * 내장 PostgreSQL을 띄울 수 없는 PC(Windows 스마트 앱 컨트롤이 initdb를 막는 경우)에서는
+ * 이미 떠 있는 PostgreSQL 서버를 환경 변수로 알려 주면, 그 서버에 테스트 전용 DB(scoreroom_test)를 새로 만들어 쓴다.
+ * 예) SCOREROOM_TEST_PG=localhost:5433 ./gradlew test  (같은 서버의 다른 DB, 즉 로컬 개발 데이터는 건드리지 않는다)
  */
 @SpringBootTest
 @AutoConfigureMockMvc
 public abstract class IntegrationTest {
 
-    private static final EmbeddedPostgres POSTGRES = startPostgres();
+    private static final String TEST_DB = "scoreroom_test";
+    private static final String JDBC_URL = startPostgres();
     private static final Path UPLOAD_DIR = tempDir("scoreroom-test-uploads");
 
     @Autowired
@@ -49,7 +58,7 @@ public abstract class IntegrationTest {
 
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", () -> POSTGRES.getJdbcUrl("postgres", "postgres"));
+        registry.add("spring.datasource.url", () -> JDBC_URL);
         registry.add("spring.datasource.username", () -> "postgres");
         registry.add("spring.datasource.password", () -> "");
         registry.add("scoreroom.storage.upload-dir", UPLOAD_DIR::toString);
@@ -78,7 +87,9 @@ public abstract class IntegrationTest {
         return jdbc.queryForObject(sql, Integer.class, args);
     }
 
-    private static EmbeddedPostgres startPostgres() {
+    private static String startPostgres() {
+        String external = System.getenv("SCOREROOM_TEST_PG");
+        if (external != null && !external.isBlank()) return freshDatabaseOn(external.trim());
         try {
             // PostgreSQL 실행 파일은 ASCII 경로(build 폴더)에 풀어 둔다
             Path work = Path.of("build", "embedded-postgres-bin").toAbsolutePath();
@@ -88,10 +99,23 @@ public abstract class IntegrationTest {
                     .setDataDirectory(Path.of("build", "embedded-postgres-test").toAbsolutePath().toFile())
                     .setCleanDataDirectory(true)
                     .setLocaleConfig("locale", "C")
-                    .start();
+                    .start()
+                    .getJdbcUrl("postgres", "postgres");
         } catch (IOException e) {
             throw new IllegalStateException("테스트용 PostgreSQL을 시작하지 못했습니다.", e);
         }
+    }
+
+    /** host:port 서버에 테스트 전용 DB를 지우고 새로 만든다 (내장 DB의 setCleanDataDirectory와 같은 효과) */
+    private static String freshDatabaseOn(String hostPort) {
+        try (Connection c = DriverManager.getConnection("jdbc:postgresql://" + hostPort + "/postgres", "postgres", "");
+             Statement st = c.createStatement()) {
+            st.execute("DROP DATABASE IF EXISTS " + TEST_DB + " WITH (FORCE)");
+            st.execute("CREATE DATABASE " + TEST_DB + " ENCODING 'UTF8' TEMPLATE template0");
+        } catch (SQLException e) {
+            throw new IllegalStateException("SCOREROOM_TEST_PG=" + hostPort + " 에 테스트용 DB를 만들지 못했습니다.", e);
+        }
+        return "jdbc:postgresql://" + hostPort + "/" + TEST_DB;
     }
 
     private static Path tempDir(String prefix) {

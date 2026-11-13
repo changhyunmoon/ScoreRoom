@@ -8,17 +8,19 @@ import { presentationOfUser, presentationsOf, presenterRoster } from '../../pres
 import { useSession } from '../../session';
 import { InviteTab, inviteState } from '../components/admin/InviteTab';
 import { MembersTab } from '../components/admin/MembersTab';
+import { OnlineTab } from '../components/admin/OnlineTab';
 import { RunTab } from '../components/admin/RunTab';
 import { SettingsTab } from '../components/admin/SettingsTab';
 import { ProjectShell, RoomNotFound } from '../components/ProjectShell';
 import { members, membership } from '../model/access';
 
-type Tab = 'run' | 'invite' | 'members' | 'settings';
+type Tab = 'run' | 'invite' | 'members' | 'online' | 'settings';
 /** 위쪽 요약 한 칸 */
 type Ov = { icon: IconName; label: string; value: string; tone?: 'ok' | 'off' };
 const TABS: { key: Tab; label: string; icon: IconName }[] = [
   { key: 'invite', label: '초대·입장 코드', icon: 'ticket' },
   { key: 'members', label: '참여자', icon: 'users' },
+  { key: 'online', label: '접속 현황', icon: 'users' },
   { key: 'run', label: '발표 관리', icon: 'mic' },
   { key: 'settings', label: '설정', icon: 'sliders' },
 ];
@@ -53,6 +55,8 @@ export default function RoomAdminPage() {
         { icon: 'users', label: '참여자', value: `${all.length}명` },
       ];
     }
+    // 접속 현황은 탭 안에서 요약을 함께 보여 준다
+    if (tab === 'online') return [];
     if (tab === 'members') {
       return [
         { icon: 'users', label: '전체 참여자', value: `${all.length}명` },
@@ -87,20 +91,21 @@ export default function RoomAdminPage() {
 
       {project.status === 'CLOSED' && <div className="notice"><Icon name="flag" size={16} />{project.closedAt && timeText(project.closedAt)}에 마감된 평가룸이에요.</div>}
 
-      <div className={`overview ${items.length <= 3 ? 'few' : ''}`} style={{ '--ov-cols': items.length } as React.CSSProperties}>
+      {items.length > 0 && <div className={`overview ${items.length <= 3 ? 'few' : ''}`} style={{ '--ov-cols': items.length } as React.CSSProperties}>
         {items.map(o => (
           <div key={o.label} className="ov">
             <span className="ov-label"><Icon name={o.icon} size={14} />{o.label}</span>
             <b className={`ov-value ${o.tone ?? ''}`}>{o.value}</b>
           </div>
         ))}
-      </div>
+      </div>}
 
       {tab === 'run' && <RunTab project={project} />}
       {tab === 'invite' && (project.status === 'CLOSED'
         ? <Empty icon="ticket">마감된 평가룸은 초대하거나 입장 코드를 발급할 수 없어요.</Empty>
         : <InviteTab project={project} />)}
       {tab === 'members' && <MembersTab project={project} />}
+      {tab === 'online' && <OnlineTab project={project} />}
       {tab === 'settings' && <SettingsTab key={project.id} project={project} />}
     </ProjectShell>
   );

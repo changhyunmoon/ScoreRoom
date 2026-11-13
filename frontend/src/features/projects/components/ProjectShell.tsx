@@ -46,6 +46,7 @@ export function ProjectShell({ project, current, children }: { project: Project;
       // 업무 순서: 사람 모으기 → 모인 사람 확인 → 발표 진행 → 결과 확인 → 설정
       { key: 'admin-invite', label: '초대·입장 코드', to: `${base}/admin?tab=invite` },
       { key: 'admin-members', label: '참여자', to: `${base}/admin?tab=members` },
+      { key: 'admin-online', label: '접속 현황', to: `${base}/admin?tab=online` },
       { key: 'admin-run', label: '발표 관리', to: `${base}/admin?tab=run` },
       { key: 'results', label: '결과 현황', to: `${base}/results` },
       { key: 'admin-settings', label: '설정', to: `${base}/admin?tab=settings` },

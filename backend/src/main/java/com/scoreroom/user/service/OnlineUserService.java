@@ -10,9 +10,12 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.scoreroom.common.error.ApiException;
 import com.scoreroom.common.security.SysAdminGuard;
+import com.scoreroom.project.service.RoomGuard;
 import com.scoreroom.user.dto.OnlineUsersResponse;
 import com.scoreroom.user.dto.OnlineUsersResponse.OnlineUser;
+import com.scoreroom.user.dto.RoomOnlineResponse;
 
 /**
  * 지금 로그인해 있는 사람. 로그인 세션 표(spring_session)에서 만료되지 않은 세션을 사람별로 묶는다.
@@ -27,12 +30,52 @@ public class OnlineUserService {
 
     private final NamedParameterJdbcTemplate jdbc;
     private final SysAdminGuard sysAdminGuard;
+    private final RoomGuard roomGuard;
     private final Clock clock;
 
-    public OnlineUserService(NamedParameterJdbcTemplate jdbc, SysAdminGuard sysAdminGuard, Clock clock) {
+    public OnlineUserService(NamedParameterJdbcTemplate jdbc, SysAdminGuard sysAdminGuard, RoomGuard roomGuard, Clock clock) {
         this.jdbc = jdbc;
         this.sysAdminGuard = sysAdminGuard;
+        this.roomGuard = roomGuard;
         this.clock = clock;
+    }
+
+    /** 룸 관리자: 이 평가룸 참여자만, 로그인하지 않은 사람도 함께. 접속 위치(IP·브라우저)는 보여 주지 않는다 */
+    public RoomOnlineResponse listRoom(UUID projectId, UUID actorId) {
+        if (!roomGuard.requireMember(projectId, actorId).isAdmin()) {
+            throw ApiException.forbidden("룸 관리자만 가능합니다.");
+        }
+        long now = clock.millis();
+        long activeSince = now - ACTIVE_WITHIN.toMillis();
+        List<RoomOnlineResponse.Member> members = jdbc.query("""
+                with live as (
+                    select principal_name, max(last_access_time) as last_access
+                    from spring_session
+                    where expiry_time > :now
+                    group by principal_name
+                )
+                select u.id, u.name, t.name as team_name, u.position, m.is_admin, live.last_access
+                from memberships m
+                join users u on u.id = m.user_id
+                left join teams t on t.id = u.team_id
+                left join live on live.principal_name = u.id::text
+                where m.project_id = :projectId
+                order by (live.last_access is not null) desc, u.name
+                """, new MapSqlParameterSource("now", now).addValue("activeSince", activeSince).addValue("projectId", projectId),
+                (rs, i) -> {
+                    long last = rs.getLong("last_access");
+                    boolean online = !rs.wasNull();
+                    return new RoomOnlineResponse.Member(
+                            rs.getObject("id", UUID.class),
+                            rs.getString("name"),
+                            rs.getString("team_name"),
+                            rs.getString("position"),
+                            rs.getBoolean("is_admin"),
+                            online,
+                            online && last >= activeSince,
+                            online ? last : null);
+                });
+        return new RoomOnlineResponse(now, members);
     }
 
     public OnlineUsersResponse list(UUID actorId) {

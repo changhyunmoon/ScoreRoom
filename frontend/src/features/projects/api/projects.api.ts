@@ -39,3 +39,15 @@ export const deleteProject = (pid: ID) => http.del(`/projects/${pid}`);
 /** 평가룸 이름·설명 수정 (룸 관리자, 마감 전). 평가·설정에는 영향이 없다 */
 export const updateProjectInfo = (pid: ID, name: string, description: string) =>
   http.put(`/projects/${pid}/info`, { name: name.trim(), description: description.trim() });
+
+/** 룸 관리자: 이 평가룸 참여자의 접속 현황 */
+export interface RoomOnlineMember {
+  userId: ID; name: string; teamName: string | null; position: string | null; roomAdmin: boolean;
+  /** 로그인해 있음 */
+  online: boolean;
+  /** 마지막 활동이 1분 이내 = 지금 화면을 보는 중 */
+  active: boolean;
+  lastAccessAt: number | null;
+}
+export const fetchRoomOnline = (pid: ID) =>
+  http.get<{ serverTime: number; members: RoomOnlineMember[] }>(`/projects/${pid}/online`);
