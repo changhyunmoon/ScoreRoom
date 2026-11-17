@@ -93,6 +93,15 @@ public class Project extends TimestampedEntity<UUID> {
     @Column(name = "allow_admin_present", nullable = false)
     private boolean allowAdminPresent;
 
+    @Column(name = "trim_top", nullable = false)
+    private int trimTop;
+
+    @Column(name = "trim_bottom", nullable = false)
+    private int trimBottom;
+
+    @Column(name = "require_feedback", nullable = false)
+    private boolean requireFeedback;
+
     protected Project() {
     }
 
@@ -113,7 +122,7 @@ public class Project extends TimestampedEntity<UUID> {
     public ProjectSettings settings() {
         return new ProjectSettings(scoreMin, scoreMax, aggMin, aggMax, allowSelf, allowSameTeam, allowSameCrew, allowEdit,
                 showRatingStatus, countSelf, countSameCrew, countSameTeam, allowAdminRating, countAdmin, showRosterSummary,
-                showRatingStatusNames, allowAdminPresent);
+                showRatingStatusNames, allowAdminPresent, trimTop, trimBottom, requireFeedback);
     }
 
     public void applySettings(ProjectSettings settings) {
@@ -134,6 +143,9 @@ public class Project extends TimestampedEntity<UUID> {
         this.showRosterSummary = settings.showRosterSummary();
         this.showRatingStatusNames = settings.showRatingStatusNames();
         this.allowAdminPresent = settings.allowAdminPresent();
+        this.trimTop = settings.trimTop();
+        this.trimBottom = settings.trimBottom();
+        this.requireFeedback = settings.requireFeedback();
     }
 
     public boolean isOpen() {

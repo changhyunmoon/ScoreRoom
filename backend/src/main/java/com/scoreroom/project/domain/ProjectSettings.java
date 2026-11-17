@@ -18,6 +18,9 @@ import com.scoreroom.common.error.ApiException;
  * - allowAdminPresent: 룸 관리자도 발표할지 (기본: 안 함). 끄면 관리자는 발표 구성원이 될 수 없고 발표 등록 인원에서도 빠진다
  * - showRosterSummary: 발표 화면 위쪽 참여자·발표 등록·발표 미등록 인원을 일반 참여자에게도 보여 줌. 룸 관리자는 항상 본다
  * - showRatingStatusNames: 평가 현황 숫자를 누르면 해당하는 사람 목록을 일반 참여자에게도 보여 줌 (showRatingStatus가 켜져 있을 때만). 룸 관리자는 항상 본다
+ * - trimTop / trimBottom: 극단값 제외. 집계(평균·순위)에서 최고점 trimTop개·최저점 trimBottom개를 뺀다.
+ *   점수가 빼는 개수의 합 이하인 발표는 빼지 않는다 (하나도 안 남으므로). 둘 다 0이면 사용 안 함
+ * - requireFeedback: 점수를 제출·수정할 때 피드백도 꼭 쓰게 함 (기본: 선택). 이미 저장된 평가는 그대로 둔다
  */
 public record ProjectSettings(
         int min,
@@ -36,15 +39,22 @@ public record ProjectSettings(
         boolean countAdmin,
         boolean showRosterSummary,
         boolean showRatingStatusNames,
-        boolean allowAdminPresent) {
+        boolean allowAdminPresent,
+        int trimTop,
+        int trimBottom,
+        boolean requireFeedback) {
 
     /** 새 평가룸: 본인 평가만 막고, 같은 회사 팀·같은 발표 팀원 평가, 점수 수정, 룸 관리자 평가는 허용. 발표 화면 표시(평가 현황·사람 목록·발표 등록 인원)는 참여자에게 숨김 */
     public static ProjectSettings defaults() {
-        return new ProjectSettings(0, 100, null, null, false, true, true, true, false, true, true, true, true, true, false, false, false);
+        return new ProjectSettings(0, 100, null, null, false, true, true, true, false, true, true, true, true, true, false, false, false, 0, 0, false);
     }
 
     public boolean hasAggregationRange() {
         return aggMin != null && aggMax != null;
+    }
+
+    public boolean hasTrim() {
+        return trimTop > 0 || trimBottom > 0;
     }
 
     /** 점수 입력 범위가 바뀌면 기존 평가를 모두 지운다 */
@@ -55,7 +65,7 @@ public record ProjectSettings(
     public ProjectSettings withoutAggregation() {
         return new ProjectSettings(min, max, null, null, allowSelf, allowSameTeam, allowSameCrew, allowEdit, showRatingStatus,
                 countSelf, countSameCrew, countSameTeam, allowAdminRating, countAdmin, showRosterSummary,
-                showRatingStatusNames, allowAdminPresent);
+                showRatingStatusNames, allowAdminPresent, trimTop, trimBottom, requireFeedback);
     }
 
     /** 화면(validateSettings)과 같은 순서로 검사한다 */
@@ -73,6 +83,9 @@ public record ProjectSettings(
             if (aggMin < min || aggMax > max) {
                 throw ApiException.badRequest("집계 기준은 점수 입력 범위 안에 있어야 합니다.");
             }
+        }
+        if (trimTop < 0 || trimBottom < 0) {
+            throw ApiException.badRequest("극단값 제외 개수는 0 이상이어야 합니다.");
         }
         return this;
     }

@@ -281,7 +281,7 @@ export type Entry = { key: string; rank: number; name: string; title: string; sc
 const FONT = `'Noto Sans KR', 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif`;
 
 export async function drawResultImage(project: Project, entries: Entry[], t: Theme, o: {
-  showScore: boolean; basis: Basis; decimals: boolean; aggText: string; topLabel: string;
+  showScore: boolean; basis: Basis; decimals: boolean; aggText: string; topLabel: string; trimText: string;
 }): Promise<string> {
   // 웹 글꼴이 다 불러와진 뒤 그린다 (안 그러면 기본 글꼴로 그려진다)
   try { await Promise.all([document.fonts.load(`700 40px 'Noto Sans KR'`), document.fonts.load(`400 24px 'Noto Sans KR'`)]); } catch { /* 기본 글꼴 사용 */ }
@@ -324,7 +324,7 @@ export async function drawResultImage(project: Project, entries: Entry[], t: The
   font(400, 23);
   c.fillText(dateText, PAD, 138);
   const basisText = o.basis === 'inAvg' ? `집계 기준 평균 (${o.aggText})` : '전체 평균';
-  c.fillText(`${basisText} · ${o.topLabel}`, PAD, 178);
+  c.fillText(`${basisText}${o.trimText ? ` (${o.trimText})` : ''} · ${o.topLabel}`, PAD, 178);
   if (t.key === 'white') { c.fillStyle = '#E5E7EB'; c.fillRect(0, HEAD - 1, W, 1); }
 
   let y = HEAD + 32;

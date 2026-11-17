@@ -107,4 +107,22 @@ class RatingApiTest extends IntegrationTest {
         UUID pres = fixtures.personal(room, otherTeam);
         rate(outsider, pres, otherTeam, "{\"score\":70}").andExpect(status().isForbidden());
     }
+
+    @Test
+    void 피드백_필수를_켜면_새로_제출하거나_수정할_때만_피드백을_확인한다() throws Exception {
+        UUID pres = fixtures.personal(room, otherTeam);
+        // 켜기 전에 피드백 없이 낸 평가는 그대로 남는다
+        rate(sameTeam, pres, otherTeam, "{\"score\":60}").andExpect(status().isNoContent());
+        mvc.perform(json(put("/api/v1/projects/{p}/settings", room), "{\"min\":0,\"max\":100,\"requireFeedback\":true}").with(as(owner)))
+                .andExpect(status().isOk());
+        assertThat(count("select count(*) from ratings where feedback is null")).isEqualTo(1);
+
+        rate(owner, pres, otherTeam, "{\"score\":70}")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("피드백을 입력해 주세요."));
+        rate(owner, pres, otherTeam, "{\"score\":70,\"feedback\":\"   \"}").andExpect(status().isBadRequest());
+        rate(owner, pres, otherTeam, "{\"score\":70,\"feedback\":\"좋았어요\"}").andExpect(status().isNoContent());
+        // 피드백 없이 냈던 평가도 수정할 때는 피드백이 있어야 한다
+        rate(sameTeam, pres, otherTeam, "{\"score\":65}").andExpect(status().isBadRequest());
+    }
 }

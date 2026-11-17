@@ -61,7 +61,7 @@ export function SettingsTab({ project }: { project: Project }) {
   const [f, setF] = useState({
     min: String(s.min), max: String(s.max), allowSelf: s.allowSelf, allowSameTeam: s.allowSameTeam, allowSameCrew: s.allowSameCrew, allowEdit: s.allowEdit,
     showRatingStatus: s.showRatingStatus, allowAdminRating: s.allowAdminRating, showRosterSummary: s.showRosterSummary,
-    showRatingStatusNames: s.showRatingStatusNames, allowAdminPresent: s.allowAdminPresent,
+    showRatingStatusNames: s.showRatingStatusNames, allowAdminPresent: s.allowAdminPresent, requireFeedback: s.requireFeedback,
   });
   const open = project.status === 'OPEN';
   // 점수 입력 범위를 바꾸면 기존 평가가 모두 지워지고 집계 기준도 '사용 안 함'으로 초기화된다
@@ -77,6 +77,9 @@ export function SettingsTab({ project }: { project: Project }) {
     showRosterSummary: f.showRosterSummary,
     showRatingStatusNames: f.showRatingStatusNames,
     allowAdminPresent: f.allowAdminPresent,
+    // 극단값 제외도 결과 현황에서 정한 값을 그대로 보낸다
+    trimTop: s.trimTop, trimBottom: s.trimBottom,
+    requireFeedback: f.requireFeedback,
   };
   const blank = [f.min, f.max].some(v => v.trim() === '');
   const err = blank ? '빈 값이 있어요.' : validateSettings(next);
@@ -120,6 +123,8 @@ export function SettingsTab({ project }: { project: Project }) {
         <Toggle disabled={!open} checked={f.allowSameTeam} onChange={v => setF({ ...f, allowSameTeam: v })}
           title="같은 회사 팀 평가 허용" desc="구성원 중 나와 같은 회사 팀이 있는 발표를 평가할 수 있어요." />
         <Toggle disabled={!open} checked={f.allowEdit} onChange={v => setF({ ...f, allowEdit: v })} title="제출한 점수 수정 허용" />
+        <Toggle disabled={!open} checked={f.requireFeedback} onChange={v => setF({ ...f, requireFeedback: v })}
+          title="피드백 필수 입력" desc="켜면 점수를 제출하거나 수정할 때 피드백도 꼭 써야 해요. 이미 제출한 평가는 그대로 둬요." />
       </section>
 
       <section className="card stack">

@@ -70,6 +70,10 @@ public class RatingService {
             throw ApiException.badRequest("점수는 " + settings.min() + "~" + settings.max() + " 사이여야 합니다.");
         }
         String feedback = normalizeFeedback(request.feedback());
+        // 피드백 필수인 평가룸은 새로 제출하거나 수정할 때만 확인한다 (이미 저장된 피드백 없는 평가는 그대로 둔다)
+        if (settings.requireFeedback() && feedback == null) {
+            throw ApiException.badRequest("피드백을 입력해 주세요.");
+        }
 
         Optional<Rating> existing = ratings.findByPresentationIdAndRaterId(presentationId, raterId);
         String target = "'" + presentation.getTitle() + "' 발표 ";

@@ -26,6 +26,9 @@ public record UpdateSettingsRequest(
         Boolean showRosterSummary,
         Boolean showRatingStatusNames,
         Boolean allowAdminPresent,
+        Integer trimTop,
+        Integer trimBottom,
+        Boolean requireFeedback,
         Long expectedVersion) {
 
     public ProjectSettings toSettings(ProjectSettings current) {
@@ -42,6 +45,9 @@ public record UpdateSettingsRequest(
                 countAdmin != null ? countAdmin : current.countAdmin(),
                 showRosterSummary != null ? showRosterSummary : current.showRosterSummary(),
                 showRatingStatusNames != null ? showRatingStatusNames : current.showRatingStatusNames(),
-                allowAdminPresent != null ? allowAdminPresent : current.allowAdminPresent());
+                allowAdminPresent != null ? allowAdminPresent : current.allowAdminPresent(),
+                trimTop != null ? trimTop : current.trimTop(),
+                trimBottom != null ? trimBottom : current.trimBottom(),
+                requireFeedback != null ? requireFeedback : current.requireFeedback());
     }
 }

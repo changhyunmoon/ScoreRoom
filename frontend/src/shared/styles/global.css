@@ -1258,6 +1258,9 @@ textarea.invalid { border-color: var(--red); }
   .arow .c-state:has(> .muted) { display: none; }
 }
 .ss-excluded { color: #a3a7b0 !important; text-decoration: line-through; text-decoration-color: #b8bcc4; }
+/* 극단값 제외로 평균에서 뺀 점수: 보라 취소선 + ▲(최고점)/▼(최저점) */
+.ss-trimmed { color: var(--violet) !important; text-decoration: line-through; text-decoration-color: var(--violet); }
+.ss-trim-mark { color: var(--violet); font-size: 10px; margin-left: 1px; font-weight: 400; text-decoration: none; display: inline-block; }
 
 /* ===== 결과 현황 · 집계 설정 카드 (룸 관리자) =====
    다른 화면과 같은 틀: 제목 줄(아이콘·제목 / 오른쪽 상태 배지·버튼) + 항목 이름 | 값 표. 바탕은 차분한 회청색 */

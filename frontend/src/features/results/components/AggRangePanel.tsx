@@ -10,6 +10,8 @@ import { mutate } from '../../session';
 export interface AggDraft {
   on: boolean; min: string; max: string;
   countSelf: boolean; countSameCrew: boolean; countSameTeam: boolean; countAdmin: boolean;
+  /** 극단값 제외: 최고점 trimTop개·최저점 trimBottom개 */
+  trimOn: boolean; trimTop: string; trimBottom: string;
 }
 
 export const draftOf = (p: Project): AggDraft => ({
@@ -18,11 +20,30 @@ export const draftOf = (p: Project): AggDraft => ({
   max: String(p.settings.aggMax ?? p.settings.max),
   countSelf: p.settings.countSelf, countSameCrew: p.settings.countSameCrew, countSameTeam: p.settings.countSameTeam,
   countAdmin: p.settings.countAdmin,
+  trimOn: p.settings.trimTop > 0 || p.settings.trimBottom > 0,
+  // 처음 켤 때 기본: 최고 1개·최저 1개
+  ...(p.settings.trimTop > 0 || p.settings.trimBottom > 0
+    ? { trimTop: String(p.settings.trimTop), trimBottom: String(p.settings.trimBottom) }
+    : { trimTop: '1', trimBottom: '1' }),
 });
 
 /** 입력값을 설정으로. 범위에 문제가 있으면 error에 안내 문구가 들어가고 범위는 저장된 값 그대로 */
 export function previewSettings(p: Project, d: AggDraft): { settings: Project['settings']; error: string | null } {
-  const saved = { ...p.settings, countSelf: d.countSelf, countSameCrew: d.countSameCrew, countSameTeam: d.countSameTeam, countAdmin: d.countAdmin };
+  let saved = { ...p.settings, countSelf: d.countSelf, countSameCrew: d.countSameCrew, countSameTeam: d.countSameTeam, countAdmin: d.countAdmin };
+  // 극단값 제외: 입력에 문제가 있으면 저장된 값 그대로 두고 안내 문구를 보여 준다
+  let trimError: string | null = null;
+  if (!d.trimOn) saved = { ...saved, trimTop: 0, trimBottom: 0 };
+  else if ([d.trimTop, d.trimBottom].some(v => v.trim() === '')) trimError = '극단값 제외 개수를 모두 입력해 주세요.';
+  else {
+    const t = { ...saved, trimTop: Number(d.trimTop), trimBottom: Number(d.trimBottom) };
+    trimError = t.trimTop === 0 && t.trimBottom === 0 ? '빼는 점수를 1개 이상 정해 주세요.' : validateSettings(t);
+    if (!trimError) saved = t;
+  }
+  const withTrimError = (r: { settings: Project['settings']; error: string | null }) => ({ settings: r.settings, error: r.error ?? trimError });
+  return withTrimError(previewRange(p, d, saved));
+}
+
+function previewRange(p: Project, d: AggDraft, saved: Project['settings']): { settings: Project['settings']; error: string | null } {
   if (!d.on) return { settings: { ...saved, aggMin: null, aggMax: null }, error: null };
   if (d.min.trim() === '' || d.max.trim() === '') return { settings: saved, error: '최저치와 최대치를 모두 입력해 주세요.' };
   const next = { ...saved, aggMin: Number(d.min), aggMax: Number(d.max) };
@@ -33,7 +54,7 @@ export function previewSettings(p: Project, d: AggDraft): { settings: Project['s
 /** 저장된 집계 설정과 다른지 */
 export const aggChanged = (a: Project['settings'], b: Project['settings']) =>
   a.aggMin !== b.aggMin || a.aggMax !== b.aggMax || a.countSelf !== b.countSelf || a.countSameCrew !== b.countSameCrew || a.countSameTeam !== b.countSameTeam
-  || a.countAdmin !== b.countAdmin;
+  || a.countAdmin !== b.countAdmin || a.trimTop !== b.trimTop || a.trimBottom !== b.trimBottom;
 
 // '누가 준 점수인지'로 이름을 붙인다 (발표와 가까운 사람 → 먼 사람 순). 같은 발표 팀원 설정은 발표 단위 평가에서 본인 발표에 들어가 따로 두지 않는다
 const INCLUDE: { key: 'countSelf' | 'countSameCrew' | 'countSameTeam' | 'countAdmin'; label: string; hint: string }[] = [
@@ -42,10 +63,28 @@ const INCLUDE: { key: 'countSelf' | 'countSameCrew' | 'countSameTeam' | 'countAd
   { key: 'countAdmin', label: '룸 관리자가 준 점수', hint: '이 평가룸의 룸 관리자가 발표에 준 점수' },
 ];
 
-/** onReset: 입력을 버리고 저장된 설정을 따른다 (되돌리기·저장 후) */
-export function AggRangePanel({ project, draft, onChange, onReset }: { project: Project; draft: AggDraft; onChange: (d: AggDraft) => void; onReset: () => void }) {
+/**
+ * onReset: 입력을 버리고 저장된 설정을 따른다 (되돌리기·저장 후).
+ * scoreCounts: 점수가 있는 발표별 점수 개수 (집계에 넣는 점수, 극단값 빼기 전). 뺄 수 있는 개수를 정하는 데 쓴다
+ */
+export function AggRangePanel({ project, draft, scoreCounts, onChange, onReset }: { project: Project; draft: AggDraft; scoreCounts: number[]; onChange: (d: AggDraft) => void; onReset: () => void }) {
+  const fewest = scoreCounts.length ? Math.min(...scoreCounts) : null;
+  // 최고점·최저점 개수의 합은 점수 개수를 넘을 수 없고, 평균을 내려면 1개는 남아야 한다 (점수가 가장 적은 발표 기준)
+  const limit = fewest === null ? null : fewest - 1;
+  // 입력한 값이 한도를 넘으면 다른 칸 값을 뺀 만큼으로 줄인다
+  const setTrim = (key: 'trimTop' | 'trimBottom', raw: string) => {
+    const other = Number(key === 'trimTop' ? draft.trimBottom : draft.trimTop) || 0;
+    const n = Number(raw);
+    const value = raw.trim() === '' || limit === null || !Number.isFinite(n) ? raw : String(Math.max(0, Math.min(n, limit - other)));
+    onChange({ ...draft, [key]: value });
+  };
   const saved = project.settings;
-  const { settings: next, error } = previewSettings(project, draft);
+  const preview = previewSettings(project, draft);
+  const next = preview.settings;
+  // 지금 점수로는 하나도 안 남는 발표가 생기면 저장하지 않는다 (서버는 그런 발표는 빼지 않고 계산한다)
+  const overLimit = draft.trimOn && limit !== null && next.trimTop + next.trimBottom > limit;
+  const error = preview.error ?? (overLimit
+    ? `점수가 가장 적은 발표가 ${fewest}개라 최고점·최저점을 합쳐 ${limit}개까지만 뺄 수 있어요.` : null);
   const dirty = aggChanged(next, saved);
   const open = project.status === 'OPEN';
   const save = async () => {
@@ -87,6 +126,28 @@ export function AggRangePanel({ project, draft, onChange, onReset }: { project: 
               </span>
             )}
             {error && <span className="err-text small"><Icon name="ban" size={13} /> {error}</span>}
+          </div>
+        </div>
+
+        {/* 극단값 제외: 전체 평균과 집계 기준 평균에 각각 적용된다. 같은 점수가 여럿이면 개수만큼만 뺀다 */}
+        <div className="agg-item">
+          <span className="agg-label">극단값 제외<small>평균에서 가장 높은·낮은 점수를 빼요</small></span>
+          <div className="agg-value">
+            <div className="segmented sm" role="group" aria-label="극단값 제외 사용">
+              <button type="button" className={draft.trimOn ? 'on' : ''} disabled={!open} onClick={() => onChange({ ...draft, trimOn: true })}>사용</button>
+              <button type="button" className={!draft.trimOn ? 'on' : ''} disabled={!open} onClick={() => onChange({ ...draft, trimOn: false })}>사용 안 함</button>
+            </div>
+            {draft.trimOn && (
+              <span className="agg-inputs">
+                <span>최고점</span>
+                <input type="number" inputMode="numeric" step={1} min={0} max={limit === null ? undefined : Math.max(0, limit - (Number(draft.trimBottom) || 0))}
+                  disabled={!open} value={draft.trimTop} aria-label="뺄 최고점 개수" onChange={e => setTrim('trimTop', e.target.value)} />
+                <span>개 · 최저점</span>
+                <input type="number" inputMode="numeric" step={1} min={0} max={limit === null ? undefined : Math.max(0, limit - (Number(draft.trimTop) || 0))}
+                  disabled={!open} value={draft.trimBottom} aria-label="뺄 최저점 개수" onChange={e => setTrim('trimBottom', e.target.value)} />
+                <span>개 제외</span>
+              </span>
+            )}
           </div>
         </div>
 

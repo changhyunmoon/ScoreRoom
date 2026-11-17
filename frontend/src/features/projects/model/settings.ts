@@ -10,6 +10,8 @@ export function validateSettings(s: Settings): string | null {
     if (s.aggMin > s.aggMax) return '집계 기준 최저치가 최대치보다 클 수 없어요.';
     if (s.aggMin < s.min || s.aggMax > s.max) return '집계 기준은 점수 입력 범위 안에 있어야 해요.';
   }
+  if (![s.trimTop, s.trimBottom].every(Number.isInteger)) return '극단값 제외 개수는 정수만 사용할 수 있어요.';
+  if (s.trimTop < 0 || s.trimBottom < 0) return '극단값 제외 개수는 0 이상이어야 해요.';
   return null;
 }
 

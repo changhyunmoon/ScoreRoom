@@ -74,8 +74,12 @@ export function RatingWidget({ project, pres }: { project: Project; pres: Presen
     const n = Number(val);
     const valid = val !== '' && Number.isInteger(n) && n >= min && n <= max;
     const tooLong = feedback.length > MAX_FEEDBACK_LENGTH;
+    // 피드백 필수인 평가룸: 새로 제출·수정할 때만 확인한다 (이미 저장된 피드백 없는 평가는 그대로)
+    const needFeedback = project.settings.requireFeedback;
+    const noFeedback = needFeedback && feedback.trim() === '';
+    const canSubmit = valid && !tooLong && !noFeedback;
     const submit = async () => {
-      if (saving) return;
+      if (saving || !canSubmit) return;
       setSaving(true);
       const ok = await run(() => mutate(submitRating(project.id, pres.id, n, feedback)),
         `'${pres.title}' 발표 점수를 ${mine ? '수정' : '제출'}했어요.`);
@@ -90,16 +94,18 @@ export function RatingWidget({ project, pres }: { project: Project; pres: Presen
             {/* 숫자를 직접 입력만 한다 (휠·화살표로 값이 바뀌지 않게 type="text"를 쓴다) */}
             <input type="text" inputMode="numeric" autoComplete="off" placeholder={`${min}~${max}`}
               className={`score-input ${val !== '' && !valid ? 'invalid' : ''}`} value={val} aria-label={`${pres.title} 점수`}
-              onChange={e => setVal(e.target.value.replace(min < 0 ? /[^\d-]/g : /\D/g, ''))} onKeyDown={e => e.key === 'Enter' && valid && !tooLong && submit()} />
-            <button className="btn primary solid" disabled={!valid || tooLong || saving} onClick={submit}>
+              onChange={e => setVal(e.target.value.replace(min < 0 ? /[^\d-]/g : /\D/g, ''))} onKeyDown={e => e.key === 'Enter' && canSubmit && submit()} />
+            <button className="btn primary solid" disabled={!canSubmit || saving} onClick={submit}>
               <IconText icon="check">{saving ? '저장 중…' : mine ? '수정 저장' : '제출'}</IconText>
             </button>
             {mine && <button className="btn ghost" onClick={() => setEditing(false)}>취소</button>}
           </div>
-          <textarea className={`pr-feedback-input ${tooLong ? 'invalid' : ''}`} rows={2} value={feedback} placeholder="피드백 (선택) · 룸 관리자만 볼 수 있어요"
-            aria-label={`${pres.title} 피드백`} onChange={e => setFeedback(e.target.value)} />
+          <textarea className={`pr-feedback-input ${tooLong || (noFeedback && valid) ? 'invalid' : ''}`} rows={2} value={feedback}
+            placeholder={`피드백 (${needFeedback ? '필수' : '선택'}) · 룸 관리자만 볼 수 있어요`} required={needFeedback}
+            aria-label={`${pres.title} 피드백${needFeedback ? ' (필수)' : ''}`} onChange={e => setFeedback(e.target.value)} />
           <div className="row between small">
-            {val !== '' && !valid ? <span className="err-text">{min}~{max} 사이의 정수를 입력해 주세요.</span> : <span />}
+            {val !== '' && !valid ? <span className="err-text">{min}~{max} 사이의 정수를 입력해 주세요.</span>
+              : noFeedback && valid ? <span className="err-text">피드백을 입력해 주세요.</span> : <span />}
             <span className={tooLong ? 'err-text' : 'muted'}>{feedback.length}/{MAX_FEEDBACK_LENGTH}</span>
           </div>
         </div>

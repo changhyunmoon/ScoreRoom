@@ -20,9 +20,13 @@ public final class SettingsDiff {
         if (!Objects.equals(a.aggMin(), b.aggMin()) || !Objects.equals(a.aggMax(), b.aggMax())) {
             out.add("집계 기준 " + agg(a) + " → " + agg(b));
         }
+        if (!trim(a).equals(trim(b))) {
+            out.add("극단값 제외 " + trim(a) + " → " + trim(b));
+        }
         flag(out, "본인 발표 평가 허용", a.allowSelf(), b.allowSelf());
         flag(out, "같은 회사 팀 평가 허용", a.allowSameTeam(), b.allowSameTeam());
         flag(out, "제출한 점수 수정 허용", a.allowEdit(), b.allowEdit());
+        flag(out, "피드백 필수 입력", a.requireFeedback(), b.requireFeedback());
         flag(out, "룸 관리자도 발표하기", a.allowAdminPresent(), b.allowAdminPresent());
         flag(out, "룸 관리자도 평가하기", a.allowAdminRating(), b.allowAdminRating());
         flag(out, "본인 발표 점수 집계", a.countSelf(), b.countSelf());
@@ -36,6 +40,12 @@ public final class SettingsDiff {
 
     private static String agg(ProjectSettings s) {
         return s.hasAggregationRange() ? s.aggMin() + "~" + s.aggMax() : "사용 안 함";
+    }
+
+    private static String trim(ProjectSettings s) {
+        return s.hasTrim()
+                ? "최고점 " + s.trimTop() + "개·최저점 " + s.trimBottom() + "개"
+                : "사용 안 함";
     }
 
     private static void flag(List<String> out, String name, boolean before, boolean after) {

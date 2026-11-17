@@ -53,7 +53,8 @@ export function ResultSharePopup({ db, project, rows, avgOf, inAvgOf, decimals, 
     setMaking(true);
     drawResultImage(project, entries, theme, {
       showScore: opt.showScore, basis: opt.basis, decimals,
-      aggText: hasAgg ? `${s.aggMin}~${s.aggMax}점` : '', topLabel: opt.top === null ? '전체 순위' : `TOP ${opt.top}`,
+      aggText: hasAgg ? `${s.aggMin}~${s.aggMax}점` : '',
+      trimText: s.trimTop > 0 || s.trimBottom > 0 ? `최고 ${s.trimTop}·최저 ${s.trimBottom}개 제외` : '', topLabel: opt.top === null ? '전체 순위' : `TOP ${opt.top}`,
     })
       .then(url => { if (alive) setImage(url); })
       .catch(() => { if (alive) toast('이미지를 만들지 못했어요.', 'err'); })

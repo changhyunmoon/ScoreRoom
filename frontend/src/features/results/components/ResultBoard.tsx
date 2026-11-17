@@ -21,15 +21,22 @@ const rankText = (n: number | undefined) => n === undefined ? '—' : `${n}위`;
 
 function CellView({ c, onOpenFeedback }: { c: Cell; onOpenFeedback: (c: ScoreCell) => void }) {
   if (c.kind === 'SCORE') {
-    // 집계에서 뺀 점수는 취소선으로 흐리게 (점수 자체는 남아 있다)
-    const cls = `ss-score ${c.inRange === false ? 'ss-out' : ''} ${c.counted ? '' : 'ss-excluded'}`;
+    // 집계에서 뺀 점수는 회색 취소선, 극단값으로 뺀 점수는 보라 취소선 + ▲/▼ (점수 자체는 남아 있다)
+    const cls = `ss-score ${c.inRange === false ? 'ss-out' : ''} ${!c.counted ? 'ss-excluded' : c.trimmed ? 'ss-trimmed' : ''}`;
+    // ▲▼: 전체 평균에서 뺀 최고·최저점, △▽: 집계 기준 평균에서 뺀 최고·최저점 (둘 다일 수 있다)
+    const marks = (c.trimmed ? (c.trimmed === 'HIGH' ? '▲' : '▼') : '') + (c.inTrimmed ? (c.inTrimmed === 'HIGH' ? '△' : '▽') : '');
+    const trimMark = c.counted && marks && <span className="ss-trim-mark">{marks}</span>;
+    const trimTitle = c.counted && marks ? [
+      c.trimmed && `${c.trimmed === 'HIGH' ? '최고점' : '최저점'}이라 전체 평균에서 뺐어요`,
+      c.inTrimmed && `집계 기준 안 ${c.inTrimmed === 'HIGH' ? '최고점' : '최저점'}이라 집계 기준 평균에서 뺐어요`,
+    ].filter(Boolean).join(' · ') : undefined;
     // 피드백이 있으면 눌러서 팝업으로 본다
     if (c.rating.feedback) return (
-      <button type="button" className={`${cls} ss-feedback`} title="피드백 보기" onClick={() => onOpenFeedback(c)}>
-        {c.rating.score}<span className="ss-mark">💬</span>
+      <button type="button" className={`${cls} ss-feedback`} title={trimTitle ? `${trimTitle} · 피드백 보기` : '피드백 보기'} onClick={() => onOpenFeedback(c)}>
+        {c.rating.score}{trimMark}<span className="ss-mark">💬</span>
       </button>
     );
-    return <span className={cls}>{c.rating.score}</span>;
+    return <span className={cls} title={trimTitle}>{c.rating.score}{trimMark}</span>;
   }
   if (c.kind === 'BLOCKED') return <span className="muted small" title={blockShort[c.reason]}>불가</span>;
   return <span className="red-text small">미평가</span>;
@@ -126,6 +133,8 @@ export function ResultBoard({ project, detail = true }: { project: Project; deta
   const tRank = teamRank(db);
   const teamRankOf = (r: ResultRow) => { const t = teamOf(r); return t !== null && tRank.has(t) ? tRank.get(t)! : Number.MAX_SAFE_INTEGER; };
   const userRankOf = (r: ResultRow) => userOf(db, r.pres.leaderId)?.rank ?? Number.MAX_SAFE_INTEGER;
+  // 점수가 있는 발표 중 가장 적은 점수 개수 → 극단값 제외로 뺄 수 있는 개수 안내
+  const scoreCounts = base.map(r => r.countedCount).filter(n => n > 0);
   const rows = sortKey === 'order' ? base : [...base].sort((a, b) => {
     if (sortKey === 'team') return teamRankOf(a) - teamRankOf(b) || (teamOf(a) ?? '').localeCompare(teamOf(b) ?? '')
       || userRankOf(a) - userRankOf(b) || a.pres.order - b.pres.order;
@@ -182,7 +191,7 @@ export function ResultBoard({ project, detail = true }: { project: Project; deta
           <span><Icon name="star" size={13} />점수 범위 <b>{s.min}~{s.max}</b></span>
           {!detail && <span><Icon name="sliders" size={13} />집계 기준 {hasAgg ? <b>{s.aggMin}~{s.aggMax}</b> : '없음'}</span>}
         </div>
-        {detail && <AggRangePanel project={project} draft={aggDraft ?? draftOf(project)} onChange={setAggDraft} onReset={() => setAggDraft(null)} />}
+        {detail && <AggRangePanel project={project} draft={aggDraft ?? draftOf(project)} scoreCounts={scoreCounts} onChange={setAggDraft} onReset={() => setAggDraft(null)} />}
       </div>
 
       {rows.length === 0 && <Empty icon="chart">아직 발표가 없어요.</Empty>}
@@ -295,6 +304,8 @@ export function ResultBoard({ project, detail = true }: { project: Project; deta
                                     {c.inRange === false && <> <Chip tone="amber">기준 밖</Chip></>}
                                     {c.outOfInput && <> <Chip tone="red">현재 범위 밖</Chip></>}
                                     {!c.counted && <> <Chip>집계 제외</Chip></>}
+                                    {c.trimmed && <> <Chip>{c.trimmed === 'HIGH' ? '최고점 제외' : '최저점 제외'}</Chip></>}
+                                    {c.inTrimmed && <> <Chip>{c.inTrimmed === 'HIGH' ? '집계 기준 최고점 제외' : '집계 기준 최저점 제외'}</Chip></>}
                                   </td>
                                   <td className="left feedback-cell">{c.rating.feedback ?? <span className="muted">-</span>}</td>
                                   <td className="left small">{timeText(c.rating.submittedAt)}</td>
@@ -369,6 +380,9 @@ export function ResultBoard({ project, detail = true }: { project: Project; deta
         <p className="hint">
           <span className="ss-mark">💬</span> 피드백 있음(누르면 보여요)
           {hasAgg && <> · <span className="ss-out">밑줄</span> 집계 기준 밖</>}
+          {(s.trimTop > 0 || s.trimBottom > 0) && <> · <span className="ss-trimmed">취소선</span><span className="ss-trim-mark">▲▼</span> 전체 평균에서 뺀 최고·최저점
+            {hasAgg && <> · <span className="ss-trim-mark">△▽</span> 집계 기준 평균에서 뺀 최고·최저점</>}</>}
+          {' '}· <span className="ss-excluded">취소선</span> 집계 제외
           {' '}· <span className="red-text">미평가</span> · <span className="muted">불가</span>
         </p>
       </>}
