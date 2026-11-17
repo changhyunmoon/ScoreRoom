@@ -63,28 +63,12 @@ const INCLUDE: { key: 'countSelf' | 'countSameCrew' | 'countSameTeam' | 'countAd
   { key: 'countAdmin', label: '룸 관리자가 준 점수', hint: '이 평가룸의 룸 관리자가 발표에 준 점수' },
 ];
 
-/**
- * onReset: 입력을 버리고 저장된 설정을 따른다 (되돌리기·저장 후).
- * scoreCounts: 점수가 있는 발표별 점수 개수 (집계에 넣는 점수, 극단값 빼기 전). 뺄 수 있는 개수를 정하는 데 쓴다
- */
-export function AggRangePanel({ project, draft, scoreCounts, onChange, onReset }: { project: Project; draft: AggDraft; scoreCounts: number[]; onChange: (d: AggDraft) => void; onReset: () => void }) {
-  const fewest = scoreCounts.length ? Math.min(...scoreCounts) : null;
-  // 최고점·최저점 개수의 합은 점수 개수를 넘을 수 없고, 평균을 내려면 1개는 남아야 한다 (점수가 가장 적은 발표 기준)
-  const limit = fewest === null ? null : fewest - 1;
-  // 입력한 값이 한도를 넘으면 다른 칸 값을 뺀 만큼으로 줄인다
-  const setTrim = (key: 'trimTop' | 'trimBottom', raw: string) => {
-    const other = Number(key === 'trimTop' ? draft.trimBottom : draft.trimTop) || 0;
-    const n = Number(raw);
-    const value = raw.trim() === '' || limit === null || !Number.isFinite(n) ? raw : String(Math.max(0, Math.min(n, limit - other)));
-    onChange({ ...draft, [key]: value });
-  };
+/** onReset: 입력을 버리고 저장된 설정을 따른다 (되돌리기·저장 후) */
+export function AggRangePanel({ project, draft, onChange, onReset }: { project: Project; draft: AggDraft; onChange: (d: AggDraft) => void; onReset: () => void }) {
+  // 극단값 제외 개수는 점수 개수와 상관없이 고른 대로 뺀다 (모두 빠지면 평균 0점)
+  const setTrim = (key: 'trimTop' | 'trimBottom', raw: string) => onChange({ ...draft, [key]: raw });
   const saved = project.settings;
-  const preview = previewSettings(project, draft);
-  const next = preview.settings;
-  // 지금 점수로는 하나도 안 남는 발표가 생기면 저장하지 않는다 (서버는 그런 발표는 빼지 않고 계산한다)
-  const overLimit = draft.trimOn && limit !== null && next.trimTop + next.trimBottom > limit;
-  const error = preview.error ?? (overLimit
-    ? `점수가 가장 적은 발표가 ${fewest}개라 최고점·최저점을 합쳐 ${limit}개까지만 뺄 수 있어요.` : null);
+  const { settings: next, error } = previewSettings(project, draft);
   const dirty = aggChanged(next, saved);
   const open = project.status === 'OPEN';
   const save = async () => {
@@ -140,10 +124,10 @@ export function AggRangePanel({ project, draft, scoreCounts, onChange, onReset }
             {draft.trimOn && (
               <span className="agg-inputs">
                 <span>최고점</span>
-                <input type="number" inputMode="numeric" step={1} min={0} max={limit === null ? undefined : Math.max(0, limit - (Number(draft.trimBottom) || 0))}
+                <input type="number" inputMode="numeric" step={1} min={0}
                   disabled={!open} value={draft.trimTop} aria-label="뺄 최고점 개수" onChange={e => setTrim('trimTop', e.target.value)} />
                 <span>개 · 최저점</span>
-                <input type="number" inputMode="numeric" step={1} min={0} max={limit === null ? undefined : Math.max(0, limit - (Number(draft.trimTop) || 0))}
+                <input type="number" inputMode="numeric" step={1} min={0}
                   disabled={!open} value={draft.trimBottom} aria-label="뺄 최저점 개수" onChange={e => setTrim('trimBottom', e.target.value)} />
                 <span>개 제외</span>
               </span>

@@ -59,7 +59,7 @@ public final class SummaryCalculator {
                     : List.of();
             // 극단값 제외는 전체 평균과 집계 기준 평균에 각각 적용한다 (집계 기준은 범위로 거른 뒤 남은 점수에서 뺀다)
             rows.add(new SummaryResponse(p.getId(), members.size(), blocked, members.size() - blocked, received.size(),
-                    notRatedIds.size(), average(trim(scores, settings)), inRange.size(),
+                    notRatedIds.size(), trimmedAverage(scores, trim(scores, settings)), inRange.size(),
                     inRangeAverage(settings, scores, trim(inRange, settings)),
                     scoredIds, blockedIds, notRatedIds));
         }
@@ -76,16 +76,26 @@ public final class SummaryCalculator {
         return inRange.isEmpty() ? 0.0 : average(inRange);
     }
 
+    /** 전체 평균. 점수가 있는데 극단값 제외로 모두 빠지면 0점이다 (점수가 하나도 없으면 null) */
+    private static Double trimmedAverage(List<Integer> scores, List<Integer> kept) {
+        if (scores.isEmpty()) {
+            return null;
+        }
+        return kept.isEmpty() ? 0.0 : average(kept);
+    }
+
     /**
-     * 극단값 제외: 낮은 점수 trimBottom개와 높은 점수 trimTop개를 뺀다. 점수가 빼는 개수의 합 이하면 빼지 않는다.
+     * 극단값 제외: 점수 개수와 상관없이 낮은 점수 trimBottom개와 높은 점수 trimTop개를 뺀다. 빼는 개수가 점수보다 많으면 모두 빠진다.
      * 같은 점수가 여럿이어도 개수만큼만 뺀다 (1,1,3,8,8 에서 1개씩 빼면 1,3,8). 화면(computeResults)과 같은 규칙
      */
     public static List<Integer> trim(List<Integer> scores, ProjectSettings settings) {
-        if (!settings.hasTrim() || scores.size() <= settings.trimTop() + settings.trimBottom()) {
+        if (!settings.hasTrim()) {
             return scores;
         }
         List<Integer> sorted = scores.stream().sorted().toList();
-        return sorted.subList(settings.trimBottom(), sorted.size() - settings.trimTop());
+        int lowEnd = Math.min(settings.trimBottom(), sorted.size());
+        int highStart = Math.max(lowEnd, sorted.size() - settings.trimTop());
+        return sorted.subList(lowEnd, highStart);
     }
 
     private static Double average(List<Integer> values) {

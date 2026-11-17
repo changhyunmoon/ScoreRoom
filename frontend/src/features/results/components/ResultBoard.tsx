@@ -133,8 +133,6 @@ export function ResultBoard({ project, detail = true }: { project: Project; deta
   const tRank = teamRank(db);
   const teamRankOf = (r: ResultRow) => { const t = teamOf(r); return t !== null && tRank.has(t) ? tRank.get(t)! : Number.MAX_SAFE_INTEGER; };
   const userRankOf = (r: ResultRow) => userOf(db, r.pres.leaderId)?.rank ?? Number.MAX_SAFE_INTEGER;
-  // 점수가 있는 발표 중 가장 적은 점수 개수 → 극단값 제외로 뺄 수 있는 개수 안내
-  const scoreCounts = base.map(r => r.countedCount).filter(n => n > 0);
   const rows = sortKey === 'order' ? base : [...base].sort((a, b) => {
     if (sortKey === 'team') return teamRankOf(a) - teamRankOf(b) || (teamOf(a) ?? '').localeCompare(teamOf(b) ?? '')
       || userRankOf(a) - userRankOf(b) || a.pres.order - b.pres.order;
@@ -191,7 +189,7 @@ export function ResultBoard({ project, detail = true }: { project: Project; deta
           <span><Icon name="star" size={13} />점수 범위 <b>{s.min}~{s.max}</b></span>
           {!detail && <span><Icon name="sliders" size={13} />집계 기준 {hasAgg ? <b>{s.aggMin}~{s.aggMax}</b> : '없음'}</span>}
         </div>
-        {detail && <AggRangePanel project={project} draft={aggDraft ?? draftOf(project)} scoreCounts={scoreCounts} onChange={setAggDraft} onReset={() => setAggDraft(null)} />}
+        {detail && <AggRangePanel project={project} draft={aggDraft ?? draftOf(project)} onChange={setAggDraft} onReset={() => setAggDraft(null)} />}
       </div>
 
       {rows.length === 0 && <Empty icon="chart">아직 발표가 없어요.</Empty>}

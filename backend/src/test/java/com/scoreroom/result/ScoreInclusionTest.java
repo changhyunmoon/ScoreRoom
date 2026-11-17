@@ -108,7 +108,7 @@ class ScoreInclusionTest extends IntegrationTest {
     }
 
     @Test
-    void 극단값_제외는_전체와_집계_기준_평균에_각각_적용되고_점수가_모자라면_빼지_않는다() throws Exception {
+    void 극단값_제외는_전체와_집계_기준_평균에_각각_적용되고_모두_빠지면_0점이다() throws Exception {
         String body = "{\"min\":0,\"max\":100,\"aggMin\":70,\"aggMax\":100,\"trimTop\":%d,\"trimBottom\":%d}";
         // 100·90·80·60 에서 최저 1개 → 90, 기준 70~100 안의 100·90·80 에서 최저 1개 → (100 + 90) / 2
         mvc.perform(json(put("/api/v1/projects/{p}/settings", room), body.formatted(0, 1)).with(as(owner)))
@@ -124,12 +124,13 @@ class ScoreInclusionTest extends IntegrationTest {
         mvc.perform(get("/api/v1/state").with(as(owner)))
                 .andExpect(jsonPath(presSummary("avg")).value(85.0))
                 .andExpect(jsonPath(presSummary("inAvg")).value(90.0));
-        // 빼는 개수의 합(4)이 점수 개수 이상이면 빼지 않는다
+        // 빼는 개수의 합(4)이 점수 개수 이상이어도 고른 대로 빼서 모두 빠지면 0점 (평가함 인원은 그대로)
         mvc.perform(json(put("/api/v1/projects/{p}/settings", room), body.formatted(2, 2)).with(as(owner)))
                 .andExpect(status().isOk());
         mvc.perform(get("/api/v1/state").with(as(owner)))
-                .andExpect(jsonPath(presSummary("avg")).value(82.5))
-                .andExpect(jsonPath(presSummary("inAvg")).value(90.0));
+                .andExpect(jsonPath(presSummary("avg")).value(0.0))
+                .andExpect(jsonPath(presSummary("inAvg")).value(0.0))
+                .andExpect(jsonPath(presSummary("scored")).value(4));
         // 음수는 거절
         mvc.perform(json(put("/api/v1/projects/{p}/settings", room), body.formatted(-1, 0)).with(as(owner)))
                 .andExpect(status().isBadRequest());

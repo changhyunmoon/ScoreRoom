@@ -20,8 +20,6 @@ export interface ResultRow {
   key: string; // presentationId
   pres: Presentation;
   count: number; sum: number; avg: number | null;
-  /** 집계에 넣는 점수 개수 (극단값을 빼기 전). 뺄 수 있는 개수를 알려 줄 때 쓴다 */
-  countedCount: number;
   inCount: number; inSum: number; inAvg: number | null;
   cells: Cell[]; // 평가자(참여자)별 칸
 }
@@ -41,17 +39,16 @@ export function isCounted(d: DB, project: Project, pres: Presentation, raterId: 
 }
 
 /**
- * 극단값 제외 (서버 SummaryCalculator.trim과 같은 규칙): 점수가 빼는 개수의 합보다 많으면 낮은 점수 trimBottom개, 높은 점수 trimTop개를 뺀다.
- * 같은 점수가 여럿이어도 개수만큼만 뺀다. 같은 점수 중 어느 칸을 뺀 것으로 표시할지는 들어온 순서(표의 평가자 순서)로 정한다 (평균은 같다)
+ * 극단값 제외 (서버 SummaryCalculator.trim과 같은 규칙): 점수 개수와 상관없이 낮은 점수 trimBottom개, 높은 점수 trimTop개를 뺀다.
+ * 빼는 개수가 점수보다 많으면 모두 빠진다 (낮은 쪽부터 채운다). 같은 점수가 여럿이어도 개수만큼만 뺀다.
+ * 같은 점수 중 어느 칸을 뺀 것으로 표시할지는 들어온 순서(표의 평가자 순서)로 정한다 (평균은 같다)
  */
 export function trimScores<T>(items: T[], score: (x: T) => number, s: Project['settings']): { kept: T[]; low: T[]; high: T[] } {
-  if ((s.trimTop <= 0 && s.trimBottom <= 0) || items.length <= s.trimTop + s.trimBottom) return { kept: items, low: [], high: [] };
+  if (s.trimTop <= 0 && s.trimBottom <= 0) return { kept: items, low: [], high: [] };
   const sorted = [...items].sort((a, b) => score(a) - score(b));
-  return {
-    low: sorted.slice(0, s.trimBottom),
-    kept: sorted.slice(s.trimBottom, sorted.length - s.trimTop),
-    high: sorted.slice(sorted.length - s.trimTop),
-  };
+  const lowEnd = Math.min(Math.max(s.trimBottom, 0), sorted.length);
+  const highStart = Math.max(lowEnd, sorted.length - Math.max(s.trimTop, 0));
+  return { low: sorted.slice(0, lowEnd), kept: sorted.slice(lowEnd, highStart), high: sorted.slice(highStart) };
 }
 
 /** 발표 순서대로 결과 줄을 만든다. 점수는 볼 수 있는 것만으로 계산된다 */
@@ -96,11 +93,12 @@ export function computeResults(d: DB, project: Project): ResultRow[] {
       return { kind: 'NOT_RATED', userId: m.userId };
     });
     return {
-      key: pres.id, pres, cells, countedCount: countedRatings.length,
-      count: ratings.length, sum, avg: scores.length ? sum / scores.length : null,
+      key: pres.id, pres, cells,
+      // 집계에 넣는 점수가 있는데 극단값으로 모두 빠지면 평균 0 (점수가 하나도 없으면 평균 없음). 서버와 같은 규칙
+      count: ratings.length, sum, avg: !countedRatings.length ? null : scores.length ? sum / scores.length : 0,
       // 집계 기준을 쓰는데 점수가 모두 기준 밖이면 합계·평균 0 (점수가 하나도 없으면 평균 없음). 서버와 같은 규칙
       // 합계·평균은 극단값을 뺀 점수로, inCount는 빼기 전 기준 안 제출 수 (서버 inCount와 같음)
-      inCount: inRatings.length, inSum, inAvg: !hasAgg || !scores.length ? null : inKept.length ? inSum / inKept.length : 0,
+      inCount: inRatings.length, inSum, inAvg: !hasAgg || !countedRatings.length ? null : inKept.length ? inSum / inKept.length : 0,
     };
   });
 }

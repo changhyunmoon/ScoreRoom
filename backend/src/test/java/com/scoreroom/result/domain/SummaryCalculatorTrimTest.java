@@ -29,9 +29,11 @@ class SummaryCalculatorTrimTest {
     }
 
     @Test
-    void 점수가_빼는_개수의_합_이하면_그대로_둔다() {
-        assertThat(SummaryCalculator.trim(List.of(2, 9), trim(1, 1))).containsExactly(2, 9);
+    void 빼는_개수가_점수보다_많으면_모두_빠진다() {
+        assertThat(SummaryCalculator.trim(List.of(2, 9), trim(1, 1))).isEmpty();
         assertThat(SummaryCalculator.trim(List.of(2, 9, 4), trim(1, 1))).containsExactly(4);
+        assertThat(SummaryCalculator.trim(List.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10), trim(5, 6))).isEmpty();
+        assertThat(SummaryCalculator.trim(List.of(), trim(1, 1))).isEmpty();
     }
 
     @Test
