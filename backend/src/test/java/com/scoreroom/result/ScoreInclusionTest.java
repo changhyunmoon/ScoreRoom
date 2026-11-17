@@ -60,7 +60,7 @@ class ScoreInclusionTest extends IntegrationTest {
 
     private void rate(User rater, int score) throws Exception {
         mvc.perform(json(put("/api/v1/projects/{p}/presentations/{pr}/rating", room, pres),
-                "{\"score\":" + score + "}").with(as(rater))).andExpect(status().isNoContent());
+                "{\"score\":" + score + ",\"feedback\":\"좋았어요\"}").with(as(rater))).andExpect(status().isNoContent());
     }
 
     private String presSummary(String field) {
@@ -73,6 +73,7 @@ class ScoreInclusionTest extends IntegrationTest {
                 .andExpect(jsonPath("$.projects[0].settings.allowSelf").value(true))
                 .andExpect(jsonPath("$.projects[0].settings.allowSameTeam").value(true))
                 .andExpect(jsonPath("$.projects[0].settings.countSelf").value(true))
+                .andExpect(jsonPath("$.projects[0].settings.requireFeedback").value(true))
                 .andExpect(jsonPath("$.summaries.length()").value(1))
                 .andExpect(jsonPath(presSummary("avg")).value(82.5));
     }

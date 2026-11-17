@@ -20,7 +20,7 @@ import com.scoreroom.common.error.ApiException;
  * - showRatingStatusNames: 평가 현황 숫자를 누르면 해당하는 사람 목록을 일반 참여자에게도 보여 줌 (showRatingStatus가 켜져 있을 때만). 룸 관리자는 항상 본다
  * - trimTop / trimBottom: 극단값 제외. 집계(평균·순위)에서 최고점 trimTop개·최저점 trimBottom개를 뺀다.
  *   점수가 빼는 개수의 합 이하인 발표는 빼지 않는다 (하나도 안 남으므로). 둘 다 0이면 사용 안 함
- * - requireFeedback: 점수를 제출·수정할 때 피드백도 꼭 쓰게 함 (기본: 선택). 이미 저장된 평가는 그대로 둔다
+ * - requireFeedback: 점수를 제출·수정할 때 피드백도 꼭 쓰게 함 (기본: 필수). 이미 저장된 평가는 그대로 둔다
  */
 public record ProjectSettings(
         int min,
@@ -46,7 +46,7 @@ public record ProjectSettings(
 
     /** 새 평가룸: 본인 평가만 막고, 같은 회사 팀·같은 발표 팀원 평가, 점수 수정, 룸 관리자 평가는 허용. 발표 화면 표시(평가 현황·사람 목록·발표 등록 인원)는 참여자에게 숨김 */
     public static ProjectSettings defaults() {
-        return new ProjectSettings(0, 100, null, null, false, true, true, true, false, true, true, true, true, true, false, false, false, 0, 0, false);
+        return new ProjectSettings(0, 100, null, null, false, true, true, true, false, true, true, true, true, true, false, false, false, 0, 0, true);
     }
 
     public boolean hasAggregationRange() {
