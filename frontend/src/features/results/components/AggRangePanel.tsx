@@ -115,7 +115,7 @@ export function AggRangePanel({ project, draft, onChange, onReset }: { project: 
 
         {/* 극단값 제외: 전체 평균과 집계 기준 평균에 각각 적용된다. 같은 점수가 여럿이면 개수만큼만 뺀다 */}
         <div className="agg-item">
-          <span className="agg-label">극단값 제외<small>평균에서 가장 높은·낮은 점수를 빼요</small></span>
+          <span className="agg-label">극단값 제외<small>높은 점수·낮은 점수를 정한 개수만큼 빼고 합계·평균·순위를 내요</small></span>
           <div className="agg-value">
             <div className="segmented sm" role="group" aria-label="극단값 제외 사용">
               <button type="button" className={draft.trimOn ? 'on' : ''} disabled={!open} onClick={() => onChange({ ...draft, trimOn: true })}>사용</button>
