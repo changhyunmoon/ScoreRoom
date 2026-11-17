@@ -79,8 +79,9 @@ public class RatingService {
         String target = "'" + presentation.getTitle() + "' 발표 ";
         if (existing.isEmpty()) {
             ratings.save(new Rating(projectId, presentationId, raterId, score, feedback, clock.instant()));
-            logs.activity(raterId, projectId, LogAction.RATING_SUBMITTED, target + score + "점 제출",
-                    "점수: " + score + "점\n피드백: " + orNone(feedback));
+            // 시스템 관리자도 누가 누구에게 몇 점 줬는지는 보면 안 되므로 로그에는 점수를 가려서 남긴다
+            logs.activity(raterId, projectId, LogAction.RATING_SUBMITTED, target + LogService.HIDDEN_SCORE + " 제출",
+                    "점수: " + LogService.HIDDEN_SCORE + "\n피드백: " + orNone(feedback));
             return;
         }
         Rating rating = existing.get();
@@ -94,8 +95,10 @@ public class RatingService {
         String beforeFeedback = rating.getFeedback();
         rating.overwrite(score, feedback, clock.instant());
         logs.activity(raterId, projectId, LogAction.RATING_UPDATED,
-                target + (beforeScore == score ? score + "점 (피드백 수정)" : beforeScore + "점 → " + score + "점 수정"),
-                "점수: " + beforeScore + "점 → " + score + "점\n이전 피드백: " + orNone(beforeFeedback)
+                target + (beforeScore == score ? "피드백 수정 (점수 그대로)" : "점수 수정"),
+                "점수: " + (beforeScore == score ? LogService.HIDDEN_SCORE + " (그대로)"
+                        : LogService.HIDDEN_SCORE + " → " + LogService.HIDDEN_SCORE)
+                        + "\n이전 피드백: " + orNone(beforeFeedback)
                         + "\n새 피드백: " + orNone(feedback));
     }
 

@@ -50,6 +50,8 @@ public class LogService {
     private static final Logger log = LoggerFactory.getLogger(LogService.class);
     /** 이 요청에서 이미 따로 기록을 남겼다는 표시 (거절 기록이 겹치지 않게) */
     private static final String LOGGED_ATTRIBUTE = "scoreroom.logged";
+    /** 로그에 점수 대신 남기는 표시. 시스템 관리자도 누가 누구에게 몇 점 줬는지는 볼 수 없다 */
+    public static final String HIDDEN_SCORE = "**점";
     private static final int STACK_MAX = 8 * 1024;
     private static final Pattern ERROR_TYPE = Pattern.compile("^(?:Uncaught )?([A-Za-z]*Error)\\b");
     private static final Pattern PROJECT_PATH = Pattern.compile(
@@ -83,7 +85,7 @@ public class LogService {
         logs.save(build(actorId, projectId, action, message).detail(detail));
     }
 
-    /** 지워지는 평가를 평가자·발표·점수·피드백과 함께 남긴다 (지우기 전에 부른다). 없으면 남기지 않는다 */
+    /** 지워지는 평가를 평가자·발표·피드백과 함께 남긴다 (점수는 가린다. 지우기 전에 부른다). 없으면 남기지 않는다 */
     @Transactional(propagation = Propagation.MANDATORY)
     public void ratingsDeleted(UUID actorId, UUID projectId, String reason, Collection<Rating> removed) {
         if (removed.isEmpty()) {
@@ -202,7 +204,7 @@ public class LogService {
         return userId == null ? null : users.findById(userId).map(User::getName).orElse(null);
     }
 
-    /** "홍길동 → 'AI 도입' 8점 · 피드백: …" 한 줄씩 */
+    /** "홍길동 → 'AI 도입' **점 · 피드백: …" 한 줄씩 (점수는 가린다) */
     public String describeRatings(Collection<Rating> ratings) {
         Map<UUID, String> names = users.findAllById(ratings.stream().map(Rating::getRaterId).distinct().toList())
                 .stream().collect(Collectors.toMap(User::getId, User::getName));
@@ -210,7 +212,7 @@ public class LogService {
                 .stream().collect(Collectors.toMap(Presentation::getId, Presentation::getTitle));
         return ratings.stream()
                 .map(r -> names.getOrDefault(r.getRaterId(), "(알 수 없음)") + " → '"
-                        + titles.getOrDefault(r.getPresentationId(), "(삭제된 발표)") + "' " + r.getScore() + "점"
+                        + titles.getOrDefault(r.getPresentationId(), "(삭제된 발표)") + "' " + HIDDEN_SCORE
                         + (r.getFeedback() == null ? "" : " · 피드백: " + r.getFeedback()))
                 .collect(Collectors.joining("\n"));
     }

@@ -52,7 +52,7 @@ class SystemLogTest extends IntegrationTest {
     }
 
     @Test
-    void 점수_제출과_수정은_점수와_피드백을_남긴다() throws Exception {
+    void 점수_제출과_수정은_점수를_가리고_피드백을_남긴다() throws Exception {
         Team a = fixtures.team("A팀");
         Team b = fixtures.team("B팀");
         User owner = fixtures.user("owner", a);
@@ -69,12 +69,13 @@ class SystemLogTest extends IntegrationTest {
         Map<String, Object> submitted = last("RATING_SUBMITTED");
         assertThat(submitted.get("category")).isEqualTo("RATING");
         assertThat(submitted.get("project_id")).isEqualTo(room);
-        assertThat((String) submitted.get("message")).contains("70점 제출");
-        assertThat((String) submitted.get("detail")).contains("처음 의견");
+        assertThat((String) submitted.get("message")).contains("**점 제출").doesNotContain("70");
+        assertThat((String) submitted.get("detail")).contains("처음 의견").doesNotContain("70");
 
         Map<String, Object> updated = last("RATING_UPDATED");
-        assertThat((String) updated.get("message")).contains("70점 → 80점");
-        assertThat((String) updated.get("detail")).contains("처음 의견").contains("바꾼 의견");
+        assertThat((String) updated.get("message")).contains("점수 수정").doesNotContain("70").doesNotContain("80");
+        assertThat((String) updated.get("detail")).contains("처음 의견").contains("바꾼 의견")
+                .doesNotContain("70").doesNotContain("80");
         assertThat(updated.get("actor_name")).isEqualTo(owner.getName());
         assertThat(updated.get("request_id")).isNotNull();
     }
