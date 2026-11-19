@@ -5,6 +5,10 @@ import type { ID } from '../../../shared/lib/types';
 export const submitRating = (pid: ID, prid: ID, score: number, feedback: string) =>
   http.put(`/projects/${pid}/presentations/${prid}/rating`, { score, feedback: feedback.trim() || null });
 
+/** 이 발표에 준 내 점수와 피드백을 지운다 (다른 발표에 잘못 준 경우). 수정이 허용된 평가룸에서만 된다 */
+export const deleteRating = (pid: ID, prid: ID) =>
+  http.del(`/projects/${pid}/presentations/${prid}/rating`);
+
 /** 룸 관리자: 이 발표를 아직 평가하지 않은 사람에게 평가 요청 알림을 보낸다. 실제로 보낸 인원을 돌려준다 */
 export const requestRatings = async (pid: ID, prid: ID, userIds: ID[]) =>
   (await http.post<{ sent: number }>(`/projects/${pid}/presentations/${prid}/rating-requests`, { userIds })).sent;

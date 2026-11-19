@@ -6,6 +6,7 @@ import jakarta.validation.Valid;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -31,5 +32,13 @@ public class RatingController {
     public void submit(@AuthenticationPrincipal AuthenticatedUser me, @PathVariable UUID projectId,
             @PathVariable UUID presentationId, @Valid @RequestBody SubmitRatingRequest request) {
         ratingService.submit(me.userId(), projectId, presentationId, request);
+    }
+
+    /** 이 발표에 준 내 점수를 지운다 (다른 발표에 잘못 준 경우 등) */
+    @DeleteMapping("/api/v1/projects/{projectId}/presentations/{presentationId}/rating")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@AuthenticationPrincipal AuthenticatedUser me, @PathVariable UUID projectId,
+            @PathVariable UUID presentationId) {
+        ratingService.delete(me.userId(), projectId, presentationId);
     }
 }

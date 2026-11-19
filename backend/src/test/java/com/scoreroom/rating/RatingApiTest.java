@@ -1,6 +1,7 @@
 package com.scoreroom.rating;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -90,6 +91,39 @@ class RatingApiTest extends IntegrationTest {
         rate(owner, pres, otherTeam, "{\"score\":70}").andExpect(status().isNoContent());
         rate(owner, pres, otherTeam, "{\"score\":70}").andExpect(status().isNoContent());
         rate(owner, pres, otherTeam, "{\"score\":71}").andExpect(status().isConflict());
+    }
+
+    private ResultActions unrate(User rater, UUID presentation) throws Exception {
+        return mvc.perform(delete("/api/v1/projects/{p}/presentations/{pr}/rating", room, presentation).with(as(rater)));
+    }
+
+    @Test
+    void 내가_준_점수만_지우고_다시_지워도_성공한다() throws Exception {
+        UUID pres = fixtures.personal(room, otherTeam);
+        rate(owner, pres, otherTeam, "{\"score\":70,\"feedback\":\"잘못 입력\"}").andExpect(status().isNoContent());
+        rate(sameTeam, pres, otherTeam, "{\"score\":60}").andExpect(status().isNoContent());
+
+        unrate(owner, pres).andExpect(status().isNoContent());
+        assertThat(count("select count(*) from ratings")).isEqualTo(1);
+        assertThat(count("select score from ratings")).isEqualTo(60);
+        unrate(owner, pres).andExpect(status().isNoContent());
+        assertThat(count("select count(*) from ratings")).isEqualTo(1);
+        // 지운 뒤 다시 낼 수 있다
+        rate(owner, pres, otherTeam, "{\"score\":80}").andExpect(status().isNoContent());
+        assertThat(count("select count(*) from ratings")).isEqualTo(2);
+    }
+
+    @Test
+    void 수정이_막혔거나_마감된_평가룸에서는_점수를_지울_수_없다() throws Exception {
+        UUID pres = fixtures.personal(room, otherTeam);
+        rate(owner, pres, otherTeam, "{\"score\":70}").andExpect(status().isNoContent());
+        mvc.perform(json(put("/api/v1/projects/{p}/settings", room),
+                "{\"min\":0,\"max\":100,\"allowEdit\":false}").with(as(owner))).andExpect(status().isOk());
+        unrate(owner, pres).andExpect(status().isConflict());
+
+        mvc.perform(post("/api/v1/projects/{p}/close", room).with(as(owner))).andExpect(status().isNoContent());
+        unrate(owner, pres).andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("PROJECT_CLOSED"));
+        assertThat(count("select count(*) from ratings")).isEqualTo(1);
     }
 
     @Test

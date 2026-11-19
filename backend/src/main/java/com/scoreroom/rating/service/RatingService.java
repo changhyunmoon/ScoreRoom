@@ -102,6 +102,29 @@ public class RatingService {
                         + "\n새 피드백: " + orNone(feedback));
     }
 
+    /**
+     * 이 발표에 준 내 점수를 지운다. 수정이 허용된 진행 중 평가룸에서만 가능하다 (지우고 다시 내면 수정과 같으므로).
+     * 이미 지워졌으면(응답 유실 후 재시도) 성공으로 처리한다.
+     */
+    @Transactional
+    public void delete(UUID raterId, UUID projectId, UUID presentationId) {
+        RoomWrite room = roomGuard.lockAsMember(projectId, raterId);
+        Presentation presentation = presentations.findByIdAndProjectId(presentationId, projectId)
+                .orElseThrow(() -> ApiException.notFound("발표를 찾을 수 없습니다."));
+        Optional<Rating> existing = ratings.findByPresentationIdAndRaterId(presentationId, raterId);
+        if (existing.isEmpty()) {
+            return;
+        }
+        if (!room.project().settings().allowEdit()) {
+            throw ApiException.conflict("이 평가룸은 제출한 점수를 삭제할 수 없습니다.");
+        }
+        Rating rating = existing.get();
+        ratings.delete(rating);
+        logs.activity(raterId, projectId, LogAction.RATING_DELETED,
+                "'" + presentation.getTitle() + "' 발표 점수 삭제",
+                "점수: " + LogService.HIDDEN_SCORE + "\n피드백: " + orNone(rating.getFeedback()));
+    }
+
     /** 새 설정의 평가 규칙(본인 발표·같은 팀·관리자)에 맞지 않게 되는 기존 평가 */
     @Transactional(propagation = Propagation.MANDATORY)
     public List<UUID> findBlockedBy(UUID projectId, ProjectSettings next) {

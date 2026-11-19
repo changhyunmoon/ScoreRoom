@@ -9,6 +9,7 @@ import com.scoreroom.common.error.ErrorCode;
 public enum LogAction {
     RATING_SUBMITTED(RATING, "점수 제출"),
     RATING_UPDATED(RATING, "점수 수정"),
+    RATING_DELETED(RATING, "점수 삭제"),
     RATING_REQUESTED(RATING, "평가 요청 알림"),
     RATINGS_DELETED(RATING, "평가 삭제", WARN),
 

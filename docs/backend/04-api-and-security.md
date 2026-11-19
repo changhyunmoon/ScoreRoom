@@ -54,6 +54,7 @@ Spring Security의 서버 세션 인증을 사용하고 Spring Session JDBC로 P
 | 발표 | POST `/projects/{pid}/presentations`, PUT/DELETE `/projects/{pid}/presentations/{id}` | 제목/유형/대표/발표자/팀원/배포 URL |
 | 발표 정렬 | PUT `/projects/{pid}/presentations/order`, POST `/projects/{pid}/presentations/{id}/move` | ids 전체 목록 또는 dir |
 | 평가 | PUT `/projects/{pid}/presentations/{id}/ratings/{targetId}` | score, feedback; 평가자는 세션에서 결정 |
+| 내 평가 삭제 | DELETE `/projects/{pid}/presentations/{id}/rating` | 내가 준 점수·피드백 삭제; 진행 중이고 수정 허용인 룸만, 없으면 그대로 성공 |
 | 자료 업로드 | POST `/projects/{pid}/presentations/{id}/attachments` | multipart의 file 필드; 메타데이터 응답 |
 | 자료 읽기/삭제 | GET/DELETE `/projects/{pid}/presentations/{id}/attachments/{aid}` | 서버에서 룸과 파일 소속 확인 |
 
