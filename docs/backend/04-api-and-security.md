@@ -36,7 +36,7 @@ Spring Security의 서버 세션 인증을 사용하고 Spring Session JDBC로 P
 |---|---|---|
 | 인증 | POST `/auth/login`, POST `/auth/logout` | loginId/password → 쿠키 설정; 로그아웃 세션 폐기 |
 | 가입 | POST `/auth/signup` | 사용자 기본 정보; 운영 가입 정책 확정 후 활성화 |
-| 내 정보 | GET/PUT `/me` | 프로필; 비밀번호 변경은 현재 비밀번호 확인 필요 |
+| 내 정보 | PUT `/me` | 프로필 수정; 비밀번호 변경은 현재 비밀번호 확인 필요 (로그인 상태 확인은 `/state`) |
 | 팀 | GET `/teams`, POST `/admin/teams`, PUT/DELETE `/admin/teams/{id}` | 팀명/부모; 순환·참조 검사 |
 | 사용자 추가 | POST `/admin/teams/{id}/users` | 계정/이름/직위; 초기 암호 전달 방식 별도 확정 |
 | 사용자 관리 | PUT `/admin/users/{id}/team`, `/position`, `/view-all` | teamId, position, enabled |

@@ -44,9 +44,9 @@ class RoomAdminRoleTest extends IntegrationTest {
                 + "\",\"presenterIds\":[],\"memberIds\":[" + ids + "]}";
     }
 
-    private void rate(User rater, UUID pres, User target, int expected) throws Exception {
+    private void rate(User rater, UUID pres) throws Exception {
         mvc.perform(json(put("/api/v1/projects/{p}/presentations/{pr}/rating", room, pres),
-                "{\"score\":80}").with(as(rater))).andExpect(status().is(expected));
+                "{\"score\":80}").with(as(rater))).andExpect(status().isNoContent());
     }
 
     @Test
@@ -84,8 +84,8 @@ class RoomAdminRoleTest extends IntegrationTest {
     void 발표한_사람을_관리자로_지정하면_발표에서_빠진다() throws Exception {
         UUID solo = fixtures.personal(room, a);
         UUID team = fixtures.teamPresentation(room, b, List.of(), List.of(c));
-        rate(owner, solo, a, 204);
-        rate(owner, team, b, 204);
+        rate(owner, solo);
+        rate(owner, team);
 
         // 지울 데이터가 있으면 확인한 version이 필요하다
         mvc.perform(json(put("/api/v1/projects/{p}/members/{u}/admin", room, a.getId()), "{\"isAdmin\":true}").with(as(owner)))
@@ -108,8 +108,8 @@ class RoomAdminRoleTest extends IntegrationTest {
     @Test
     void 관리자_평가를_끄면_관리자_평가가_지워지고_평가자_인원에서_빠진다() throws Exception {
         UUID pres = fixtures.personal(room, a);
-        rate(owner, pres, a, 204);
-        rate(b, pres, a, 204);
+        rate(owner, pres);
+        rate(b, pres);
         mvc.perform(get("/api/v1/state").with(as(owner)))
                 .andExpect(jsonPath("$.summaries[0].total").value(4));
 

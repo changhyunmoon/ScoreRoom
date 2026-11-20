@@ -59,9 +59,3 @@ export function myStatus(d: RoomData, project: Project, pres: Presentation, user
   // 마감된 평가룸은 모든 발표가 끝난 것으로 보고, 평가하지 않은 발표는 '평가 안 함'으로 둔다
   return project.status === 'CLOSED' ? 'MISSED' : 'TODO';
 }
-export const statusMeta = {
-  TODO: { label: '평가 필요', tone: 'amber', icon: 'star' },
-  DONE: { label: '평가 완료', tone: 'green', icon: 'checkCircle' },
-  BLOCKED: { label: '평가 불가', tone: 'gray', icon: 'lock' },
-  MISSED: { label: '평가 안 함', tone: 'gray', icon: 'ban' },
-} as const;

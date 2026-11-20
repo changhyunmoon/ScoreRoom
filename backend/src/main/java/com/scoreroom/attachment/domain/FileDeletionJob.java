@@ -63,8 +63,4 @@ public class FileDeletionJob extends PersistableEntity<UUID> {
     public String getStorageKey() {
         return storageKey;
     }
-
-    public int getAttemptCount() {
-        return attemptCount;
-    }
 }

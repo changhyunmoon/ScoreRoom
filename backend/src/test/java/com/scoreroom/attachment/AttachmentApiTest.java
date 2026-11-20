@@ -17,6 +17,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.ResultActions;
 
+import com.jayway.jsonpath.JsonPath;
+
 import com.scoreroom.support.IntegrationTest;
 import com.scoreroom.user.domain.User;
 
@@ -43,7 +45,7 @@ class AttachmentApiTest extends IntegrationTest {
 
     @Test
     void 올린_자료는_참여자가_첨부로_내려받고_삭제하면_파일도_지운다() throws Exception {
-        String id = com.jayway.jsonpath.JsonPath.read(
+        String id = JsonPath.read(
                 upload(leader, "../발표 자료.html", "<b>hi</b>").andExpect(status().isCreated())
                         .andExpect(jsonPath("$.name").value("발표 자료.html"))
                         .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8), "$.id");
@@ -72,7 +74,7 @@ class AttachmentApiTest extends IntegrationTest {
 
     @Test
     void 다른_평가룸의_자료는_받을_수_없다() throws Exception {
-        String id = com.jayway.jsonpath.JsonPath.read(upload(leader, "a.txt", "x").andReturn().getResponse()
+        String id = JsonPath.read(upload(leader, "a.txt", "x").andReturn().getResponse()
                 .getContentAsString(StandardCharsets.UTF_8), "$.id");
         User stranger = fixtures.user("stranger", null);
         mvc.perform(get("/api/v1/projects/{p}/presentations/{pr}/attachments/{a}", room, pres, id).with(as(stranger)))

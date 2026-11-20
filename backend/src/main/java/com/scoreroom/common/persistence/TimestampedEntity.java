@@ -34,8 +34,4 @@ public abstract class TimestampedEntity<ID> extends PersistableEntity<ID> {
     public Instant getCreatedAt() {
         return createdAt;
     }
-
-    public Instant getUpdatedAt() {
-        return updatedAt;
-    }
 }

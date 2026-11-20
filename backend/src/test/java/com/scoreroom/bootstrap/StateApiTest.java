@@ -20,7 +20,6 @@ class StateApiTest extends IntegrationTest {
 
     private User owner;
     private User rater;
-    private User target;
     private UUID room;
 
     @BeforeEach
@@ -30,7 +29,7 @@ class StateApiTest extends IntegrationTest {
         Team c = fixtures.team("C팀");
         owner = fixtures.user("owner", a);
         rater = fixtures.user("rater", b);
-        target = fixtures.user("target", c);
+        User target = fixtures.user("target", c);
         room = fixtures.room(owner, rater, target);
         UUID pres = fixtures.personal(room, target);
         for (User u : new User[] { owner, rater }) {

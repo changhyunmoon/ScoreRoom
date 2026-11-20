@@ -1,6 +1,7 @@
 package com.scoreroom.invitation;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -57,7 +58,7 @@ class InvitationApiTest extends IntegrationTest {
         }
         assertThat(count("select count(*) from memberships where project_id = ?", room)).isEqualTo(2);
 
-        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/api/v1/projects/{p}/invite", room)
+        mvc.perform(delete("/api/v1/projects/{p}/invite", room)
                 .with(as(owner))).andExpect(status().isNoContent());
         User late = fixtures.user("late", null);
         mvc.perform(json(post("/api/v1/projects/join"), "{\"code\":\"" + code + "\"}").with(as(late)))

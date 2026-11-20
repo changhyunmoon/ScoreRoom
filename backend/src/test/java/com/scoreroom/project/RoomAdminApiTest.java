@@ -37,7 +37,7 @@ class RoomAdminApiTest extends IntegrationTest {
         room = fixtures.room(owner, leader, presenter, member);
     }
 
-    private void rate(User rater, UUID pres, User target, int score) throws Exception {
+    private void rate(User rater, UUID pres, int score) throws Exception {
         mvc.perform(json(put("/api/v1/projects/{p}/presentations/{pr}/rating", room, pres),
                 "{\"score\":" + score + "}").with(as(rater))).andExpect(status().isNoContent());
     }
@@ -45,7 +45,7 @@ class RoomAdminApiTest extends IntegrationTest {
     @Test
     void 점수_범위를_바꾸면_확인한_version이_있어야_하고_모든_평가와_집계_기준을_지운다() throws Exception {
         UUID pres = fixtures.personal(room, leader);
-        rate(owner, pres, leader, 70);
+        rate(owner, pres, 70);
         mvc.perform(json(put("/api/v1/projects/{p}/settings", room), "{\"min\":0,\"max\":100,\"aggMin\":10,\"aggMax\":90}")
                 .with(as(owner))).andExpect(status().isOk()).andExpect(jsonPath("$.removed").value(0));
 
@@ -69,8 +69,8 @@ class RoomAdminApiTest extends IntegrationTest {
         mvc.perform(json(put("/api/v1/projects/{p}/settings", room), "{\"min\":0,\"max\":100,\"allowSameTeam\":true}")
                 .with(as(owner))).andExpect(status().isOk());
         UUID pres = fixtures.personal(room, leader);
-        rate(owner, pres, leader, 70);
-        rate(presenter, pres, leader, 60);
+        rate(owner, pres, 70);
+        rate(presenter, pres, 60);
 
         long version = fixtures.version(room);
         mvc.perform(json(put("/api/v1/projects/{p}/settings", room),
@@ -88,8 +88,8 @@ class RoomAdminApiTest extends IntegrationTest {
                 .with(as(owner))).andExpect(status().isOk());
         UUID solo = fixtures.personal(room, loner);
         UUID shared = fixtures.teamPresentation(room, leader, List.of(presenter), List.of(member));
-        rate(owner, solo, loner, 70);
-        rate(owner, shared, presenter, 80);
+        rate(owner, solo, 70);
+        rate(owner, shared, 80);
 
         mvc.perform(delete("/api/v1/projects/{p}/members/{u}", room, loner.getId()).with(as(owner)))
                 .andExpect(status().isConflict());
@@ -112,7 +112,7 @@ class RoomAdminApiTest extends IntegrationTest {
     @Test
     void 평가_현황은_켜져_있으면_참여자에게_인원_수만_보이고_꺼도_룸_관리자에게는_보인다() throws Exception {
         UUID pres = fixtures.teamPresentation(room, leader, List.of(presenter), List.of());
-        rate(owner, pres, presenter, 80);
+        rate(owner, pres, 80);
 
         // 켜져 있으면 (테스트 평가룸은 켜 둠) 참여자도 사람별 인원 수를 받지만 평균 점수는 받지 않는다
         mvc.perform(get("/api/v1/state").with(as(member)))
@@ -138,7 +138,7 @@ class RoomAdminApiTest extends IntegrationTest {
     @Test
     void 평가_현황_사람_목록은_룸_관리자는_항상_받고_참여자는_설정을_켰을_때만_받는다() throws Exception {
         UUID pres = fixtures.teamPresentation(room, leader, List.of(presenter), List.of());
-        rate(owner, pres, presenter, 80);
+        rate(owner, pres, 80);
         String row = "$.summaries[?(@.presentationId == '" + pres + "')].";
 
         // 룸 관리자: 누가 평가했는지 받는다
@@ -188,7 +188,7 @@ class RoomAdminApiTest extends IntegrationTest {
     @Test
     void 점수를_받은_발표는_구성원을_바꿀_수_없고_역할만_바꾼다() throws Exception {
         UUID shared = fixtures.teamPresentation(room, leader, List.of(presenter), List.of(member));
-        rate(owner, shared, member, 75);
+        rate(owner, shared, 75);
         String addOwner = "{\"title\":\"팀 발표\",\"type\":\"TEAM\",\"leaderId\":\"%s\",\"presenterIds\":[\"%s\"],\"memberIds\":[\"%s\",\"%s\"]}"
                 .formatted(leader.getId(), presenter.getId(), member.getId(), owner.getId());
         mvc.perform(json(put("/api/v1/projects/{p}/presentations/{pr}", room, shared), addOwner).with(as(leader)))
@@ -240,7 +240,7 @@ class RoomAdminApiTest extends IntegrationTest {
         mvc.perform(json(put("/api/v1/projects/{p}/presentations/{pr}", room, shared), rename).with(as(member)))
                 .andExpect(status().isOk());
         // 점수를 받으면 구성원은 지울 수 없고 관리자만 지운다
-        rate(owner, shared, member, 75);
+        rate(owner, shared, 75);
         mvc.perform(delete("/api/v1/projects/{p}/presentations/{pr}", room, shared).with(as(member)))
                 .andExpect(status().isForbidden());
         mvc.perform(delete("/api/v1/projects/{p}/presentations/{pr}", room, shared).with(as(owner)))

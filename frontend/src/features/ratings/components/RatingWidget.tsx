@@ -2,19 +2,14 @@
 import { useEffect, useState } from 'react';
 import { Icon } from '../../../shared/icons/Icon';
 import { timeText } from '../../../shared/lib/format';
-import { Chip, ConfirmButton, IconText, run } from '../../../shared/ui';
+import { ConfirmButton, IconText, run } from '../../../shared/ui';
 import { userName } from '../../organization';
 import { crewOf, roleClass, roleText, type Presentation } from '../../presentations';
 import type { Project } from '../../projects';
 import { mutate, useSession } from '../../session';
 import { deleteRating, submitRating } from '../api/ratings.api';
-import { blockReason, blockText, myRating, statusMeta, type MyStatus } from '../model/eligibility';
+import { blockReason, blockText, myRating } from '../model/eligibility';
 import { MAX_FEEDBACK_LENGTH } from '../model/types';
-
-export function StatusBadge({ s }: { s: MyStatus }) {
-  const m = statusMeta[s];
-  return <Chip tone={m.tone} icon={m.icon}>{m.label}</Chip>;
-}
 
 /** 이 발표의 구성원 (팀 발표면 대표·팀원 모두). 점수는 발표에 한 번 준다 */
 function CrewLine({ pres }: { pres: Presentation }) {
@@ -62,7 +57,7 @@ export function RatingWidget({ project, pres }: { project: Project; pres: Presen
           {mine.feedback && <p className="pr-feedback">{mine.feedback}</p>}
         </div>
         {!closed && !block && (allowEdit
-          ? <div className="row gap-sm">
+          ? <div className="row gap-sm pr-actions">
               <button className="btn sm" onClick={() => setEditing(true)}><IconText icon="pencil">수정</IconText></button>
               <ConfirmButton className="btn sm danger" label="삭제" confirmLabel="삭제"
                 detail="이 발표에 준 점수와 피드백을 지워요. 지운 뒤 다시 제출할 수 있어요."

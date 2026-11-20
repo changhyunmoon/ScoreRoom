@@ -47,9 +47,9 @@ class AuthApiTest extends IntegrationTest {
         assertThat(session.isHttpOnly()).isTrue();
         assertThat(session.getSecure()).isTrue();
 
-        mvc.perform(get("/api/v1/me").cookie(session)).andExpect(status().isOk());
+        mvc.perform(get("/api/v1/state").cookie(session)).andExpect(status().isOk());
         mvc.perform(post("/api/v1/auth/logout").cookie(session).with(csrf())).andExpect(status().isNoContent());
-        mvc.perform(get("/api/v1/me").cookie(session))
+        mvc.perform(get("/api/v1/state").cookie(session))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("UNAUTHENTICATED"));
     }
@@ -112,8 +112,8 @@ class AuthApiTest extends IntegrationTest {
                 + TestFixtures.PASSWORD + "\",\"newPassword\":\"new-password1\"}";
         mvc.perform(json(put("/api/v1/me"), body).cookie(here).with(csrf())).andExpect(status().isNoContent());
 
-        mvc.perform(get("/api/v1/me").cookie(here)).andExpect(status().isUnauthorized());
-        mvc.perform(get("/api/v1/me").cookie(other)).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/v1/state").cookie(here)).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/v1/state").cookie(other)).andExpect(status().isUnauthorized());
         mvc.perform(json(post("/api/v1/auth/login"), "{\"loginId\":\"kim@example.com\",\"password\":\"new-password1\"}")
                 .with(csrf())).andExpect(status().isOk());
         assertThat(count("select count(*) from system_logs where action = 'PASSWORD_CHANGED'")).isEqualTo(1);

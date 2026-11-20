@@ -3,7 +3,6 @@ import type { Attachment } from '../../attachments';
 
 /** 발표 유형: 개인 / 팀 */
 export type PresType = 'PERSONAL' | 'TEAM';
-export type PresRole = 'PRESENTER' | 'MEMBER';
 
 /**
  * 발표 구성원

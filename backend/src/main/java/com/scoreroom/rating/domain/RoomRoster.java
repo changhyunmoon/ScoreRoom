@@ -38,10 +38,6 @@ public final class RoomRoster {
                         .add(pm.getUserId()));
     }
 
-    public List<Membership> members() {
-        return members;
-    }
-
     /**
      * 집계에서 평가자로 세는 사람. 관리자 평가를 껐거나 룸 관리자가 준 점수를 미포함하면 룸 관리자는 빠진다
      * (인원·평가함·평균 모두에서 빠지고, 점수 자체는 지워지지 않는다)
